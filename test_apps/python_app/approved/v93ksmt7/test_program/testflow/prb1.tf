@@ -1837,6 +1837,7 @@ test_flow
        @G200_864CE8F_FAILED = -1;
        @G100_864CE8F_RAN = -1;
        @DEEP_TEST_864CE8F_FAILED = -1;
+       @DEEP_TEST_1_864CE8F_FAILED = -1;
     }, open,"Init Flow Control Vars", ""
     {
        run_and_branch(program_ckbd_864CE8F)
@@ -2410,7 +2411,21 @@ test_flow
     }, open,"test", ""
     if @DEEP_TEST_864CE8F_FAILED == 1 then
     {
-       run(on_deep_1);
+       run_and_branch(on_deep_1)
+       then
+       {
+       }
+       else
+       {
+          @DEEP_TEST_1_864CE8F_FAILED = 1;
+       }
+    }
+    else
+    {
+    }
+    if @DEEP_TEST_1_864CE8F_FAILED == 1 then
+    {
+       multi_bin;
     }
     else
     {
