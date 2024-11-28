@@ -3,7 +3,7 @@ name = "origen_metal"
 #*****************************************************
 # Also update the version in  the [project] section below!!!!!
 #*****************************************************
-version = "0.4.1-dev4"
+version = "1.0.0"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
@@ -22,7 +22,7 @@ importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
 [project]
 name = "origen-metal"
-version = "0.4.1-dev4"
+version = "1.0.0"
 requires-python = ">=3.7.0,<3.13"
 dependencies = [
     "colorama (>=0.4.4)",
