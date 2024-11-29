@@ -91,8 +91,8 @@ jobs:
       options: --user root
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-      ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION: "node16"
-      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: "node16"
+      ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION: "node12"
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: "node12"
     steps:
       - name: Show Env
         run: |
@@ -101,7 +101,7 @@ jobs:
           env
           echo "HOME=/root" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
           
       - name: Install Rust
         run: |
