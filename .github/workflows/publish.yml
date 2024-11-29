@@ -89,6 +89,8 @@ jobs:
     container:
       image: quay.io/pypa/manylinux2014_x86_64
       options: --user root
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
     steps:
       - name: Show Env
         run: |
