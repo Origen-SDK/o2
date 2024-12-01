@@ -19,12 +19,7 @@ jobs:
           image: quay.io/pypa/manylinux2014_x86_64
           options: --user root
           run: |
-            pwd
-            echo "ROOT_DIR=$PWD" >> $GITHUB_ENV
-            env
-            echo "HOME=/root" >> $GITHUB_ENV
             curl https://sh.rustup.rs -sSf | sh -s -- -y
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
             rustup install ${{ fromJSON(vars.RUST_VERSION) }}
             rustup default ${{ fromJSON(vars.RUST_VERSION) }}
             rustc --version
