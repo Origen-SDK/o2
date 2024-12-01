@@ -27,3 +27,5 @@ jobs:
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
             rustup install ${{ fromJSON(vars.RUST_VERSION) }}
             rustup default ${{ fromJSON(vars.RUST_VERSION) }}
+            rustc --version
+            cargo --version
