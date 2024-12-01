@@ -20,6 +20,7 @@ jobs:
           options: --user root
           run: |
             curl https://sh.rustup.rs -sSf | sh -s -- -y
+            source $HOME/.cargo/env
             rustup install ${{ fromJSON(vars.RUST_VERSION) }}
             rustup default ${{ fromJSON(vars.RUST_VERSION) }}
             rustc --version
