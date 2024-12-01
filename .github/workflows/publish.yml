@@ -17,49 +17,11 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: quay.io/pypa/manylinux2014_x86_64
-          options: --user root
+          options: |
+            --user root
+            --volume ${{ github.workspace }}:/tmp/o2
+            --env RUST_VERSION=${{ fromJSON(vars.RUST_VERSION) }}
+            --env PYTHON_VERSION=${{ matrix.python-version }}
           run: |
-            echo "========================================"
-            echo "=====         Install Rust         ====="
-            echo "========================================"
-            curl https://sh.rustup.rs -sSf | sh -s -- -y
-            source $HOME/.cargo/env
-            echo "========================================"
-            echo "=====       Set Rust Version       ====="
-            echo "========================================"
-            rustup install ${{ fromJSON(vars.RUST_VERSION) }}
-            rustup default ${{ fromJSON(vars.RUST_VERSION) }}
-            echo "========================================"
-            echo "=====      Check Rust Version      ====="
-            echo "========================================"
-            rustc --version
-            cargo --version
-            echo "========================================"
-            echo "=====    Install Newer OpenSSL     ====="
-            echo "========================================"
-            curl -O -L https://www.openssl.org/source/openssl-1.1.1w.tar.gz
-            ls -al openssl-1.1.1w.tar.gz
-            tar zxf openssl-1.1.1w.tar.gz
-            cd openssl-1.1.1w
-            ./config
-            make
-            make install
-            echo "========================================"
-            echo "=====        Install libffi        ====="
-            echo "========================================"
-            yum install libffi-devel -y
-            ldconfig
-            echo "========================================"
-            echo "=====        Install libffi        ====="
-            echo "========================================"
-            yum install perl-IPC-Cmd -y
-            echo "========================================"
-            echo "=====        Install Python        ====="
-            echo "========================================"
-            ls $ROOT_DIR/openssl-1.1.1w
-            curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-${{ matrix.python-version }}.tgz
-            tar zxf Python-${{ matrix.python-version }}.tgz
-            cd Python-${{ matrix.python-version }}
-            ./configure --with-openssl=$ROOT_DIR/openssl-1.1.1w --prefix=/root/python --enable-optimizations --enable-shared
-            make altinstall
-
+            source /tmp/o2/.github/workflows/setup_manylinux.sh
+            
