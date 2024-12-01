@@ -130,3 +130,39 @@ echo "========================================"
 pip install setuptools
 pip install auditwheel
 auditwheel --version
+
+echo "========================================"
+echo "===Build Origen Metal Python Package===="
+echo "========================================"
+cd ${GIT_DIR}/python/origen_metal
+poetry build --format wheel
+
+echo "========================================"
+echo "=====   Display OM Dist Directory  ====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen_metal
+ls dist
+
+echo "========================================"
+echo "=====        Repair OM Wheel       ====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen_metal
+auditwheel show dist/*
+auditwheel repair dist/*
+
+echo "========================================"
+echo "====Display OM Wheelhouse Directory====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen_metal
+ls wheelhouse
+OM_WHEEL=$( ls wheelhouse | head -1 )
+
+echo "========================================"
+echo "=====     Display OM Wheel Name    ====="
+echo "========================================"
+echo $OM_WHEEL
+
+
+echo $OM_VER_FILE
+echo $ORIGEN_VER_FILE
+
