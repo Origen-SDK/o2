@@ -19,9 +19,20 @@ jobs:
           image: quay.io/pypa/manylinux2014_x86_64
           options: --user root
           run: |
+            echo "=====Install Rust====="
             curl https://sh.rustup.rs -sSf | sh -s -- -y
             source $HOME/.cargo/env
+            echo "=====Set Rust Version====="
             rustup install ${{ fromJSON(vars.RUST_VERSION) }}
             rustup default ${{ fromJSON(vars.RUST_VERSION) }}
+            echo "=====Check Rust Version====="
             rustc --version
             cargo --version
+            echo "=====Install Newer OpenSSL====="
+            curl -O -L https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+            ls -al openssl-1.1.1w.tar.gz
+            tar zxf openssl-1.1.1w.tar.gz
+            cd openssl-1.1.1w
+            ./config
+            make
+            make install
