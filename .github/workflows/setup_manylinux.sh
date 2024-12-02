@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export GITHUB_WORKFLOW='Publish Packages'
+
 echo -e "\nInstall Rust"
 echo "========================================"
 curl https://sh.rustup.rs -sSf | sh -s -- -y
