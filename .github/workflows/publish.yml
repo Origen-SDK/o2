@@ -1,5 +1,5 @@
 name: Publish Packages
-on: 
+on:
   workflow_dispatch:
     inputs:
       origen_metal_python_package:
@@ -52,6 +52,10 @@ on:
         options:
           - true
           - false
+      # id:
+      #   description: Set the run ID to a known value
+      #   required: false
+      #   type: number
 env:
   om_ver_file: om_version
   origen_ver_file: origen_version
@@ -74,7 +78,7 @@ jobs:
         with:
           script: |
             core.setFailed('Found existing publish workflow: ${{ steps.query-concurrency.outputs.skipped_by.htmlUrl }}')
-            
+
   build_manylinux:
     strategy:
       fail-fast: false
@@ -326,3 +330,180 @@ jobs:
         with:
           name: cli
           path: python\origen\origen\__bin__\bin\origen.exe
+
+  publish_to_pypi_test:
+    needs: [build_manylinux, build_windows]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+    steps:
+      - name: Retrieve Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: om_wheels
+          path: om_wheels
+
+      - name: List OM Wheels
+        run: ls -al ./om_wheels
+
+      - name: Push To PyPi Test Server
+        if: ${{ github.event.inputs.origen_metal_python_package == 'true' }}
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: om_wheels
+          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN_OM }}
+          repository-url: https://test.pypi.org/legacy/
+          verify-metadata: false
+          verbose: true
+
+      - name: Retrieve Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: origen_wheels
+          path: origen_wheels
+
+      - name: List Origen Wheels
+        run: ls -al ./origen_wheels
+
+      - name: Push To PyPi Test Server
+        if: ${{ github.event.inputs.origen_python_package == 'true' }}
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: origen_wheels
+          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          verify-metadata: false
+          verbose: true
+
+  publish_to_pypi:
+    needs: [build_manylinux, build_windows]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.publish_pypi == 'true' }}
+    steps:
+      - name: Retrieve Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: om_wheels
+          path: om_wheels
+
+      - name: List OM Wheels
+        run: ls -al ./om_wheels
+
+      - name: Push To PyPi Server
+        if: ${{ github.event.inputs.origen_metal_python_package == 'true' }}
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: om_wheels
+          password: ${{ secrets.PYPI_OM_API_TOKEN }}
+          verify-metadata: false
+          verbose: true
+
+      - name: Retrieve Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: origen_wheels
+          path: origen_wheels
+
+      - name: List Origen Wheels
+        run: ls -al ./origen_wheels
+
+      - name: Push To PyPi Server
+        if: ${{ github.event.inputs.origen_python_package == 'true' }}
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: origen_wheels
+          password: ${{ secrets.PYPI_ORIGEN_API_TOKEN }}
+          verify-metadata: false
+          verbose: true
+
+  publish_github_release:
+    needs: [build_manylinux, build_windows]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.publish_github_release == 'true' }}
+    steps:
+        - uses: actions/checkout@v2
+            
+        - uses: actions/download-artifact@v3
+          with:
+            name: om_wheels
+            path: origen_metal
+
+        - uses: actions/download-artifact@v3
+          with:
+            name: origen_wheels
+            path: origen
+
+        - name: Check wheels directories
+          run: |
+            ls -al ./origen_metal
+            ls -al ./origen
+
+        - uses: actions/download-artifact@v3
+          with:
+            name: cli
+            path: cli
+
+        - name: Show downloaded artifact directories
+          run: |
+            ls -al ./origen_metal
+            ls -al ./origen
+            ls -al ./cli
+
+        - uses: actions/download-artifact@v3
+          with:
+            name: ${{ env.om_ver_file }}
+
+        - uses: actions/download-artifact@v3
+          with:
+            name: ${{ env.origen_ver_file }}
+
+        - uses: vimtor/action-zip@v1.1
+          with:
+            files: origen_metal
+            dest: origen_metal.zip
+
+        - uses: vimtor/action-zip@v1.1
+          with:
+            files: origen
+            dest: origen.zip
+
+        - uses: vimtor/action-zip@v1.1
+          with:
+            files: cli
+            dest: cli.zip
+
+        - name: Get OM/Origen Versions
+          run: |
+            ls -al
+            cat ./${{ env.om_ver_file }}
+            cat ./${{ env.origen_ver_file }}
+            echo "om_version=$(cat ./${{ env.om_ver_file }})" >> $GITHUB_ENV
+            echo "origen_version=$(cat ./${{ env.origen_ver_file }})" >> $GITHUB_ENV
+
+        - name: Show Versions
+          run: |
+            echo ${{ env.om_version }}
+            echo ${{ env.origen_version }}
+
+        - name: Figure Out Tag
+          run: |
+            echo "tag=commit-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+        - name: Display Tag
+          run: echo ${{ env.tag }}
+
+        - name: Generate Github Release
+          uses: ncipollo/release-action@v1
+          with:
+            artifacts: ./origen_metal.zip, ./origen.zip, cli.zip
+            artifactErrorsFailBuild: true
+            prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+            commit: ${{ github.sha }}
+            tag: ${{ env.tag }}
+  cleanup:
+    needs: [precheck, build_manylinux, build_windows, publish_to_pypi_test, publish_to_pypi, publish_github_release, show_wheels]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - run: |
+          echo "Begin Clean Up..."
+          echo "No Clean Up Tasks!"
