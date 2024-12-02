@@ -13,6 +13,7 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+        
       - name: Run Docker container
         uses: addnab/docker-run-action@v3
         with:
@@ -27,4 +28,83 @@ jobs:
             --env PYTHON_VERSION=${{ matrix.python-version }}
           run: |
             source /tmp/o2/.github/workflows/setup_manylinux.sh
-            
+
+      - name: Display OM Wheelhouse Directory
+        working-directory: python/origen_metal
+        run: |
+          ls wheelhouse
+          echo "OM_WHEEL=$( ls wheelhouse | head -1 )" >> $GITHUB_ENV
+
+      - name: Display OM Wheel Name
+        run: |
+          echo ${{ env.OM_WHEEL }}
+
+      - name: Upload Origen Metal Python Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: om_wheels
+          path: python/origen_metal/wheelhouse/${{ env.OM_WHEEL }}
+
+      - name: Upload OM Python Package Version
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.om_ver_file }}
+          path: python/origen_metal/${{ env.om_ver_file }}
+
+      - name: Display Origen Wheelhouse Directory
+        working-directory: python/origen
+        run: |
+          ls wheelhouse
+          echo "ORIGEN_WHEEL=$( ls wheelhouse | head -1 )" >> $GITHUB_ENV
+
+      - name: Display Origen Wheelhouse Directory
+        run: |
+          ls -al python/origen/origen/__bin__/bin
+          ls -al rust/pyapi/target/release
+          echo ${{ env.ORIGEN_WHEEL }}
+
+      - name: Upload Origen Python Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: origen_wheels
+          path: python/origen/wheelhouse/${{ env.ORIGEN_WHEEL }}
+
+      - name: Upload Origen Python Package Version
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.origen_ver_file }}
+          path: python/origen/${{ env.origen_ver_file }}
+
+      - name: Upload CLI as a standalone entity
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: python/origen/origen/__bin__/bin/origen
+
+  show_wheels:
+    needs: build_manylinux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve OM Wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: om_wheels
+          path: om_wheels
+
+      - name: List OM Wheels
+        run: ls -al ./om_wheels
+
+      - name: Retrieve Origen Wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: origen_wheels
+          path: origen_wheels
+
+      - name: List Origen Wheels
+        run: ls -al ./origen_wheels
+
+      - name: Upload CLI as a standalone entity
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: python\origen\origen\__bin__\bin\origen.exe
