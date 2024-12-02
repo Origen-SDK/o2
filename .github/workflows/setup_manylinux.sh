@@ -162,7 +162,50 @@ echo "=====     Display OM Wheel Name    ====="
 echo "========================================"
 echo $OM_WHEEL
 
+echo "========================================"
+echo "===== Get OM Python Package Version====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen_metal
+poetry version -s > $OM_VER_FILE
 
-echo $OM_VER_FILE
-echo $ORIGEN_VER_FILE
+echo "========================================"
+echo "=====  Build Origen Python Package ====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen
+poetry build --format wheel
+
+echo "========================================"
+echo "===== Display Origen Dist Directory====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen
+ls dist
+
+echo "========================================"
+echo "=====      Repair Origen Wheel     ====="
+echo "========================================"
+cd ${GIT_DIR}/python/origen
+auditwheel show dist/*
+auditwheel repair dist/*
+
+echo "========================================"
+echo "==Display Origen Wheelhouse Directory==="
+echo "========================================"
+cd ${GIT_DIR}/python/origen
+ls wheelhouse
+ORIGEN_WHEEL=$( ls wheelhouse | head -1 )
+
+echo "========================================"
+echo "==Display Origen Wheelhouse Directory==="
+echo "========================================"
+cd ${GIT_DIR}
+ls -al python/origen/origen/__bin__/bin
+ls -al rust/pyapi/target/release
+echo $ORIGEN_WHEEL
+
+echo "========================================"
+echo "===Get Origen Python Package Version===="
+echo "========================================"
+cd ${GIT_DIR}/python/origen
+poetry version -s > $ORIGEN_VER_FILE
+
 
