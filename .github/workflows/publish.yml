@@ -21,6 +21,7 @@ jobs:
           options: |
             --user root
             --volume ${{ github.workspace }}:/tmp/o2
+            --env GITHUB_WORKFLOW="Publish Packages"
             --env GIT_DIR=/tmp/o2
             --env OM_VER_FILE=${{ env.om_ver_file }}
             --env ORIGEN_VER_FILE=${{ env.origen_ver_file }}
