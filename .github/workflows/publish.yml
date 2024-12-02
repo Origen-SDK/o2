@@ -90,7 +90,7 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
         
-      - name: Run Docker container
+      - name: Run Build Script in Docker container
         uses: addnab/docker-run-action@v3
         with:
           image: quay.io/pypa/manylinux2014_x86_64
@@ -103,7 +103,7 @@ jobs:
             --env RUST_VERSION=${{ fromJSON(vars.RUST_VERSION) }}
             --env PYTHON_VERSION=${{ matrix.python-version }}
           run: |
-            source /tmp/o2/.github/workflows/setup_manylinux.sh
+            source /tmp/o2/.github/workflows/build_manylinux.sh
 
       - name: Display OM Wheelhouse Directory
         working-directory: python/origen_metal
