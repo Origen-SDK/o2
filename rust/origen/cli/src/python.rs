@@ -339,6 +339,37 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     Ok(cmd.status()?)
 }
 
+/// Macro to create a Python command
+#[macro_export]
+macro_rules! python_cmd {
+    ($code:expr) => {{
+        let mut cmd = PYTHON_CONFIG.run_cmd($code);
+        if let Ok(p) = std::env::current_exe() {
+            cmd.arg(&format!("origen_cli={}", p.display()));
+        };
+        cmd.arg(&format!("origen_cli_version={}", built_info::PKG_VERSION));
+        add_origen_env(&mut cmd);
+        log_trace!("Running Python command: '{:?}'", cmd);
+        cmd
+    }};
+}
+
+/// Execute the given Python code and capture its stdout
+pub fn run_and_capture_stdout(code: &str) -> Result<String> {
+    let mut cmd = python_cmd!(code);
+    cmd.stdout(Stdio::piped());
+
+    let output = cmd.output()?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        bail!(
+            "Something went wrong running the operation '{}', the log may have more details",
+            code
+        )
+    }
+}
+
 /// Run silently with all STDOUT and STDERR handled by the given callback functions
 pub fn run_with_callbacks(
     code: &str,
@@ -395,6 +426,34 @@ pub fn add_origen_env(cmd: &mut Command) {
 
 pub fn is_backend_origen_mod_missing_err(err: &origen::Error) -> bool {
     err.to_string().contains("ModuleNotFoundError: No module named '_origen'")
+}
+
+/// Attempts to get the username and email, utilizing the full Origen environment (site config, etc.)
+pub fn get_current_user_and_email() -> Result<(String, String, String)> {
+    let out = run_and_capture_stdout("import origen; print('--user start--'); print(origen.current_user.first_name); print(origen.current_user.last_name); print(origen.current_user.email)")?;
+    let split = out.split_once("--user start--");
+    if let Some(s) = split {
+        let mut info = s.1.trim().split("\n");
+        let (fnm, lnm, email): (String, String, String);
+        if let Some(i) = info.next() {
+            fnm = i.trim().to_string();
+        } else {
+            bail!("Expected a first name when retrieving user info");
+        }
+        if let Some(i) = info.next() {
+            lnm = i.trim().to_string();
+        } else {
+            bail!("Expected a last name when retrieving user info");
+        }
+        if let Some(i) = info.next() {
+            email = i.trim().to_string();
+        } else {
+            bail!("Expected an email name when retrieving user info");
+        }
+        Ok((fnm, lnm, email))
+    } else {
+        bail!("Unable to find '--user start--' when retrieving user information");
+    }
 }
 
 #[cfg(test)]

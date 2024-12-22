@@ -3,14 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to {{app_name}}'s documentation!
+Welcome to {{name}}'s documentation!
 ===================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   interbuild/autoapi/{{app_name}}.application/{{app_name}}.application
+   interbuild/autoapi/{{name}}.application/{{name}}.application
 
 For information on how to build documentation with Origen, see :link-to:`the documentation guides <origen~guides:documenting>`.
 

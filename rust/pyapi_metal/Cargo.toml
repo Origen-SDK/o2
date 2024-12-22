@@ -1,6 +1,6 @@
 [package]
 name = "origen-metal"
-version = "0.4.1-dev4"
+version = "0.4.1-dev5"
 edition = "2021"
 authors = ["Origen-SDK"]
 
@@ -19,7 +19,7 @@ num-bigint = "0.4.0"
 libz-sys = { version = "1.0.25", features = ["static"] }
 curl-sys = { version = "0.4.34", features = ["static-curl"] }
 
-#[target.x86_64-unknown-linux-gnu.dependencies]
+[target.x86_64-unknown-linux-gnu.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]

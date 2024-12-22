@@ -441,6 +441,7 @@ impl SessionConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct User {
     // All user data is stored behind a RW lock so that it can be lazily loaded
     // from the environment and cached behind the scenes

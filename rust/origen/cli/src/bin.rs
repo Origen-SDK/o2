@@ -21,6 +21,7 @@ use framework::{
     add_verbosity_opts,
 };
 use clap::error::ErrorKind as ClapErrorKind;
+use std::sync::OnceLock;
 
 use VERBOSITY_OPT_NAME as V_OPT_NAME;
 use VERBOSITY_KEYWORDS_OPT_NAME as VKS_OPT_NAME;
@@ -35,6 +36,15 @@ use VERBOSITY_KEYWORDS_OPT_NAME as VKS_OPT_NAME;
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+static ORIGEN_FE_AVAILABLE: OnceLock<bool> = OnceLock::new();
+
+#[macro_export]
+macro_rules! origen_fe_available {
+    () => {{
+        *crate::ORIGEN_FE_AVAILABLE.get().unwrap_or(&false) == true
+    }}
 }
 
 // This is the entry point for the Origen CLI tool
@@ -226,8 +236,16 @@ fn main() -> Result<()> {
     let app_cmds: Option<AppCmds>;
     let mut extensions = Extensions::new();
     let plugins = match Plugins::new(&mut extensions) {
-        Ok(pl) => pl,
+        Ok(pl) => {
+            if ORIGEN_FE_AVAILABLE.set(true).is_err() {
+                bail!("Could not set ORIGEN_BACKEND_AVAILABLE");
+            }
+            pl
+        },
         Err(e) => {
+            if ORIGEN_FE_AVAILABLE.set(false).is_err() {
+                bail!("Could not set ORIGEN_BACKEND_AVAILABLE");
+            }
             if python::is_backend_origen_mod_missing_err(&e) {
                 // _origen is available but plugins failed to load
                 log_error!("Failed to collect plugins. Encountered error: {}", e);

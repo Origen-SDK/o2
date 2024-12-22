@@ -2,7 +2,6 @@ use origen::{Result, ORIGEN_CONFIG};
 use crate::python;
 use std::path::PathBuf;
 use indexmap::IndexMap;
-use std::fs;
 use crate::commands::_prelude::*;
 use super::{ClapCommand, Command, CommandsToml, CommandTOML, Extensions, build_path};
 use super::helps::NOT_EXTENDABLE_MSG;
@@ -64,7 +63,7 @@ impl Plugins {
                                             slf.plugins.insert(name.to_string(), pl);
                                         },
                                         Err(e) => {
-                                            log_trace!("Error collecting plugins: Unable to collect plugin {}: {}", path, e);
+                                            log_error!("Error collecting plugins: Unable to collect plugin {}: {}", path, e);
                                         }
                                     }
                                 } else {
@@ -123,40 +122,37 @@ impl Plugin {
             commands: IndexMap::new(),
         };
 
-        let commands_toml = slf.root.join("commands.toml");
+        use origen_metal::_utility::file_utils::preprocess_as_template;
+        let commands_toml = slf.root.join("commands.toml*");
+        let contents = preprocess_as_template(&commands_toml)?;
+        match contents {
+            Some(content) => {
+                let command_config: CommandsToml = match toml::from_str(&content) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        bail!("Malformed commands.toml: {}", e);
+                    }
+                };
 
-        if commands_toml.exists() {
-            let content = match fs::read_to_string(&commands_toml) {
-                Ok(x) => x,
-                Err(e) => {
-                    bail!("{}", e);
-                }
-            };
-
-            let command_config: CommandsToml = match toml::from_str(&content) {
-                Ok(x) => x,
-                Err(e) => {
-                    bail!("Malformed commands.toml: {}", e);
-                }
-            };
-
-            if let Some(commands) = command_config.command {
-                for mut cmd in commands {
-                    if Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd, None)? {
-                        slf.top_commands.push(cmd.name.to_owned());
+                if let Some(commands) = command_config.command {
+                    for mut cmd in commands {
+                        if Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd, None)? {
+                            slf.top_commands.push(cmd.name.to_owned());
+                        }
                     }
                 }
-            }
 
-            if let Some(extensions) = command_config.extension {
-                for ext in extensions {
-                    match exts.add_from_pl_toml(&slf, ext) {
-                        Ok(_) => {},
-                        Err(e) => log_error!("Failed to add extensions from plugin '{}': {}", slf.name, e)
+                if let Some(extensions) = command_config.extension {
+                    for ext in extensions {
+                        match exts.add_from_pl_toml(&slf, ext) {
+                            Ok(_) => {},
+                            Err(e) => log_error!("Failed to add extensions from plugin '{}': {}", slf.name, e)
+                        }
                     }
                 }
-            }
-        }
+            },
+            None => log_trace!("No commands.toml file found in plugin '{}'", name),
+        };
 
         Ok(slf)
     }

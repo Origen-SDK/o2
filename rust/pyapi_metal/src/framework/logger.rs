@@ -14,12 +14,15 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(warning))?;
     subm.add_wrapped(wrap_pyfunction!(display))?;
     subm.add_wrapped(wrap_pyfunction!(log))?;
+    subm.add_wrapped(wrap_pyfunction!(log_prefix))?;
     subm.add_wrapped(wrap_pyfunction!(trace))?;
     subm.add_wrapped(wrap_pyfunction!(output_file))?;
     subm.add_wrapped(wrap_pyfunction!(set_verbosity))?;
     subm.add_wrapped(wrap_pyfunction!(set_verbosity_keywords))?;
     subm.add_wrapped(wrap_pyfunction!(get_verbosity))?;
     subm.add_wrapped(wrap_pyfunction!(get_keywords))?;
+    subm.add_wrapped(wrap_pyfunction!(add_custom_prefix))?;
+    subm.add_wrapped(wrap_pyfunction!(get_custom_prefixes))?;
     subm.add_class::<Logger>()?;
     m.add_submodule(subm)?;
     Ok(())
@@ -101,6 +104,13 @@ fn trace(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<
 }
 
 #[pyfunction]
+#[pyo3(signature=(prefix, *messages, **_kwargs))]
+fn log_prefix(_py: Python, prefix: String, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.log_prefix_block(&prefix, &pytuple_to_vector_str!(messages))?;
+    Ok(())
+}
+
+#[pyfunction]
 fn output_file(_py: Python) -> PyResult<String> {
     Ok(LOGGER.output_file().to_string_lossy().to_string())
 }
@@ -125,6 +135,27 @@ fn get_verbosity() -> PyResult<u8> {
 #[pyfunction]
 fn get_keywords() -> PyResult<Vec<String>> {
     Ok(LOGGER.keywords())
+}
+
+#[pyfunction]
+fn add_custom_prefix(name: &str, prefix: Option<String>, level: Option<u8>) -> PyResult<()> {
+    LOGGER.add_custom_prefix(name, prefix, level)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn get_custom_prefixes(py: Python) -> PyResult<&PyDict> {
+    let retn = PyDict::new(py);
+    LOGGER.with_custom_prefixes( |prefixes| {
+        for (n, p) in prefixes {
+            let py_p = PyDict::new(py);
+            py_p.set_item("prefix", p.prefix.clone())?;
+            py_p.set_item("level", p.level)?;
+            retn.set_item(n, py_p)?;
+        }
+        Ok(())
+    })?;
+    Ok(retn)
 }
 
 /// Class-like wrapper for Logger
@@ -177,6 +208,11 @@ impl Logger {
     #[pyo3(signature=(*messages, **kwargs))]
     fn log(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         log(py, messages, kwargs)
+    }
+
+    #[pyo3(signature=(prefix, *messages, **kwargs))]
+    fn log_prefix(&self, py: Python, prefix: String, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
+        log_prefix(py, prefix, messages, kwargs)
     }
 
     #[pyo3(signature=(*messages, **kwargs))]

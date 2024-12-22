@@ -1,4 +1,4 @@
-name = "{{app_name}}"
+name = "{{name}}"
 # Define a default target/environment that will be used by a new workspace
 #target = ["dut/falcon", "tester/v93k"]
 # To make your application workspace run in production mode by default
