@@ -38,7 +38,6 @@ Jinja2 = "^3"
 importlib-metadata = ">= 1.7.0" # For use with Python pre-3.8
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2.4"
 origen_metal = { path = "../origen_metal", develop = true }
 
 [build-system]
