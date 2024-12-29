@@ -62,6 +62,10 @@ impl ParamStr {
         }
     }
 
+    pub fn set_allows_non_defaults(&mut self, new_allows_non_defaults: bool) -> PyResult<()> {
+        Ok(self.om.set_allows_non_defaults(new_allows_non_defaults)?)
+    }
+
     #[getter]
     pub fn defaults<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
         if let Some(defs) = self.om.defaults() {
@@ -75,8 +79,38 @@ impl ParamStr {
         }
     }
 
+    pub fn add_default(&mut self, name: String, value: &PyAny) -> PyResult<bool> {
+        Ok(self.om.add_default(name, Self::extract_param_value(value)?)?)
+    }
+
+    pub fn add_defaults(&mut self, to_add: &PyDict) -> PyResult<Vec<bool>> {
+        Ok(self.om.add_defaults(Self::extract_defaults(to_add)?)?)
+    }
+
+    pub fn remove_default(&mut self, to_remove: &str) -> PyResult<Option<Vec<String>>> {
+        Ok(self.om.remove_default(to_remove)?)
+    }
+
+    pub fn remove_defaults(&mut self, to_remove: Vec<String>) -> PyResult<Vec<Option<Vec<String>>>> {
+        Ok(self.om.remove_defaults(&to_remove)?)
+    }
+
     pub fn parse(mut slf: PyRefMut<Self>, input: String) -> PyResult<PyRefMut<Self>> {
         slf.om.parse(input)?;
+        Ok(slf)
+    }
+
+    /// If the ParamStr fails to parse, returns the exception instead of raising one.
+    /// Non-ParamStr parse exceptions will still be raised (such is missing the input argument)
+    pub fn try_parse<'py>(mut slf: PyRefMut<Self>, py: Python<'py>, input: String) -> PyResult<PyObject> {
+        Ok(match slf.om.parse(input) {
+            Ok(_) => slf.into_py(py),
+            Err(e) => runtime_exception!(e.msg).to_object(py)
+        })
+    }
+
+    pub fn clear(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
+        slf.om.clear()?;
         Ok(slf)
     }
 
@@ -90,9 +124,17 @@ impl ParamStr {
         Ok(self.om.leading()?.to_owned())
     }
 
+    pub fn set_leading(&mut self, new_leading: Option<String>) -> PyResult<bool> {
+        Ok(self.om.set_leading(new_leading)?)
+    }
+
     #[getter]
     pub fn allows_leading_str(&self) -> PyResult<bool> {
         Ok(self.om.allows_leading_str())
+    }
+
+    pub fn set_allows_leading_str(&mut self, new_leading: bool) -> PyResult<()> {
+        Ok(self.om.set_allows_leading_str(new_leading)?)
     }
 
     fn to_str(&self) -> PyResult<String> {
@@ -137,7 +179,7 @@ impl ParamStr {
 
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<ParamStrIter> {
         Ok(ParamStrIter {
-            keys: slf.keys().unwrap(),
+            keys: slf.keys()?,
             i: 0,
         })
     }
@@ -154,6 +196,24 @@ impl ParamStr {
             _ => Ok(py.NotImplemented()),
         })
     }
+
+    fn dup(&self) -> PyResult<Self> {
+        Ok(Self {
+            om: self.om.clone()
+        })
+    }
+
+    fn duplicate(&self) -> PyResult<Self> {
+        self.dup()
+    }
+
+    fn set_param(&mut self, param: String, value: &PyAny) -> PyResult<bool> {
+        Ok(self.om.set_param(param, Self::extract_param_value(value)?)?)
+    }
+
+    fn set(&mut self, param: String, value: &PyAny) -> PyResult<bool> {
+        self.set_param(param, value)
+    }
 }
 
 impl ParamStr {
@@ -166,25 +226,31 @@ impl ParamStr {
     fn new_om(allows_leading_str: bool, defaults: Option<&PyDict>, allows_non_defaults: Option<bool>) -> Result<OmParamStr> {
         let om_defaults;
         if let Some(defs) = defaults {
-            let mut om_defs = IndexMap::new();
-            for (key, default) in defs {
-                let def;
-                if let Ok(s) = default.extract::<String>() {
-                    def = Some(vec!(s));
-                } else if let Ok(v) = default.extract::<Vec<String>>() {
-                    def = Some(v);
-                } else if default.is_none() {
-                    def = None
-                } else {
-                    bail!("ParamStr default value must be either None, a str, or list of strs");
-                }
-                om_defs.insert(key.extract::<String>()?, def);
-            }
-            om_defaults = Some((allows_non_defaults.unwrap_or(false), om_defs))
+            om_defaults = Some((allows_non_defaults.unwrap_or(false), Self::extract_defaults(defs)?));
         } else {
             om_defaults = None
         }
         Ok(OmParamStr::new(allows_leading_str, om_defaults))
+    }
+
+    fn extract_defaults(defs: &PyDict) -> PyResult<IndexMap<String, Option<Vec<String>>>> {
+        let mut om_defs = IndexMap::new();
+        for (key, default) in defs {
+            om_defs.insert(key.extract::<String>()?, Self::extract_param_value(default)?);
+        }
+        Ok(om_defs)
+    }
+
+    fn extract_param_value(val: &PyAny) -> Result<Option<Vec<String>>> {
+        Ok(if let Ok(s) = val.extract::<String>() {
+            Some(vec!(s))
+        } else if let Ok(v) = val.extract::<Vec<String>>() {
+            Some(v)
+        } else if val.is_none() {
+            None
+        } else {
+            bail!("ParamStr value must be either None, a str, or list of strs");
+        })
     }
 }
 
