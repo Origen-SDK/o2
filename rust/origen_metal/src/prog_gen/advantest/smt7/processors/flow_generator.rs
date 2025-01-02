@@ -794,6 +794,10 @@ impl Processor<PGM> for FlowGenerator {
                 ));
                 Return::None
             }
+            PGM::Render(text) => {
+                self.push_body(&format!(r#"{}"#, text));
+                Return::None
+            }
             PGM::Resources => {
                 let orig = self.resources_block;
                 self.resources_block = true;
