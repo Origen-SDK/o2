@@ -850,8 +850,8 @@ class TestMultiParamStr(Common):
         assert mps.parsed == []
         assert mps.raw == ""
 
-    def test_single_param_str(self):
-        input_str = "arg1:v1:v2~arg2:x1"
+    def test_single_param_str(self, a1, a2):
+        input_str = f"{a1}:v1:v2~{a2}:x1"
         mps = MultiParamStr()
         mps.parse(input_str)
 
@@ -859,9 +859,9 @@ class TestMultiParamStr(Common):
         assert mps.parsed == [ParamStr.and_parse(input_str)]
         assert mps.raw == input_str
 
-    def test_multi_param_str(self):
-        in_str1 = "arg1~arg2:v1"
-        in_str2 = "arg3:w1:w2~arg4:x1~arg5"
+    def test_multi_param_str(self, a1, a2, a3, a4, a5):
+        in_str1 = f"{a1}~{a2}:v1"
+        in_str2 = f"{a3}:w1:w2~{a4}:x1~{a5}"
         input_str = f"{in_str1}~:~{in_str2}"
 
         mps = MultiParamStr()
@@ -871,10 +871,10 @@ class TestMultiParamStr(Common):
         assert mps.parsed == [ParamStr.and_parse(in_str1), ParamStr.and_parse(in_str2)]
         assert mps.raw == input_str
 
-    def test_first_param_str_is_empty(self):
+    def test_first_param_str_is_empty(self, a1, a2, a3, a4, a5):
         mps = MultiParamStr()
-        in_str1 = "arg1~arg2:v1"
-        in_str2 = "arg3:w1:w2~arg4:x1~arg5"
+        in_str1 = f"{a1}~{a2}:v1"
+        in_str2 = f"{a3}:w1:w2~{a4}:x1~{a5}"
         input_str = f"~:~{in_str1}~:~{in_str2}"
 
         mps = MultiParamStr()
@@ -884,9 +884,9 @@ class TestMultiParamStr(Common):
         assert mps.parsed == [ParamStr.and_parse(""), ParamStr.and_parse(in_str1), ParamStr.and_parse(in_str2)]
         assert mps.raw == input_str
 
-    def test_trailing_empty_param_str(self):
+    def test_trailing_empty_param_str(self, a1, a2):
         mps = MultiParamStr()
-        in_str1 = "arg1~arg2:v1"
+        in_str1 = f"{a1}~{a2}:v1"
         input_str = f"{in_str1}~:~"
 
         mps = MultiParamStr()
