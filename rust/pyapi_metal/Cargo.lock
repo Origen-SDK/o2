@@ -2045,7 +2045,7 @@ dependencies = [
 
 [[package]]
 name = "origen-metal"
-version = "0.4.1-dev5"
+version = "1.0.0"
 dependencies = [
  "built",
  "curl-sys",

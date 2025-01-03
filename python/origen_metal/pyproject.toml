@@ -23,6 +23,10 @@ importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 [project]
 name = "origen-metal"
 version = "1.0.0"
+description = "Bare metal APIs for the Origen SDK"
+license = "MIT"
+readme = "README.md"
+authors = ["Origen-SDK"]
 requires-python = ">=3.7.0,<3.13"
 dependencies = [
     "colorama (>=0.4.4)",
