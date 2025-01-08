@@ -9,6 +9,10 @@ homepage = "https://origen-sdk.org/o2"
 license = "MIT"
 readme = "README.md"
 authors = ["Origen-SDK"]
+include = [
+    "_origen_metal.pyd",
+    "_origen_metal.so",
+]
 
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
