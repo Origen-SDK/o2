@@ -108,7 +108,7 @@ jobs:
         run: cargo build --bins
           
       - name: Add Origen to PATH (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         run: |
           echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
           export PATH="${{ github.workspace }}/rust/origen/target/debug:$PATH"
@@ -139,7 +139,7 @@ jobs:
         run: origen -v
 
       - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         run: which origen
       - name: Show Origen Binary Location (Windows)
         if: matrix.os == 'windows-latest'
@@ -153,7 +153,7 @@ jobs:
       #   run: pip install importlib_metadata
 
       # - name: Cache Poetry Version (Linux)
-      #   if: matrix.os == 'ubuntu-latest'
+      #   if: contains(matrix.os, 'ubuntu')
       #   working-directory: test_apps/python_app
       #   run: |
       #     POETRY_VER=$(python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))")
@@ -168,7 +168,7 @@ jobs:
       #     echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
 
       - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         working-directory: test_apps/python_app
         run: |
           which origen
@@ -183,14 +183,14 @@ jobs:
 
       # TODO GA: Add to build script?
       - name: Move Origen executable (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         run: cp rust/origen/target/debug/origen python/origen/origen/__bin__/bin
       - name: Move Origen executable (Windows)
         if: matrix.os == 'windows-latest'
         run: cp rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
       - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         working-directory: test_apps/python_app
         run: |
           which origen
@@ -234,7 +234,7 @@ jobs:
 
       # Copy _origen
       - name: Copy Origen Library (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         working-directory: rust/pyapi
         run: cp target/debug/lib_origen.so ../../python/origen/_origen.so
 
@@ -244,7 +244,7 @@ jobs:
         run: ls ../../python/origen
 
       - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         working-directory: test_apps/python_no_app
         run: |
           which origen
@@ -301,7 +301,7 @@ jobs:
       #   'mv' command should be be fine for both linux & powershell
       # Update: remove binary since it is being copied earlier.
       - name: Remove Origen executable (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         run: rm rust/origen/target/debug/origen
 #        run: rm rust/origen/target/debug/origen python/origen/origen/__bin__/bin
       - name: Remove Origen executable (Windows)
@@ -333,7 +333,7 @@ jobs:
           pip install python/origen_metal
 
       - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         run: which origen
       - name: Show Origen Binary Location (Windows)
         if: matrix.os == 'windows-latest'
