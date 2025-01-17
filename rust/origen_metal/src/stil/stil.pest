@@ -121,8 +121,8 @@ base_val = { ("Hex" | "Dec") }
 
 alignment = { "Alignment" ~ alignment_val ~ EOS }
 alignment_val = { ("MSB" | "LSB") }
-scan_in = { "ScanIn" ~ integer ~ EOS }
-scan_out = { "ScanOut" ~ integer ~ EOS }
+scan_in = { "ScanIn" ~ integer? ~ EOS }
+scan_out = { "ScanOut" ~ integer? ~ EOS }
 data_bit_count = { "DataBitCount" ~ integer ~ EOS }
 waveform_character_list = @{ waveform_character+ }
 waveform_character = { ASCII_ALPHANUMERIC }
