@@ -50,7 +50,7 @@ date = { "Date" ~ string ~ EOS }
 source = { "Source" ~ string ~ EOS }
 history = { "History" ~ "{" ~ annotation* ~ "}" }
 annotation = { "Ann" ~ "{*" ~ annotation_inner ~ "*}" }
-annotation_inner = { (!"*}" ~ ANY)* }
+annotation_inner = @{ (!"*}" ~ ANY)* }
 
 //############################################################################
 //# 1450.1-2005 Extension - Environment Block
