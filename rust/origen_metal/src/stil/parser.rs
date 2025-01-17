@@ -431,8 +431,22 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             Rule::alignment => {
                 ast.push(node!(STIL::Alignment, inner_strs(pair)[0].parse().unwrap()))
             }
-            Rule::scan_in => ast.push(node!(STIL::ScanIn, inner_strs(pair)[0].parse().unwrap())),
-            Rule::scan_out => ast.push(node!(STIL::ScanOut, inner_strs(pair)[0].parse().unwrap())),
+            Rule::scan_in => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::ScanIn, None)
+                } else {
+                    node!(STIL::ScanIn, Some(vals[0].parse().unwrap()))
+                })
+            }
+            Rule::scan_out => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::ScanOut, None)
+                } else {
+                    node!(STIL::ScanOut, Some(vals[0].parse().unwrap()))
+                })
+            }
             Rule::data_bit_count => ast.push(node!(
                 STIL::DataBitCount,
                 inner_strs(pair)[0].parse().unwrap()
