@@ -710,6 +710,56 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 }
                 ast.push(node!(STIL::EventList, vals))
             }
+            Rule::procedures_block => {
+                let mut p = pair.into_inner();
+                let n;
+                if let Some(nxt) = p.peek() {
+                    n = match nxt.as_rule() {
+                        Rule::name => node!(STIL::ProceduresBlock, Some(unquote(p.next().unwrap().as_str()))),
+                        _ => node!(STIL::ProceduresBlock, None),
+                    };
+                } else {
+                    n = node!(STIL::ProceduresBlock, None);
+                }
+                ids.push(ast.push_and_open(n));
+                pairs.push(p);
+            }
+            Rule::procedures_def => {
+                let mut p = pair.into_inner();
+                ids.push(
+                    ast.push_and_open(node!(STIL::ProceduresDef, unquote(p.next().unwrap().as_str()))),
+                );
+                pairs.push(p);
+            }
+            Rule::macrodefs_block => {
+                let mut p = pair.into_inner();
+                let n;
+                if let Some(nxt) = p.peek() {
+                    n = match nxt.as_rule() {
+                        Rule::name => node!(STIL::MacroDefsBlock, Some(unquote(p.next().unwrap().as_str()))),
+                        _ => node!(STIL::MacroDefsBlock, None),
+                    };
+                } else {
+                    n = node!(STIL::MacroDefsBlock, None);
+                }
+                ids.push(ast.push_and_open(n));
+                pairs.push(p);
+            }
+            Rule::macro_def => {
+                let mut p = pair.into_inner();
+                ids.push(
+                    ast.push_and_open(node!(STIL::MacroDef, unquote(p.next().unwrap().as_str()))),
+                );
+                pairs.push(p);
+            }
+            Rule::procedure_or_macro_item => {
+                ids.push(0);
+                pairs.push(pair.into_inner());
+            }
+            Rule::shift_pat_stmt => {
+                ids.push(ast.push_and_open(node!(STIL::Shift)));
+                pairs.push(pair.into_inner());
+            }
             Rule::spec_block => {
                 let mut p = pair.into_inner();
                 let n;
@@ -886,6 +936,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 })
             }
             Rule::data_string => ast.push(node!(STIL::Data, pair.as_str().to_string())),
+            Rule::wfc_data_string => ast.push(node!(STIL::WfcData, pair.as_str().to_string())),
             Rule::vec_data => {
                 ids.push(0);
                 pairs.push(pair.into_inner());
@@ -910,7 +961,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             Rule::macro_statement => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STIL::Macro, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Macro, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
