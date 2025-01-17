@@ -45,7 +45,7 @@ pub struct SortedParams<'a> {
 }
 
 impl<'a> SortedParams<'a> {
-    fn new(test: &'a Test) -> SortedParams {
+    fn new(test: &'a Test) -> Self {
         let mut keys: Vec<&String> = test.params.keys().collect();
         keys.sort();
         keys.reverse();
