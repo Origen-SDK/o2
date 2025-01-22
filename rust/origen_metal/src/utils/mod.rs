@@ -12,3 +12,4 @@ pub mod terminal;
 pub mod mailer;
 pub mod version;
 pub mod pypi;
+pub mod param_str;

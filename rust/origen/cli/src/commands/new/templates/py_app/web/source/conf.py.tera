@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
-project = '{{app_name}}'
+project = '{{name}}'
 copyright = '2020, Origen Core Team'
 author = 'Origen Core Team'
 
@@ -41,7 +41,7 @@ extensions = [
 
 autosectionlabel_prefix_document = True
 autoapi_modules = {
-    '{{app_name}}.application': {
+    '{{name}}.application': {
         'module-members': ['undoc-members'],
         'class-members': ['members', 'undoc-members']
     }
