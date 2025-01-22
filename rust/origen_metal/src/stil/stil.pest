@@ -5,7 +5,8 @@ stil_source = { SOI ~ stil_source_items+ ~ EOI }
 stil_source_items = _{
     stil_version | header_block | env_block | signals_block | signal_groups_block |
     timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
-    scan_structures_block | pattern_block | include | dcapfilter_block | dcapsetup_block
+    scan_structures_block | pattern_block | include | dcapfilter_block | dcapsetup_block |
+    macrodefs_block
 }
 
 stil_version = { "STIL" ~ integer ~ "." ~ integer ~ (ext_block | EOS) }
@@ -223,7 +224,7 @@ inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
 wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
 tagged_wfc_definition = { tag ~ wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
 wfc_list = @{ wfc_char+ }
-wfc_char = { ASCII_ALPHANUMERIC }
+wfc_char = { ASCII_ALPHANUMERIC | "#" | "%" }
 inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
 name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
 event = { label? ~ time_expr? ~ event_list? ~ EOS }
@@ -281,12 +282,13 @@ vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
 vector_with_comment = ${ "V" ~ "ector"? ~ (space | N)* ~ "{" ~ ((space | N)* ~ (cyclized_data | non_cyclized_data))* ~ (space | N)* ~ "}" ~ vector_comment }
 vector_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
-vec_data = { repeat | waveform_format | hex_format | dec_format | data_string }
+vec_data = { repeat | waveform_format | hex_format | dec_format | data_string | wfc_data_string }
 repeat = @{ "\\r" ~ integer }
 waveform_format = { "\\w" }
 hex_format = @{ "\\h " | ("\\h" ~ data_string) }
 dec_format = @{ "\\d " | ("\\d" ~ data_string) }
 data_string = { ASCII_ALPHANUMERIC+ }
+wfc_data_string = { wfc_char+ }
 non_cyclized_data = { (time_value ~ sigref_expr ~ "=" ~ event_list ~ EOS) |
                       (time_value ~ "{" ~ (sigref_expr ~ "=" ~ event_list ~ EOS)+ ~ "}") }
 time_value = @{ "@" ~ integer }
@@ -317,6 +319,17 @@ iddq = { "IDDQ" ~ "TestPoint" ~ EOS }
 stop_statement = { "Stop" ~ EOS }
 
 scan_chain_statement = { "ScanChain" ~ name ~ EOS }
+
+//############################################################################
+//# 24. Procedures and MacroDefs blocks
+//############################################################################
+
+procedures_block = { "Procedures" ~ name? ~ "{" ~ (procedures_def | include)* ~ "}" }
+procedures_def = { name ~ "{" ~ procedure_or_macro_item* ~"}" }
+macrodefs_block = { "MacroDefs" ~ name? ~ "{" ~ (macro_def | include)* ~ "}" }
+macro_def = { name ~ "{" ~ procedure_or_macro_item* ~"}" }
+procedure_or_macro_item = { shift_pat_stmt | pattern_statement }
+shift_pat_stmt = { "Shift" ~ "{" ~ (label? ~ pattern_statement)* ~ "}" }
 
 //############################################################################
 //# Identifiers
