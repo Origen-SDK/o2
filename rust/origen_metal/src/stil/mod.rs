@@ -10,15 +10,15 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub fn from_file(path: &Path) -> OrigenResult<Node<STIL>> {
-    let ast = parser::parse_file(path)?;
+    let ast = parser::parse_file(path, true)?;
     let load_path = vec![Path::new(path).parent().unwrap().to_path_buf()];
 
-    let ast = processors::includer::Includer::run(&ast, load_path, HashMap::new())?;
+    let ast = processors::includer::Includer::run(&ast, load_path, HashMap::new(), true)?;
     Ok(ast)
 }
 
 pub fn from_file_ignore_includes(path: &Path) -> OrigenResult<Node<STIL>> {
-    let ast = parser::parse_file(path)?;
+    let ast = parser::parse_file(path, true)?;
     Ok(ast)
 }
 
@@ -30,8 +30,9 @@ pub fn from_file_with_options(
     path: &Path,
     load_path: &Vec<PathBuf>,
     rename: Option<&HashMap<&str, &str>>,
+    strict: bool,
 ) -> OrigenResult<Node<STIL>> {
-    let ast = parser::parse_file(path)?;
+    let ast = parser::parse_file(path, strict)?;
     let mut load_path_with_current = vec![Path::new(path).parent().unwrap().to_path_buf()];
     for p in load_path {
         load_path_with_current.push(p.clone());
@@ -46,12 +47,12 @@ pub fn from_file_with_options(
         }
         None => HashMap::new(),
     };
-    let ast = processors::includer::Includer::run(&ast, load_path_with_current, rename)?;
+    let ast = processors::includer::Includer::run(&ast, load_path_with_current, rename, strict)?;
     Ok(ast)
 }
 
 pub fn from_str(stil: &str, root_dir: Option<&str>) -> OrigenResult<Node<STIL>> {
-    let ast = parser::parse_str(stil, None)?;
+    let ast = parser::parse_str(stil, None, true)?;
     let load_path = {
         if let Some(p) = root_dir {
             vec![Path::new(p).to_path_buf()]
@@ -59,7 +60,7 @@ pub fn from_str(stil: &str, root_dir: Option<&str>) -> OrigenResult<Node<STIL>> 
             vec![]
         }
     };
-    let ast = processors::includer::Includer::run(&ast, load_path, HashMap::new())?;
+    let ast = processors::includer::Includer::run(&ast, load_path, HashMap::new(), true)?;
     Ok(ast)
 }
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]

@@ -13,6 +13,7 @@ use std::path::PathBuf;
 pub struct Includer {
     load_path: Vec<PathBuf>,
     rename: HashMap<String, String>,
+    strict: bool,
 }
 
 impl Includer {
@@ -21,6 +22,7 @@ impl Includer {
         node: &Node<STIL>,
         load_path: Vec<PathBuf>,
         rename: HashMap<String, String>,
+        strict: bool,
     ) -> Result<Node<STIL>> {
         let mut full_load_path = vec![env::current_dir()?];
         for p in load_path {
@@ -29,6 +31,7 @@ impl Includer {
         let mut p = Includer {
             load_path: full_load_path,
             rename: rename,
+            strict: strict,
         };
         Ok(node.process(&mut p)?.unwrap())
     }
@@ -57,11 +60,12 @@ impl Processor<STIL> for Includer {
                     // path with the given one
                     path.push(&expanded);
                     if path.exists() {
-                        let ast = parser::parse_file(&path)?;
+                        let ast = parser::parse_file(&path, self.strict)?;
                         return Ok(Return::Replace(Includer::run(
                             &ast,
                             self.load_path.clone(),
                             self.rename.clone(),
+                            self.strict,
                         )?));
                     }
                 }

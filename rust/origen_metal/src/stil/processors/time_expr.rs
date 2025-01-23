@@ -208,8 +208,9 @@ mod tests {
     fn parse(expr: &str) -> Node<STIL> {
         let e = &format!("'{}'", expr);
         //println!("{:?}", STILParser::parse(Rule::time_expr, e));
-        let mut p = STILParser::parse(Rule::time_expr, e).unwrap();
-        to_ast(p.next().unwrap(), None).unwrap().unwrap()
+        let mut stil = STILParser::parse(Rule::time_expr, e).unwrap();
+        let p = ParseRunner::default();
+        p.to_ast(stil.next().unwrap(), None).unwrap().unwrap()
     }
 
     #[test]
