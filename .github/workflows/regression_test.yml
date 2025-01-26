@@ -337,13 +337,21 @@ jobs:
           ls
           $env:DIST=Get-ChildItem -Name
           echo "DIST=$env:DIST" >> $GITHUB_ENV
+          echo DIST ENV...
+          echo $env:DIST
+          echo
+          echo DIST...
+          echo $DIST
+          echo
+          echo GITHUB ENV
+          echo $GITHUB_ENV
 
       - name: Save wheel name (Linux)
         if: contains(matrix.os, 'ubuntu')
         working-directory: python/origen/dist
         run: |
           ls
-          ls >> $GITHUB_ENV
+          echo DIST=`ls` >> $GITHUB_ENV
 
       - name: Check Global Pip/Poetry Versions
         run: |
@@ -354,6 +362,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           echo "Installing Local Origen ($env:DIST)"
+          echo "Installing Local Origen ($DIST)"
           pip install python/origen/dist/$env:DIST
 
       - name: Install Origen Package Globally
