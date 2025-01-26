@@ -339,10 +339,10 @@ jobs:
           echo "DIST=$env:DIST" >> $GITHUB_ENV
           echo DIST ENV...
           echo $env:DIST
-          echo
+          echo ''
           echo DIST...
           echo $DIST
-          echo
+          echo ''
           echo GITHUB ENV
           echo $GITHUB_ENV
 
@@ -358,14 +358,15 @@ jobs:
           pip --version
           poetry --version
 
-      - name: Install Origen Package Globally
+      - name: Install Origen Package Globally (Windows)
         if: matrix.os == 'windows-latest'
         run: |
+          echo $GITHUB_ENV
           echo "Installing Local Origen ($env:DIST)"
           echo "Installing Local Origen ($DIST)"
           pip install python/origen/dist/$env:DIST
 
-      - name: Install Origen Package Globally
+      - name: Install Origen Package Globally (Linux)
         if: contains(matrix.os, 'ubuntu')
         run: |
           echo "Installing Local Origen ($DIST)"
@@ -403,6 +404,7 @@ jobs:
         run: |
           pip install test_apps/test_apps_shared_test_helpers
           pip install test_apps/python_plugin
+          pip install python/origen/dist/$DIST
           pip install python/origen_metal
 
       - name: Run No-Workspace-With-Plugins Tests
