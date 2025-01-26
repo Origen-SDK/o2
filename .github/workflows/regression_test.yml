@@ -401,7 +401,7 @@ jobs:
         run: |
           pip install test_apps/test_apps_shared_test_helpers
           pip install test_apps/python_plugin
-          pip install python/origen/dist/$DIST --force-reinstall
+          pip install python/origen/dist/${{ env.DIST }} --force-reinstall
           pip install python/origen_metal --force-reinstall
 
       - name: Run No-Workspace-With-Plugins Tests
