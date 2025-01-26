@@ -1,0 +1,31 @@
+STIL 1.0;
+
+MacroDefs {
+	"Scan_Macro_TEST0" {
+		WaveformTable WaveTable_Standard;
+		Shift {
+			Vector {
+				ScanData= #;
+			}
+		}
+	}
+	"Scan_Macro_TEST1" {
+		WaveformTable WaveTable_Standard;
+		Shift {
+			Vector {
+				ScanData= #;
+			}
+		}
+	}
+    "Scan_Macro_TEST2" {
+		WaveformTable WaveTable_Standard;
+		V { ScanData1= 010101; ScanData2= 010101;}
+		V { ScanData1= 101010; }
+        V { ScanData2= 101010; }
+	}
+    "Scan_Macro_TEST2" {
+		WaveformTable WaveTable_Standard;
+		Condition { ScanData1= HLHLHL; }
+        V { ScanData1= 010101; }
+	}
+}
