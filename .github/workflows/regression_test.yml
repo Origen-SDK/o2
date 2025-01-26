@@ -336,14 +336,11 @@ jobs:
         run: |
           ls
           $env:DIST=Get-ChildItem -Name
-          echo "DIST=$env:DIST" >> $GITHUB_ENV
-          echo DIST ENV...
+          echo "DIST=$env:DIST" >>  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "DIST ENV..."
           echo $env:DIST
           echo ''
-          echo DIST...
-          echo $DIST
-          echo ''
-          echo GITHUB ENV
+          echo "GITHUB ENV"
           echo $GITHUB_ENV
 
       - name: Save wheel name (Linux)
@@ -404,8 +401,8 @@ jobs:
         run: |
           pip install test_apps/test_apps_shared_test_helpers
           pip install test_apps/python_plugin
-          pip install python/origen/dist/$DIST
-          pip install python/origen_metal
+          pip install python/origen/dist/$DIST --force-reinstall
+          pip install python/origen_metal --force-reinstall
 
       - name: Run No-Workspace-With-Plugins Tests
         working-directory: test_apps/no_workspace
