@@ -238,6 +238,37 @@ impl std::convert::From<std::str::ParseBoolError> for Error {
 
 impl std::convert::From<tera::Error> for Error {
     fn from(err: tera::Error) -> Self {
+        let mut msg = format!("{:?}", err.kind);
+        if err.source().is_some() {
+            msg += "\n";
+            msg += &unchain_error(&err).join("\n");
+        }
+        Error::new(&msg)
+    }
+}
+
+impl std::convert::From<glob::PatternError> for Error {
+    fn from(err: glob::PatternError) -> Self {
         Error::new(&err.to_string())
     }
+}
+
+impl std::convert::From<minijinja::Error> for Error {
+    fn from(err: minijinja::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+fn unchain_error(err: &dyn std::error::Error) -> Vec<String> {
+    let mut msg = vec!();
+    let mut inner = err.source();
+    loop {
+        if let Some(s) = inner {
+            msg.push(s.to_string());
+            inner = s.source();
+        } else {
+            break;
+        }
+    }
+    msg
 }

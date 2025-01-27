@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "test_apps_shared_test_helpers"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shared Regression Test Helpers for Test Apps"
 authors = ["Origen-SDK"]
 

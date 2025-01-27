@@ -32,7 +32,7 @@ fn main() {
             .to_uppercase();
 
         data += &format!(
-            "pub static {}: phf::Map<&'static str, &'static str> = phf_map! {{\n",
+            "pub static {}: phf::Map<&'static str, &'static str> = phf::phf_map! {{\n",
             package_name
         );
 

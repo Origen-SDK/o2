@@ -3,6 +3,7 @@ from collections import UserDict
 import importlib, os
 from pathlib import Path
 import _origen
+from origen_metal.utils.version import pep440
 
 def collect_plugins():
     pls = Plugins()
@@ -20,7 +21,10 @@ def from_origen_cli(plugins):
     return origen._plugins
 
 class Plugin:
-    pass
+    @property
+    def version(self):
+        import importlib_metadata
+        return pep440(importlib_metadata.version(self.name))
 
 class Plugins(UserDict):
     def __init__(self):

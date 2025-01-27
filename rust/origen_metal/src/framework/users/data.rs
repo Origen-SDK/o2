@@ -73,7 +73,7 @@ impl From<&DatasetConfig> for TypedValueMap {
 /// At least in the backend, each data instance is independent
 /// with an dataset-dependent features (e.g., username, password, retrieval)
 /// handled by the owning User struct.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Data {
     pub dataset_name: String,
     pub password: Option<String>,

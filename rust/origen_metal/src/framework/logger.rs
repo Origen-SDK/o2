@@ -61,6 +61,14 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+
+lazy_static! {
+    static ref LOGGER_PREFIXES: [&'static str; 8] = [
+        "DISPLAY", "DEBUG", "TRACE", "DEPRECATED", "ERROR", "INFO", "SUCCESS", "WARNING"
+    ];
+}
 
 // Thread specific files, a log request will write to the last log in this vector, if
 // none are present then it will fall back to the global/shared files in Logger.inner.files
@@ -72,10 +80,17 @@ pub struct Logger {
     inner: RwLock<Inner>,
 }
 
+#[derive(Default, Clone)]
+pub struct CustomLoggerPrefix {
+    pub level: u8,
+    pub prefix: String,
+}
+
 #[derive(Default)]
 pub struct Inner {
     level: u8,
     pub keywords: Vec<String>,
+    custom_prefixes: HashMap<String, CustomLoggerPrefix>,
     // The currently open log files, the last one is the one that will be written to
     // (unless there is an open thread-specific log file)
     files: Vec<(PathBuf, fs::File)>,
@@ -120,6 +135,41 @@ impl Logger {
                 self.default_log_file()?.display()
             ));
         Ok(())
+    }
+
+    pub fn add_custom_prefix(&self, name: &str, prefix: Option<String>, level: Option<u8>) -> Result<()> {
+        let mut inner = self.inner.write().unwrap();
+        let uname = name.to_uppercase();
+        if inner.custom_prefixes.contains_key(&uname) {
+            bail!("Custom logger prefix {} has already been added", name);
+        } else if LOGGER_PREFIXES.contains(&uname.as_str()) {
+            bail!("Custom prefix {} conflicts with built-in prefix. Please use the native logger methods for prefix {}", name, name);
+        }
+
+        let prefix = prefix.unwrap_or(uname.clone());
+        inner.custom_prefixes.insert(uname, CustomLoggerPrefix {
+            level: level.unwrap_or(0 as u8),
+            prefix: prefix,
+        });
+        Ok(())
+    }
+
+    pub fn get_custom_prefix(&self, prefix: &str) -> Result<CustomLoggerPrefix> {
+        let inner = self.inner.read().unwrap();
+        let pf = inner.custom_prefixes.get(&prefix.to_uppercase());
+        if pf.is_some() {
+            Ok(pf.unwrap().clone())
+        } else {
+            bail!("No custom prefix {} has been added!", prefix);
+        }
+    }
+
+    pub fn with_custom_prefixes<F, T>(&self, mut func: F) -> Result<T>
+    where
+        F: FnMut(&HashMap<String, CustomLoggerPrefix>) -> Result<T>
+    {
+        let inner = self.inner.read().unwrap();
+        func(&inner.custom_prefixes)
     }
 
     /// This is the same as calling 'print!' but with it also being captured to the log.
@@ -280,6 +330,34 @@ impl Logger {
     /// Log a warning message, this will be displayed in the terminal when running with -v
     pub fn warning_block(&self, messages: &Vec<&str>) {
         self._log_block(1, "WARNING", messages, &(terminal::yellowln));
+    }
+
+    pub fn log_prefix(&self, prefix: &str, message: &str) -> Result<()> {
+        let (lvl, pf);
+        {
+            let custom_prefix = self.get_custom_prefix(prefix)?;
+            lvl = custom_prefix.level;
+            pf = custom_prefix.prefix.to_string();
+        }
+        self._log(lvl, &pf, message, &|msg| {
+            println!("{}", msg);
+            std::io::stdout().flush().unwrap();
+        });
+        Ok(())
+    }
+
+    pub fn log_prefix_block(&self, prefix: &str, messages: &Vec<&str>) -> Result<()> {
+        let (lvl, pf);
+        {
+            let custom_prefix = self.get_custom_prefix(prefix)?;
+            lvl = custom_prefix.level;
+            pf = custom_prefix.prefix.to_string();
+        }
+        self._log_block(lvl, &pf, messages, &|msg| {
+            println!("{}", msg);
+            std::io::stdout().flush().unwrap();
+        });
+        Ok(())
     }
 
     fn _log(&self, level: u8, prefix: &str, message: &str, ref_to_print_func: &dyn Fn(&str)) {

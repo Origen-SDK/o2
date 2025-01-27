@@ -24,3 +24,16 @@ macro_rules! sv_opt {
             .required(false)
     }}
 }
+
+/// Generate a single flag option, e.g., a yes/no indicator
+#[macro_export]
+macro_rules! sf_opt {
+    ($name: expr, $help: expr) => {{
+        clap::Arg::new($name)
+            .long($name)
+            .help($help)
+            .action(crate::commands::_prelude::clap_arg_actions::SetArgTrue)
+            .takes_value(false)
+            .required(false)
+    }}
+}
