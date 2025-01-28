@@ -17,9 +17,7 @@ categories = ["embedded", "science"]
 # Enables the Python API, when not enabled (the default) origen_metal is a pure Rust library that
 # can only be used from Rust
 python = ["dep:pyo3"]
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(origen_skip_frontend_tests)'] }
+origen_skip_frontend_tests = []
 
 [dependencies]
 lazy_static = "1"
