@@ -116,7 +116,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    #[cfg(all(test, not(origen_skip_frontend_tests)))]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     pub fn run_python(code: &str) -> crate::Result<()> {
         let mut c = crate::new_cmd!("poetry");
         c.arg("run");
