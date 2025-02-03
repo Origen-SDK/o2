@@ -116,13 +116,13 @@ jobs:
           echo ${{ env.OM_WHEEL }}
 
       - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: om_wheels
           path: python/origen_metal/wheelhouse/${{ env.OM_WHEEL }}
 
       - name: Upload OM Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.om_ver_file }}
           path: python/origen_metal/${{ env.om_ver_file }}
@@ -140,19 +140,19 @@ jobs:
           echo ${{ env.ORIGEN_WHEEL }}
 
       - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: origen_wheels
           path: python/origen/wheelhouse/${{ env.ORIGEN_WHEEL }}
 
       - name: Upload Origen Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.origen_ver_file }}
           path: python/origen/${{ env.origen_ver_file }}
 
       - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cli
           path: python/origen/origen/__bin__/bin/origen
@@ -204,7 +204,7 @@ jobs:
         run: ls
 
       - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: om_wheels
           path: python/origen_metal/dist/origen_metal*
@@ -214,7 +214,7 @@ jobs:
         run: poetry version -s > ${{ env.om_ver_file }}
 
       - name: Upload OM Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.om_ver_file }}
           path: python/origen_metal/${{ env.om_ver_file }}
@@ -255,7 +255,7 @@ jobs:
         run: ls
 
       - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: origen_wheels
           path: python/origen/dist/origen*
@@ -265,7 +265,7 @@ jobs:
         run: poetry version -s > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.origen_ver_file }}
           path: python/origen/${{ env.origen_ver_file }}
@@ -326,7 +326,7 @@ jobs:
         run: ls -al ./origen_wheels
 
       - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cli
           path: python\origen\origen\__bin__\bin\origen.exe
