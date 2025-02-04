@@ -344,7 +344,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Retrieve OM Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: om_wheels
           path: om_wheels
@@ -353,7 +353,7 @@ jobs:
         run: ls -al ./om_wheels
 
       - name: Retrieve Origen Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
@@ -362,7 +362,7 @@ jobs:
         run: ls -al ./origen_wheels
 
       - name: Retrieve Origen Standalone CLI
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cli
           path: cli
@@ -376,7 +376,7 @@ jobs:
     if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
     steps:
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: om_wheels
           path: om_wheels
@@ -395,7 +395,7 @@ jobs:
           verbose: true
 
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
@@ -419,7 +419,7 @@ jobs:
     if: ${{ github.event.inputs.publish_pypi == 'true' }}
     steps:
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: om_wheels
           path: om_wheels
@@ -437,7 +437,7 @@ jobs:
           verbose: true
 
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
@@ -461,12 +461,12 @@ jobs:
     steps:
         - uses: actions/checkout@v2
             
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: om_wheels
             path: origen_metal
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: origen_wheels
             path: origen
@@ -476,7 +476,7 @@ jobs:
             ls -al ./origen_metal
             ls -al ./origen
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: cli
             path: cli
@@ -487,11 +487,11 @@ jobs:
             ls -al ./origen
             ls -al ./cli
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: ${{ env.om_ver_file }}
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: ${{ env.origen_ver_file }}
 
