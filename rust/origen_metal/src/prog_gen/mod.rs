@@ -2,7 +2,7 @@ pub mod advantest;
 pub mod flow_api;
 mod flow_manager;
 mod model;
-mod nodes;
+pub mod nodes;
 mod processors;
 pub mod teradyne;
 mod validators;
