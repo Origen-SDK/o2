@@ -37,6 +37,7 @@ impl PyInterface {
         Ok(())
     }
 
+    #[setter]
     fn set_name_override(&self, name: String) -> PyResult<()> {
         flow_api::flow_name_override(name.trim().to_string(), None)?;
         Ok(())

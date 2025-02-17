@@ -19,7 +19,7 @@ def run(**kwargs):
 
     run_cmd("generate",
             args={
-                "files": ["example/flows/o1_testcases/prb1.py"],
+                "files": ["example/flows/o1_testcases/prb1.py", "example/flows/o1_testcases/prb2.py"],
                 "reference_dir": "approved",
             },
             debug=debug,
