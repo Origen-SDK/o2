@@ -10,6 +10,7 @@ pub struct FlowGenerator {
     #[allow(dead_code)]
     name: String,
     description: Option<String>,
+    name_override: Option<String>,
     sub_flow_open: bool,
     bypass_sub_flows: bool,
     output_dir: PathBuf,
@@ -34,6 +35,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
     let mut p = FlowGenerator {
         name: "".to_string(),
         description: None,
+        name_override: None,
         sub_flow_open: false,
         bypass_sub_flows: false,
         output_dir: output_dir.to_owned(),
@@ -215,9 +217,13 @@ impl Processor<PGM> for FlowGenerator {
                     self.indent -= 1;
                     self.push_body("");
 
+                    let flow_name = match &self.name_override {
+                        Some(n) => n.to_owned(),
+                        None => name.to_uppercase(),
+                    };
                     self.push_body(&format!(
                         "}}, open,\"{}\",\"{}\"",
-                        &name.to_uppercase(),
+                        flow_name,
                         self.description.as_ref().unwrap_or(&"".to_string())
                     ));
                     self.indent -= 1;
@@ -510,6 +516,12 @@ impl Processor<PGM> for FlowGenerator {
             PGM::FlowDescription(desc) => {
                 if !self.sub_flow_open {
                     self.description = Some(desc.to_owned());
+                }
+                Return::None
+            }
+            PGM::FlowNameOverride(name) => {
+                if !self.sub_flow_open {
+                    self.name_override = Some(name.to_owned());
                 }
                 Return::None
             }

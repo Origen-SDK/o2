@@ -3,7 +3,7 @@ name = "origen_metal"
 #*****************************************************
 # Also update the version in  the [project] section below!!!!!
 #*****************************************************
-version = "1.0.0"
+version = "1.0.1"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"

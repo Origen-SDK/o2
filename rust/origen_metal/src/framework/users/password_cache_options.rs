@@ -3,8 +3,6 @@ use super::User;
 use crate::Result;
 use crate::_utility::{bytes_from_str_of_bytes, str_from_byte_array};
 use crate::utils::encryption::{decrypt_with, encrypt_with};
-#[cfg(feature = "password-cache")]
-use keyring::Keyring;
 use std::fmt;
 
 pub const PASSWORD_KEY: &str = "user_password__";
