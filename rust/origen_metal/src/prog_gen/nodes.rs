@@ -90,6 +90,7 @@ pub enum PGM {
     ResourcesFilename(String, ResourcesType),
     BypassSubFlows,
     FlowDescription(String),
+    FlowNameOverride(String),
     /// Apply the given uniqueness option to all contained test names, etc.
     Uniqueness(UniquenessOption),
 

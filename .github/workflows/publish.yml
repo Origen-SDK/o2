@@ -116,15 +116,15 @@ jobs:
           echo ${{ env.OM_WHEEL }}
 
       - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: om_wheels
+          name: om_wheels-${{runner.os}}-${{matrix.python-version}}
           path: python/origen_metal/wheelhouse/${{ env.OM_WHEEL }}
 
       - name: Upload OM Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.om_ver_file }}
+          name: ${{ env.om_ver_file }}-${{runner.os}}-${{matrix.python-version}}
           path: python/origen_metal/${{ env.om_ver_file }}
 
       - name: Display Origen Wheelhouse Directory
@@ -140,21 +140,21 @@ jobs:
           echo ${{ env.ORIGEN_WHEEL }}
 
       - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: origen_wheels
+          name: origen_wheels-${{runner.os}}-${{matrix.python-version}}
           path: python/origen/wheelhouse/${{ env.ORIGEN_WHEEL }}
 
       - name: Upload Origen Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.origen_ver_file }}
+          name: ${{ env.origen_ver_file }}-${{runner.os}}-${{matrix.python-version}}
           path: python/origen/${{ env.origen_ver_file }}
 
       - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: cli
+          name: cli-${{runner.os}}-${{matrix.python-version}}
           path: python/origen/origen/__bin__/bin/origen
 
   build_windows:
@@ -204,9 +204,9 @@ jobs:
         run: ls
 
       - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: om_wheels
+          name: om_wheels-${{runner.os}}-${{matrix.python-version}}
           path: python/origen_metal/dist/origen_metal*
 
       - name: Get OM Python Package Version
@@ -214,9 +214,9 @@ jobs:
         run: poetry version -s > ${{ env.om_ver_file }}
 
       - name: Upload OM Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.om_ver_file }}
+          name: ${{ env.om_ver_file }}-${{runner.os}}-${{matrix.python-version}}
           path: python/origen_metal/${{ env.om_ver_file }}
 
       # - name: Build Origen CLI
@@ -255,9 +255,9 @@ jobs:
         run: ls
 
       - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: origen_wheels
+          name: origen_wheels-${{runner.os}}-${{matrix.python-version}}
           path: python/origen/dist/origen*
 
       - name: Get Origen Python Package Version
@@ -265,11 +265,17 @@ jobs:
         run: poetry version -s > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.origen_ver_file }}
+          name: ${{ env.origen_ver_file }}-${{runner.os}}-${{matrix.python-version}}
           path: python/origen/${{ env.origen_ver_file }}
-  
+
+      - name: Upload CLI as a standalone entity
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{runner.os}}-${{matrix.python-version}}
+          path: python\origen\origen\__bin__\bin\origen.exe
+
       # - name: "Publish To PyPi"
       #   if: ${{ github.event.inputs.publish_pypi }} == true
       #   working_directory: python
@@ -303,12 +309,42 @@ jobs:
       #     echo "Publishing to Github Releases"
       #   # ...
 
-  show_wheels:
+  merge_artifacts:
     needs: [build_manylinux, build_windows]
     runs-on: ubuntu-latest
     steps:
+      - name: Merge OM
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: om_wheels
+          pattern: om_wheels-*
+      - name: Merge OM Version Files
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: ${{ env.om_ver_file }}
+          pattern: ${{ env.om_ver_file }}-*
+      - name: Merge Origen
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: origen_wheels
+          pattern: origen_wheels-*
+      - name: Merge Origen Version Files
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: ${{ env.origen_ver_file }}
+          pattern: ${{ env.origen_ver_file }}-*
+      - name: Merge CLI
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: cli
+          pattern: cli-*
+
+  show_wheels:
+    needs: [build_manylinux, build_windows, merge_artifacts]
+    runs-on: ubuntu-latest
+    steps:
       - name: Retrieve OM Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: om_wheels
           path: om_wheels
@@ -317,7 +353,7 @@ jobs:
         run: ls -al ./om_wheels
 
       - name: Retrieve Origen Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
@@ -325,19 +361,22 @@ jobs:
       - name: List Origen Wheels
         run: ls -al ./origen_wheels
 
-      - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v3
+      - name: Retrieve Origen Standalone CLI
+        uses: actions/download-artifact@v4
         with:
           name: cli
-          path: python\origen\origen\__bin__\bin\origen.exe
+          path: cli
+
+      - name: List Origen CLI
+        run: ls -al ./cli
 
   publish_to_pypi_test:
-    needs: [build_manylinux, build_windows]
+    needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
     steps:
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: om_wheels
           path: om_wheels
@@ -356,7 +395,7 @@ jobs:
           verbose: true
 
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
@@ -375,12 +414,12 @@ jobs:
           verbose: true
 
   publish_to_pypi:
-    needs: [build_manylinux, build_windows]
+    needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_pypi == 'true' }}
     steps:
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: om_wheels
           path: om_wheels
@@ -398,7 +437,7 @@ jobs:
           verbose: true
 
       - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
@@ -416,18 +455,18 @@ jobs:
           verbose: true
 
   publish_github_release:
-    needs: [build_manylinux, build_windows]
+    needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_github_release == 'true' }}
     steps:
         - uses: actions/checkout@v2
             
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: om_wheels
             path: origen_metal
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: origen_wheels
             path: origen
@@ -437,7 +476,7 @@ jobs:
             ls -al ./origen_metal
             ls -al ./origen
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: cli
             path: cli
@@ -448,11 +487,11 @@ jobs:
             ls -al ./origen
             ls -al ./cli
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: ${{ env.om_ver_file }}
 
-        - uses: actions/download-artifact@v3
+        - uses: actions/download-artifact@v4
           with:
             name: ${{ env.origen_ver_file }}
 
@@ -500,7 +539,7 @@ jobs:
             commit: ${{ github.sha }}
             tag: ${{ env.tag }}
   cleanup:
-    needs: [precheck, build_manylinux, build_windows, publish_to_pypi_test, publish_to_pypi, publish_github_release, show_wheels]
+    needs: [precheck, build_manylinux, build_windows, merge_artifacts, publish_to_pypi_test, publish_to_pypi, publish_github_release, show_wheels]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

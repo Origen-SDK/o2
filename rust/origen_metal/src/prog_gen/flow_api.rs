@@ -243,6 +243,11 @@ pub fn flow_description(desc: String, meta: Option<Meta>) -> Result<()> {
     FLOW.push(n)
 }
 
+pub fn flow_name_override(name: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::FlowNameOverride, name; meta);
+    FLOW.push(n)
+}
+
 /// Contained test names and similar will the use the given uniqueness option
 pub fn start_uniqueness(option: UniquenessOption, meta: Option<Meta>) -> Result<usize> {
     let n = node!(PGM::Uniqueness, option; meta);
