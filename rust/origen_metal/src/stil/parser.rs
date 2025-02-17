@@ -168,7 +168,7 @@ impl ParseRunner {
 
         loop {
             // Is this too slow?  Should it just be added to the match case for relaxed rules?
-            if RELAXLIST.contains(&pair.as_rule()) {
+            if self.strict && RELAXLIST.contains(&pair.as_rule()) {
                 return Err(Error::new(&format!(
                     "Rule: {:?} only allowed in relaxed mode (strict=false)",
                     pair.as_rule()
@@ -1073,7 +1073,7 @@ impl ParseRunner {
 
 #[cfg(test)]
 mod tests {
-    use super::super::from_file;
+    use super::super::{from_file, from_file_with_options};
     use super::*;
     use std::fs;
     use std::path::Path;
@@ -1088,18 +1088,24 @@ mod tests {
 
     #[test]
     fn test_example1_to_ast() {
-        let _stil = from_file(Path::new(
-            "../../test_apps/python_app/vendor/stil/example1.stil",
-        ))
+        let _stil = from_file_with_options(
+            Path::new("../../test_apps/python_app/vendor/stil/example1.stil"),
+            &Vec::new(),
+            None,
+            false   // relaxed (strict=false)
+        )
         .expect("Imported example1");
         //println!("{}", _stil);
     }
 
     #[test]
     fn test_example2_to_ast() {
-        let _stil = from_file(Path::new(
-            "../../test_apps/python_app/vendor/stil/example2.stil",
-        ))
+        let _stil = from_file_with_options(
+            Path::new("../../test_apps/python_app/vendor/stil/example2.stil"),
+            &Vec::new(),
+            None,
+            false   // relaxed (strict=false)
+        )
         .expect("Imported example2");
         //println!("{}", _stil);
     }
@@ -1115,9 +1121,12 @@ mod tests {
 
     #[test]
     fn test_example4_to_ast() {
-        let _stil = from_file(Path::new(
-            "../../test_apps/python_app/vendor/stil/example4.stil",
-        ))
+        let _stil = from_file_with_options(
+            Path::new("../../test_apps/python_app/vendor/stil/example4.stil"),
+            &Vec::new(),
+            None,
+            false   // relaxed (strict=false)
+        )
         .expect("Imported example4");
         // Keeping this print for test coverage since this initially caused an un-detected stack overflow
         println!("{}", _stil);
@@ -1145,9 +1154,12 @@ mod tests {
 
     #[test]
     fn test_example7_gz_to_ast() {
-        let _stil = from_file(Path::new(
-            "../../test_apps/python_app/vendor/stil/example7.stil.gz",
-        ))
+        let _stil = from_file_with_options(
+            Path::new("../../test_apps/python_app/vendor/stil/example7.stil.gz"),
+            &Vec::new(),
+            None,
+            false   // relaxed (strict=false)
+        )
         .expect("Imported example7");
         // Keeping this print for test coverage since this initially caused an un-detected stack overflow
         println!("{}", _stil);
