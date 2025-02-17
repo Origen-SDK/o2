@@ -1,6 +1,7 @@
 with Flow(bypass_sub_flows=True,
           add_flow_enable="enabled",
           environment="probe") as flow:
+    flow.name_override = 'prb2' # simple override to avoid uppercase
     flow.description = '''
       An example of creating an entire test program from a single source file
     '''

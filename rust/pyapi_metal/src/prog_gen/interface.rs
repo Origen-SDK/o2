@@ -37,6 +37,12 @@ impl PyInterface {
         Ok(())
     }
 
+    #[setter]
+    fn set_name_override(&self, name: String) -> PyResult<()> {
+        flow_api::flow_name_override(name.trim().to_string(), None)?;
+        Ok(())
+    }
+
     #[setter(resources_filename)]
     fn _set_resources_filename(&self, path: String) -> PyResult<()> {
         Err(PyTypeError::new_err(format!(
