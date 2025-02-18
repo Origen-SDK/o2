@@ -81,8 +81,6 @@ fn unwrap_tag(text: &str) -> String {
     text[1..text.len() - 1].to_string()
 }
 
-/// Create blacklist of rules
-const RELAXLIST: [Rule; 1] = [Rule::event_with_no_semicolon];
 pub struct ParseRunner {
     /// If true, the parser will error on relaxed rules
     pub strict: bool,
@@ -167,14 +165,6 @@ impl ParseRunner {
         let mut pairs: Vec<Pairs<Rule>> = vec![];
 
         loop {
-            // Is this too slow?  Should it just be added to the match case for relaxed rules?
-            if self.strict && RELAXLIST.contains(&pair.as_rule()) {
-                return Err(Error::new(&format!(
-                    "Rule: {:?} only allowed in relaxed mode (strict=false)",
-                    pair.as_rule()
-                )));
-            }
-
             match pair.as_rule() {
                 Rule::stil_source => {
                     ids.push(ast.push_and_open(node!(STIL::Root)));
@@ -722,7 +712,18 @@ impl ParseRunner {
                     )));
                     pairs.push(p);
                 }
-                Rule::event | Rule::event_with_no_semicolon => {
+                Rule::event => {
+                    ids.push(ast.push_and_open(node!(STIL::Event)));
+                    pairs.push(pair.into_inner());
+                }
+                Rule::event_with_no_semicolon => {
+                    // This is a relaxed rule, error if in strict mode
+                    if self.strict {
+                        return Err(Error::new(&format!(
+                            "Rule: {:?} only allowed in relaxed mode (strict=false)",
+                            pair.as_rule()
+                        )));
+                    }
                     ids.push(ast.push_and_open(node!(STIL::Event)));
                     pairs.push(pair.into_inner());
                 }
@@ -1088,6 +1089,12 @@ mod tests {
 
     #[test]
     fn test_example1_to_ast() {
+        // Strict parse should fail
+        assert!(from_file(
+            Path::new("../../test_apps/python_app/vendor/stil/example1.stil"),
+        ).is_err());
+
+        // Try again with relaxed parse
         let _stil = from_file_with_options(
             Path::new("../../test_apps/python_app/vendor/stil/example1.stil"),
             &Vec::new(),
