@@ -109,3 +109,9 @@ pub enum Selector {
     Max,
     Meas,
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
+pub enum CommentType {
+    C, // C-style comment (/* ... */)
+    Cpp, // C++-style comment (// ...)
+}

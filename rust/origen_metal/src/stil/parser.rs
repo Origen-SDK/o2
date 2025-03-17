@@ -1,4 +1,5 @@
 use super::nodes::STIL;
+use crate::stil;
 use crate::ast::Node;
 use crate::ast::AST;
 use crate::{Error, Result};
@@ -190,7 +191,14 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 pairs.push(pair.into_inner());
             }
             Rule::annotation => ast.push(node!(STIL::Annotation, inner_strs(pair)[0].to_string())),
-            Rule::COMMENT => ast.push(node!(STIL::Comment, pair.as_str().to_string())),
+            Rule::COMMENT => {
+                let mut p = pair.into_inner();
+                let pair = p.next().unwrap();
+                ast.push(match pair.as_rule() {
+                    Rule::block_comment => node!(STIL::Comment, pair.as_str().to_string(), stil::CommentType::C),
+                    _ => node!(STIL::Comment, pair.as_str().to_string(), stil::CommentType::Cpp),
+                });
+            }
             Rule::env_block => {
                 let mut p = pair.into_inner();
                 let n;
@@ -903,7 +911,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 let cmt = pair.as_str().to_string();
                 let cmt = cmt.trim();
                 let cmt = cmt.replace("\n", "");
-                ast.push(node!(STIL::Comment, cmt))
+                ast.push(node!(STIL::Comment, cmt, stil::CommentType::Cpp))
             }
             Rule::cyclized_data => {
                 ids.push(ast.push_and_open(node!(STIL::CyclizedData)));
@@ -977,7 +985,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 let cmt = pair.as_str().to_string();
                 let cmt = cmt.trim();
                 let cmt = cmt.replace("\n", "");
-                ast.push(node!(STIL::Comment, cmt))
+                ast.push(node!(STIL::Comment, cmt, stil::CommentType::Cpp))
             }
             Rule::match_loop => {
                 let mut p = pair.into_inner();
