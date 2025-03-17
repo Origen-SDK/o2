@@ -192,12 +192,12 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             }
             Rule::annotation => ast.push(node!(STIL::Annotation, inner_strs(pair)[0].to_string())),
             Rule::COMMENT => {
-                let mut p = pair.into_inner();
-                let pair = p.next().unwrap();
-                ast.push(match pair.as_rule() {
-                    Rule::block_comment => node!(STIL::Comment, pair.as_str().to_string(), stil::CommentType::C),
-                    _ => node!(STIL::Comment, pair.as_str().to_string(), stil::CommentType::Cpp),
-                });
+                let comment = pair.as_str().to_string();
+                if comment.starts_with("//") {
+                    ast.push(node!(STIL::Comment, comment, stil::CommentType::Cpp));
+                } else {
+                    ast.push(node!(STIL::Comment, comment, stil::CommentType::C));
+                }
             }
             Rule::env_block => {
                 let mut p = pair.into_inner();

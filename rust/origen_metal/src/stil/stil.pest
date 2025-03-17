@@ -383,9 +383,9 @@ EOS = _{ ";" }
 
 single_quote = _{ "'" | "’" }
 
-block_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
-one_line_comment = { "//" ~ (!N ~ ANY)* }
+one_line_comment = _{ "//" ~ (!N ~ ANY)* }
 
 space = _{ " " | "\t" }
 
@@ -403,4 +403,4 @@ N = _{ NEWLINE }
 
 // For Pest implicit whitespace insertion
 WHITESPACE = _{ space | NEWLINE }
-COMMENT = _{ block_comment | one_line_comment }
+COMMENT = { block_comment | one_line_comment }
