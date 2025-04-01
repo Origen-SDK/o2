@@ -1,0 +1,12 @@
+flow ADDITIONAL_ERASE_1 {
+    setup {
+        suite erase_all calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+    }
+
+    execute {
+        erase_all.execute();
+    }
+}

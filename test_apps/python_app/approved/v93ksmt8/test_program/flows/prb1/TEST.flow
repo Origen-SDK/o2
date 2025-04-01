@@ -1,0 +1,196 @@
+flow TEST {
+    setup {
+        suite meas_read_pump calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_1 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_2 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_3 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_4 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_5 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_6 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_7 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_8 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+
+        suite meas_read_pump_9 calls dc_tml.DcTest.GeneralPMU {
+            "forceMode" = "VOLT";
+            "forceValue" = "3.8";
+            "measureMode" = "PPMUpar";
+            "output" = "None";
+            "pinlist" = "@";
+            "ppmuClampHigh" = "0";
+            "ppmuClampLow" = "0";
+            "precharge" = "OFF";
+            "prechargeVoltage" = "0";
+            "relaySwitchMode" = "DEFAULT(BBM)";
+            "settlingTime" = "0";
+            "spmuClamp" = "0";
+            "termination" = "OFF";
+            "testName" = "passLimit_uA_mV";
+            "testerState" = "CONNECTED";
+        }
+    }
+
+    execute {
+        meas_read_pump.execute();
+        meas_read_pump_1.execute();
+        meas_read_pump_2.execute();
+        meas_read_pump_3.execute();
+        meas_read_pump_4.execute();
+        meas_read_pump_5.execute();
+        meas_read_pump_6.execute();
+        meas_read_pump_7.execute();
+        meas_read_pump_8.execute();
+        meas_read_pump_9.execute();
+    }
+}

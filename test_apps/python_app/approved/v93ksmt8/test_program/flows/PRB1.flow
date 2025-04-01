@@ -1,0 +1,67 @@
+flow PRB1 {
+    in DEEP_TEST_1_FAILED = -1;
+    in DEEP_TEST_FAILED = -1;
+
+    setup {
+        suite bitcell_iv_0 calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite bitcell_iv_1 calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite bitcell_iv_2 calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite bitmap_all0 calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite erase_all calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite margin_read0_ckbd calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite margin_read1_ckbd calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite normal_read_ckbd calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        suite program_ckbd calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+
+        flow PRB1_MAIN calls test_program.flows.prb1.PRB1_MAIN { }
+        flow TEST calls test_program.flows.prb1.TEST { }
+    }
+
+    execute {
+        PRB1_MAIN.execute();
+        TEST.execute();
+        if (DEEP_TEST_FAILED == 1) {
+        } else {
+        }
+        if (DEEP_TEST_1_FAILED == 1) {
+            println("Render is working.");
+        } else {
+        }
+        addBin(1);
+    }
+}

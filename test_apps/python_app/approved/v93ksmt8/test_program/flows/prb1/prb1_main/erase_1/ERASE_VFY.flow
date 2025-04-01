@@ -1,0 +1,12 @@
+flow ERASE_VFY {
+    setup {
+        suite margin_read1_all1 calls ac_tml.AcTest.FunctionalTest {
+            "output" = "None";
+            "testName" = "Functional";
+        }
+    }
+
+    execute {
+        margin_read1_all1.execute();
+    }
+}

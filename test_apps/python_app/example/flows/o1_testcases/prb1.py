@@ -16,7 +16,7 @@ with Flow(flow_description="Probe1 Main") as flow:
                   id="deep_test_1")
 
     with flow.if_failed("deep_test_1"):
-        flow.render_str("multi_bin;")
+        flow.render_str("println(\"Render is working.\");")
 
     flow.good_die(1, description="Good die!", softbin=1)
 
