@@ -34,6 +34,13 @@ impl FlowManager {
             }),
         }
     }
+    
+    /// Clears all flows and starts program generation from scratch
+    pub fn reset(&self) {
+        let mut inner = self.inner.write().unwrap();
+        inner.flows.clear();
+        inner.selected_flow = None;
+    }
 
     /// Returns true if a program flow is currently being generated
     pub fn is_open(&self) -> bool {
@@ -283,5 +290,30 @@ impl PartialEq<AST<PGM>> for FlowManager {
 impl PartialEq<Node<PGM>> for FlowManager {
     fn eq(&self, node: &Node<PGM>) -> bool {
         self.to_node() == *node
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn can_be_reset() -> crate::Result<()> {
+        let flow = super::FlowManager::new();
+        flow.start("f1")?;
+        flow.end()?;
+        flow.start("f2")?;
+        flow.end()?;
+        flow.select("f1")?;
+        flow.with_all_flows(|flows| {
+            assert_eq!(flows.len(), 2);
+            Ok(())
+        })?;
+        assert_eq!(flow.selected(), Some("f1".to_string()));
+        flow.reset();
+        assert_eq!(flow.selected(), None);
+        flow.with_all_flows(|flows| {
+            assert_eq!(flows.len(), 0);
+            Ok(())
+        })?;
+        Ok(())
     }
 }

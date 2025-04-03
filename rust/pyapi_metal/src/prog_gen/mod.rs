@@ -59,6 +59,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
     subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
     subm.add_wrapped(wrap_pyfunction!(end_flow))?;
+    subm.add_wrapped(wrap_pyfunction!(reset))?;
     subm.add_wrapped(wrap_pyfunction!(render_program_for))?;
     subm.add_wrapped(wrap_pyfunction!(start_eq_block))?;
     subm.add_wrapped(wrap_pyfunction!(end_eq_block))?;
@@ -83,6 +84,13 @@ fn set_test_template_load_path(load_path: Vec<PathBuf>) -> PyResult<()> {
 #[pyfunction]
 fn set_debugging(value: bool) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_debug_enabled(value);
+    Ok(())
+}
+
+#[pyfunction]
+/// Clears all flows and starts program generation from scratch
+fn reset() -> PyResult<()> {
+    origen_metal::FLOW.reset();
     Ok(())
 }
 
