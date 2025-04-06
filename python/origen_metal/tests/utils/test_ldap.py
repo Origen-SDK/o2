@@ -19,7 +19,7 @@ FORUMSYS = {
     "auth_config": {
         "scheme": "simple_bind",
         "username": "cn=read-only-admin,dc=example,dc=com",
-        "password": "zflexpass",
+        "password": "password",
     },
     "dn_prefix": None,
     "populate_user_config": {
@@ -41,10 +41,13 @@ FORUMSYS = {
             },
             "password": "password",
         },
-        "curie": {
+        "gauss": {
             "fields": {
-                'mail': ['curie@ldap.forumsys.com'],
-                'cn': ['Marie Curie']
+                'cn': ['Carl Friedrich Gauss'],
+                'sn': "Gauss",
+                'uid': ['gauss'],
+                # 'objectClass': ['inetOrgPerson', 'organizationalPerson', 'person', 'top'],
+                'mail': ['gauss@ldap.forumsys.com']
             }
         }
     }
@@ -265,7 +268,7 @@ class Common:
 
     @classmethod
     def get_dummy_config(cls):
-        return cls.DummyLDAPConfig(JUMPCLOUD)
+        return cls.DummyLDAPConfig(FORUMSYS)
 
     @property
     def config(self):

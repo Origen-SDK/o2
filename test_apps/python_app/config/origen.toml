@@ -52,18 +52,18 @@ full_name = "cn"
 # LDAP configuration
 [ldaps]
 [ldaps.dummy_ldap]
-server = "ldap://ldap.jumpcloud.com:389"
-base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+server = "ldap://ldap.forumsys.com:389"
+base = "dc=example,dc=com"
 [ldaps.dummy_ldap.auth]
 scheme = "simple_bind"
-username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
-password = "KrabbyPatties#1"
+username = "cn=read-only-admin,dc=example,dc=com"
+password = "password"
 
 # Service/functional accounts
 [default_users]
 [default_users.dummy_ldap_read_only]
-username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
-password = "KrabbyPatties#1"
+username = "cn=read-only-admin,dc=example,dc=com"
+password = "password"
 
 [mailer]
 server = "smtp.origen.org"
