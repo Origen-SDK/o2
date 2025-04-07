@@ -24,16 +24,20 @@ termcolor = ">= 1.1.0"
 colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)
 importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
-#[project]
-#name = "origen-metal"
-#version = "1.0.1"
-#requires-python = ">=3.7.0,<3.13"
-#dependencies = [
-#     "pyreadline3 >=3.3,<4.0; sys_platform == 'win32'",
-#     "termcolor >=1.1.0",
-#     "colorama >=0.4.4",
-#     "importlib-metadata >=6.7.0",
-#]
+# [project]
+# name = "origen-metal"
+# version = "1.0.1"
+# description = "Bare metal APIs for the Origen SDK"
+# license = "MIT"
+# readme = "README.md"
+# authors = ["Origen-SDK"]
+# requires-python = ">=3.7.0,<3.13"
+# dependencies = [
+#      "pyreadline3 >=3.3,<4.0; sys_platform == 'win32'",
+#      "termcolor >=1.1.0",
+#      "colorama >=0.4.4",
+#      "importlib-metadata >=6.7.0",
+# ]
 
 [tool.poetry.dev-dependencies]
 pytest-rerunfailures = "13.0" # Last version that supports Python 3.7
