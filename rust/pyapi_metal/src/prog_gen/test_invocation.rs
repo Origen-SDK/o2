@@ -14,6 +14,7 @@ use pyo3::types::PyDict;
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct TestInvocation {
+    #[pyo3(get)]
     pub name: String,
     pub tester: SupportedTester,
     pub id: usize,
