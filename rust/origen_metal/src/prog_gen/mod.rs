@@ -8,6 +8,7 @@ pub mod teradyne;
 mod validators;
 pub mod config;
 mod supported_testers;
+pub mod test_ids;
 
 use std::path::Path;
 use std::path::PathBuf;
