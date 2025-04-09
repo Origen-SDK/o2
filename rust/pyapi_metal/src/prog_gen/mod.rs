@@ -21,7 +21,7 @@ use resources::Resources;
 use origen_metal::ast::Meta;
 use pyo3::types::PyAny;
 use origen_metal::{Result, Error, FLOW};
-use origen_metal::prog_gen::{PGM, ParamType, ParamValue};
+use origen_metal::prog_gen::{PGM, ParamType, ParamValue, UniquenessOption};
 use pyo3::prelude::*;
 use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
 use std::result::Result as StdResult;
@@ -71,6 +71,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(ast))?;
     subm.add_wrapped(wrap_pyfunction!(ast_str))?;
     subm.add_wrapped(wrap_pyfunction!(set_test_template_load_path))?;
+    subm.add_wrapped(wrap_pyfunction!(set_uniqueness_option))?;
     m.add_submodule(subm)?;
     Ok(())
 }
@@ -78,6 +79,22 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 #[pyfunction]
 fn set_test_template_load_path(load_path: Vec<PathBuf>) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_test_template_load_path(load_path);
+    Ok(())
+}
+
+#[pyfunction]
+fn set_uniqueness_option(option: String) -> PyResult<()> {
+    match UniquenessOption::from_str(&option) {
+        Ok(uo) => {
+            origen_metal::PROG_GEN_CONFIG.set_uniqueness_option(uo);
+        }
+        Err(e) => {
+            return Err(PyErr::from(Error::new(&format!(
+                "Failed to set the uniqueness option to '{}': {}",
+                option, e
+            ))))
+        }
+    }
     Ok(())
 }
 

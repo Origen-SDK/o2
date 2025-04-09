@@ -76,6 +76,20 @@ pub enum UniquenessOption {
     String(String),
 }
 
+// Implement from_str for UniquenessOption
+impl std::str::FromStr for UniquenessOption {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "none" => Ok(UniquenessOption::None),
+            "signature" => Ok(UniquenessOption::Signature),
+            "flowname" => Ok(UniquenessOption::Flowname),
+            _ => Ok(UniquenessOption::String(s.to_string())),
+        }
+    }
+}
+
 pub trait ProgramGenerator {
     
 }
