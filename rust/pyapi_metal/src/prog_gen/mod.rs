@@ -6,6 +6,7 @@ mod group;
 mod pattern_group;
 mod condition;
 mod resources;
+mod test_ids;
 pub mod interface;
 
 use std::path::{Path, PathBuf};
@@ -57,6 +58,7 @@ enum Filter<'a> {
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
+    test_ids::define(py, subm)?;
     subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
     subm.add_wrapped(wrap_pyfunction!(end_flow))?;
     subm.add_wrapped(wrap_pyfunction!(reset))?;

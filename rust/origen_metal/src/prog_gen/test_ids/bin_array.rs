@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 pub enum Bin {
-    Single(usize),
+    Single(u32),
     /// (start, end)
-    Range(usize, usize),
+    Range(u32, u32),
 }
 
 impl Bin {
@@ -15,29 +15,28 @@ impl Bin {
         }
     }
 
-    fn min_val(&self) -> usize {
+    fn min_val(&self) -> u32 {
         match self {
             Bin::Single(x) => *x,
             Bin::Range(start, _) => *start,
         }
     }
 
-    fn max_val(&self) -> usize {
+    fn max_val(&self) -> u32 {
         match self {
             Bin::Single(x) => *x,
             Bin::Range(_, end) => *end,
         }
     }
 
-    fn contains(&self, value: &usize) -> bool {
+    fn contains(&self, value: &u32) -> bool {
         match self {
-            Bin::Single(x) => return value == x,
-            Bin::Range(start, end) => return value >= start && value <= end,
+            Bin::Single(x) => value == x,
+            Bin::Range(start, end) => value >= start && value <= end,
         }
     }
 }
 
-// Custom Ord for sorting by min value
 impl PartialOrd for Bin {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -58,11 +57,11 @@ impl Ord for Bin {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinArray {
     store: Vec<Bin>,
-    pointer: Option<usize>,
-    next: Option<usize>,
+    pointer: Option<usize>, // Still usize for Vec indexing
+    next: Option<u32>,     // Changed to u32 for bin values
 }
 
 impl BinArray {
@@ -74,54 +73,42 @@ impl BinArray {
         }
     }
 
-    pub fn push(&mut self, value: Bin) {
-        self.store.push(value);
+    pub fn push(&mut self, value: u32) {
+        self.store.push(Bin::Single(value));
         self.store.sort();
+    }
+    
+    pub fn push_range(&mut self, start: u32, end: u32) {
+        self.store.push(Bin::Range(start, end));
     }
 
     pub fn is_empty(&self) -> bool {
         self.store.is_empty()
     }
 
-    pub fn contains(&self, bin: usize) -> bool {
+    pub fn contains(&self, bin: u32) -> bool {
         self.store.iter().any(|b| match b {
-            Bin::Single(x) => return bin == *x,
-            Bin::Range(start, end) => return bin >= *start && bin <= *end,
+            Bin::Single(x) => bin == *x,
+            Bin::Range(start, end) => bin >= *start && bin <= *end,
         })
     }
 
-    pub fn min(&self) -> Option<usize> {
-        self.store.iter().next().map(|b| {
-            if let Bin::Single(x) = b {
-                return *x;
-            }
-            if let Bin::Range(start, _) = b {
-                return *start;
-            }
-            unreachable!()
+    pub fn min(&self) -> Option<u32> {
+        self.store.iter().next().map(|b| match b {
+            Bin::Single(x) => *x,
+            Bin::Range(start, _) => *start,
         })
     }
 
-    pub fn max(&self) -> Option<usize> {
-        self.store.iter().next_back().map(|b| {
-            if let Bin::Single(x) = b {
-                return *x;
-            }
-            if let Bin::Range(_, end) = b {
-                return *end;
-            }
-            unreachable!()
+    pub fn max(&self) -> Option<u32> {
+        self.store.iter().next_back().map(|b| match b {
+            Bin::Single(x) => *x,
+            Bin::Range(_, end) => *end,
         })
     }
 
-    /// Returns the next bin in the array, starting from the first and remembering the last bin
-    /// when called the next time.
-    /// A bin can optionally be supplied in which case the internal pointer will be reset and the
-    /// next bin that occurs after the given number will be returned
-    pub fn next(&mut self, after: Option<usize>, size: Option<usize>) -> Option<usize> {
+    pub fn next(&mut self, after: Option<u32>, size: Option<u32>) -> Option<u32> {
         if let Some(after) = after {
-            // Need to work out the pointer here as it is probably out of sync with the
-            // last value now
             self.pointer = None;
             let mut i = 0;
             while self.pointer.is_none() {
@@ -138,7 +125,6 @@ impl BinArray {
                         self.next = Some(v.min_val() - 1);
                     }
                 } else {
-                    // Gone past the end of the array
                     self.pointer = Some(self.store.len() - 1);
                     self.next = Some(self.store[0].min_val() - 1);
                 }
@@ -155,7 +141,6 @@ impl BinArray {
             } else {
                 pointer += 1;
                 self.pointer = Some(pointer);
-                // Return none when we get to the end of the array
                 if pointer == self.store.len() {
                     self.pointer = Some(pointer - 1);
                     return None;
@@ -167,8 +152,6 @@ impl BinArray {
             self.next = Some(v.min_val());
         }
         if let Some(size) = size {
-            // Check that all the numbers in the range to be reserved are included in the allocation,
-            // if not call again
             let mut included = true;
             let next = self.next.unwrap();
             for i in 0..size {
@@ -200,16 +183,14 @@ impl BinArray {
     }
 }
 
-// Iterator struct
 pub struct BinArrayIter {
     bin_array: BinArray,
-    // Placeholders in case we ever need to pass these to the iterator
-    _after: Option<usize>,
-    _size: Option<usize>,
+    _after: Option<u32>,
+    _size: Option<u32>,
 }
 
-impl<'a> Iterator for BinArrayIter {
-    type Item = usize;
+impl Iterator for BinArrayIter {
+    type Item = u32;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.bin_array.next(None, None)
@@ -223,10 +204,10 @@ mod tests {
     #[test]
     fn test_push_and_sort() {
         let mut ba = BinArray::new();
-        ba.push(Bin::Single(3));
-        ba.push(Bin::Range(1, 4));
-        ba.push(Bin::Range(2, 6));
-        ba.push(Bin::Single(0));
+        ba.push(3);
+        ba.push_range(1, 4);
+        ba.push_range(2, 6);
+        ba.push(0);
 
         let expected: Vec<Bin> = [
             Bin::Single(0),
@@ -243,9 +224,9 @@ mod tests {
     #[test]
     fn test_contains() {
         let mut ba = BinArray::new();
-        ba.push(Bin::Single(3));
-        ba.push(Bin::Range(1, 4));
-        ba.push(Bin::Range(6, 8));
+        ba.push(3);
+        ba.push_range(1, 4);
+        ba.push_range(6, 8);
 
         assert!(ba.contains(3), "Should find Single(3)");
         assert!(ba.contains(2), "Should find 2 in Range(1, 4)");
@@ -255,9 +236,9 @@ mod tests {
         assert!(!ba.contains(9), "Should not find 9 (out of range)");
 
         let mut b = BinArray::new();
-        b.push(Bin::Single(10));
-        b.push(Bin::Range(15, 20));
-        b.push(Bin::Single(30));
+        b.push(10);
+        b.push_range(15, 20);
+        b.push(30);
 
         assert!(!b.contains(5), "Should not include 5");
         assert!(b.contains(10), "Should include 10");
@@ -273,15 +254,15 @@ mod tests {
     #[test]
     fn test_min_and_max() {
         let mut b = BinArray::new();
-        b.push(Bin::Single(100));
+        b.push(100);
         assert_eq!(b.min(), Some(100), "Min should be 100");
         assert_eq!(b.max(), Some(100), "Max should be 100");
 
-        b.push(Bin::Range(200, 300));
+        b.push_range(200, 300);
         assert_eq!(b.min(), Some(100), "Min should still be 100");
         assert_eq!(b.max(), Some(300), "Max should be 300");
 
-        b.push(Bin::Range(20, 50));
+        b.push_range(20, 50);
         assert_eq!(b.min(), Some(20), "Min should be 20");
         assert_eq!(b.max(), Some(300), "Max should still be 300");
     }
@@ -289,9 +270,9 @@ mod tests {
     #[test]
     fn test_next() {
         let mut b = BinArray::new();
-        b.push(Bin::Single(10));
-        b.push(Bin::Range(15, 20));
-        b.push(Bin::Single(30));
+        b.push(10);
+        b.push_range(15, 20);
+        b.push(30);
 
         assert_eq!(b.next(None, None), Some(10), "Next should be 10");
         assert_eq!(b.next(None, None), Some(15), "Next should be 15");
@@ -324,8 +305,8 @@ mod tests {
     #[test]
     fn test_next_with_size() {
         let mut b = BinArray::new();
-        b.push(Bin::Range(10, 20));
-        b.push(Bin::Range(30, 40));
+        b.push_range(10, 20);
+        b.push_range(30, 40);
 
         assert_eq!(b.next(None, Some(4)), Some(10), "Next size 4 should be 10");
         assert_eq!(b.next(None, Some(4)), Some(14), "Next size 4 should be 14");
@@ -337,16 +318,16 @@ mod tests {
     #[test]
     fn test_iteration() {
         let mut b = BinArray::new();
-        b.push(Bin::Single(10));
-        b.push(Bin::Range(15, 20));
-        b.push(Bin::Single(30));
+        b.push(10);
+        b.push_range(15, 20);
+        b.push(30);
 
         let mut it = b.iter();
 
         assert_eq!(it.next(), Some(10), "Next should be 10");
         assert_eq!(it.next(), Some(15), "Next should be 15");
 
-        let collected: Vec<usize> = b.iter().collect();
+        let collected: Vec<u32> = b.iter().collect();
 
         let expected = vec![10, 15, 16, 17, 18, 19, 20, 30];
         assert_eq!(collected, expected, "Yield_all should produce all numbers");
