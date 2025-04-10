@@ -1,7 +1,9 @@
 from typing import Union, Optional, Tuple, Dict, Any
 from pathlib import Path
 from origen_metal import _origen_metal
-_TestIDInterface = _origen_metal.prog_gen.test_ids.TestIDInterface
+_TestIDs = _origen_metal.prog_gen.test_ids.TestIDs
+_AllocationOptions = _origen_metal.prog_gen.test_ids.AllocationOptions
+_Pool = _origen_metal.prog_gen.test_ids.Pool
 
 class TestIDs:
     """
@@ -37,7 +39,10 @@ class TestIDs:
     ```
     """
     def __init__(self, file: Optional[Union[Path, str]] = None):
-        self._backend = _TestIDInterface()
+        if file is not None:
+            self._backend = _TestIDs.from_file(str(file))
+        else:
+            self._backend = _TestIDs()
         
     def save(self, file: Optional[Union[Path, str]]):
         """
@@ -45,7 +50,40 @@ class TestIDs:
         created from a file then the file argument must be provided, otherwise it is optional and the original
         file will be used
         """
-        self._backend.save(file)
+        self._backend.save(str(file))
+        
+    def _pool(self, kind: str, exclude: bool = False) -> _Pool:
+        if kind == "bin" or kind == "bins":
+            if exclude:
+                return _Pool.BinExclude
+            else:
+                return _Pool.BinInclude
+        elif kind == "softbin" or kind == "softbins":
+            if exclude:
+                return _Pool.SoftBinExclude
+            else:
+                return _Pool.SoftBinInclude
+        elif kind == "number" or kind == "numbers" or kind == "test_number" or kind == "test_numbers":
+            if exclude:
+                return _Pool.NumberExclude
+            else:
+                return _Pool.NumberInclude
+        else:
+            raise ValueError(f"Unsupported kind: {kind}, must be 'bin', 'softbin' or 'number'")
+
+    def increment(self, kind: str, int):
+        """
+        Set the increment size for the given bin, softbin or test number pool, defaults to 1
+        
+        ```python
+        tids = TestIDs()
+
+        tids.include("number", (10000, 20000))
+        tids.size("number", 10)                  # Increments of 10 will be used for test numbers
+        ```
+        """
+        pool = self._pool(kind, False)
+        self._backend.set_increment(pool, int)
         
     def include(self, kind: str, *number_or_ranges: Union[int, Tuple[int, int]]):
         """
@@ -59,14 +97,12 @@ class TestIDs:
         tids.include("test_number", 1000, (2000, 3000))
         ```
         """
-        if kind != "bin" and kind != "softbin" and kind != "number":
-            raise ValueError(f"Unsupported kind: {kind}, must be 'bin', 'softbin' or 'number'")
-
+        pool = self._pool(kind, False)
         for n in number_or_ranges:
             if isinstance(n, int):
-                self._backend.configure(kind, False, n, None)
+                self._backend.push(pool, n)
             elif isinstance(n, Tuple):
-                self._backend.configure(kind, False, n[0], n[1])
+                self._backend.push_range(pool, n[0], n[1])
             else:
                 raise ValueError(f"Unsupported type: {n} ({type(n)}), must be an int or a range tuple like (1, 10)")
 
@@ -83,15 +119,16 @@ class TestIDs:
         tids.exclude("softbin", (16000, 17000))  # Exclude a range
         ```
         """
+        pool = self._pool(kind, True)
         for n in number_or_ranges:
             if isinstance(n, int):
-                self._backend.configure(kind, True, n, None)
+                self._backend.push(pool, n)
             elif isinstance(n, Tuple):
-                self._backend.configure(kind, True, n[0], n[1])
+                self._backend.push_range(pool, n[0], n[1])
             else:
                 raise ValueError(f"Unsupported type: {n} ({type(n)}), must be an int or a range tuple like (1, 10)")
 
-    def allocate(self, id: str, **kwargs) -> Dict[str, Any]:
+    def allocate(self, id: str, size: Optional[int] = None, **kwargs) -> Dict[str, Any]:
         """
         Allocate a bin, softbin and test number for the given test ID/name
         
@@ -101,37 +138,27 @@ class TestIDs:
         Providing a number for either one, e.g. `bin=100`, will force the allocator to use that number and it will
         make it unavailable for future allocations (if it is within the range of available numbers)
         """
+        opts = _AllocationOptions()
         if "bin" in kwargs:
             if kwargs["bin"] is not None:
-                bin = kwargs["bin"]
-                no_bin = False
+                opts.bin = kwargs["bin"]
             else:
-                bin = None
-                no_bin = True
-        else:
-            bin = None
-            no_bin = False
+                opts.no_bin = True
 
         if "softbin" in kwargs:
             if kwargs["softbin"] is not None:
-                softbin = kwargs["softbin"]
-                no_softbin = False
+                opts.softbin = kwargs["softbin"]
             else:
-                softbin = None
-                no_softbin = True
-        else:
-            softbin = None
-            no_softbin = False
+                opts.no_softbin = True
 
         if "number" in kwargs:
             if kwargs["number"] is not None:
-                number = kwargs["number"]
-                no_number = False
+                opts.number = kwargs["number"]
             else:
-                number = None
-                no_number = True
-        else:
-            number = None
-            no_number = False
+                opts.no_number = True
+                
+        if size is not None:
+            opts.size = size
             
-        return self._backend.allocate(id, no_bin, no_softbin, no_number, bin, softbin, number)
+        allocation = self._backend.allocate_with_options(id, opts)
+        return allocation.to_hashmap()

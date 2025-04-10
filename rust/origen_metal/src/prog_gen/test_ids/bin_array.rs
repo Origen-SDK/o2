@@ -1,4 +1,6 @@
 use std::cmp::Ordering;
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 pub enum Bin {
@@ -57,6 +59,7 @@ impl Ord for Bin {
     }
 }
 
+#[cfg_attr(feature = "python", pyclass)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinArray {
     store: Vec<Bin>,
@@ -73,40 +76,32 @@ impl BinArray {
         }
     }
 
+    pub fn iter(&self) -> BinArrayIter {
+        let mut ba = self.clone();
+        ba.pointer = None;
+        ba.next = None;
+        BinArrayIter {
+            bin_array: ba,
+            _after: None,
+            _size: None,
+        }
+    }
+
+    // Could not get pyo3 to update the bin array instance via tids.bins.include.push(3), it seemed to be
+    // always working on a copy, so moving these to Rust only methods and will implement setters higher
+    // up for Python use
     pub fn push(&mut self, value: u32) {
-        self.store.push(Bin::Single(value));
-        self.store.sort();
+        if !self.contains(value) {
+            self.store.push(Bin::Single(value));
+            self.store.sort();
+        }
     }
     
     pub fn push_range(&mut self, start: u32, end: u32) {
         self.store.push(Bin::Range(start, end));
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.store.is_empty()
-    }
-
-    pub fn contains(&self, bin: u32) -> bool {
-        self.store.iter().any(|b| match b {
-            Bin::Single(x) => bin == *x,
-            Bin::Range(start, end) => bin >= *start && bin <= *end,
-        })
-    }
-
-    pub fn min(&self) -> Option<u32> {
-        self.store.iter().next().map(|b| match b {
-            Bin::Single(x) => *x,
-            Bin::Range(start, _) => *start,
-        })
-    }
-
-    pub fn max(&self) -> Option<u32> {
-        self.store.iter().next_back().map(|b| match b {
-            Bin::Single(x) => *x,
-            Bin::Range(_, end) => *end,
-        })
-    }
-
+    // Same as above
     pub fn next(&mut self, after: Option<u32>, size: Option<u32>) -> Option<u32> {
         if let Some(after) = after {
             self.pointer = None;
@@ -170,16 +165,38 @@ impl BinArray {
             self.next
         }
     }
+}
 
-    pub fn iter(&self) -> BinArrayIter {
-        let mut ba = self.clone();
-        ba.pointer = None;
-        ba.next = None;
-        BinArrayIter {
-            bin_array: ba,
-            _after: None,
-            _size: None,
-        }
+#[cfg_attr(feature = "python", pymethods)]
+impl BinArray {
+    
+    pub fn debug(&self) {
+        println!("{:?}", self);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.store.is_empty()
+    }
+
+    pub fn contains(&self, bin: u32) -> bool {
+        self.store.iter().any(|b| match b {
+            Bin::Single(x) => bin == *x,
+            Bin::Range(start, end) => bin >= *start && bin <= *end,
+        })
+    }
+
+    pub fn min(&self) -> Option<u32> {
+        self.store.iter().next().map(|b| match b {
+            Bin::Single(x) => *x,
+            Bin::Range(start, _) => *start,
+        })
+    }
+
+    pub fn max(&self) -> Option<u32> {
+        self.store.iter().next_back().map(|b| match b {
+            Bin::Single(x) => *x,
+            Bin::Range(_, end) => *end,
+        })
     }
 }
 
@@ -333,5 +350,15 @@ mod tests {
         assert_eq!(collected, expected, "Yield_all should produce all numbers");
 
         assert_eq!(it.next(), Some(16), "Next should resume at 16");
+    }
+
+    #[test]
+    fn single_allocations_should_wrap() {
+        let mut b = BinArray::new();
+        b.push(3);
+
+        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
+        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
+        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
     }
 }

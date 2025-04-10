@@ -6,7 +6,6 @@ mod group;
 mod pattern_group;
 mod condition;
 mod resources;
-mod test_ids;
 pub mod interface;
 
 use std::path::{Path, PathBuf};
@@ -26,6 +25,7 @@ use origen_metal::prog_gen::{PGM, ParamType, ParamValue, UniquenessOption};
 use pyo3::prelude::*;
 use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
 use std::result::Result as StdResult;
+use origen_metal::prog_gen::test_ids::define as define_test_ids;
 
 #[derive(Debug)]
 pub struct FrameInfo {
@@ -58,7 +58,7 @@ enum Filter<'a> {
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
-    test_ids::define(py, subm)?;
+    define_test_ids(py, subm)?;
     subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
     subm.add_wrapped(wrap_pyfunction!(end_flow))?;
     subm.add_wrapped(wrap_pyfunction!(reset))?;
