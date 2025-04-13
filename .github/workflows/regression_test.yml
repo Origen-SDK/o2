@@ -261,9 +261,14 @@ jobs:
         working-directory: test_apps/python_no_app
         run: poetry run origen -vvv
 
-      - name: Run Python-No-App Unit Tests
+      - name: Run Python-No-App Unit Tests  (No LDAP)
         working-directory: test_apps/python_no_app
-        run: poetry run pytest -vv
+        run: poetry run pytest -vv -m "not ldap"
+
+      - name: Run Python-No-App Unit Tests (LDAP Only)
+        if: matrix.python-version == 3.7 || matrix.python-version == 3.12
+        working-directory: test_apps/python_no_app
+        run: poetry run pytest -vv -m "ldap"
 
       - name: Run Rust Tests
         if: matrix.python-version == 3.8
@@ -277,9 +282,16 @@ jobs:
         working-directory: python/origen_metal
         run: poetry install
 
-      - name: Run Python Unit Tests - Metal
+      - name: Run Python Unit Tests - Metal (No LDAP)
         working-directory: python/origen_metal
-        run: poetry run pytest -vv
+        run: poetry run pytest -vv -m "not ldap"
+
+      - name: Run Python Unit Tests - Metal (LDAP Only)
+        # Dependency in the users tests for ldap. For now, just rerun all the users test.
+        # They don't take long and, other than ldap, are robust.
+        if: matrix.python-version == 3.7 || matrix.python-version == 3.12
+        working-directory: python/origen_metal
+        run: poetry run pytest tests\framework\users\test_users.py -vv
 
       - name: Run Rust Tests - Metal
         working-directory: rust/origen_metal
