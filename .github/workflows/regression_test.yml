@@ -203,12 +203,20 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      - name: Run Python-App Unit Tests
+      - name: Run Python-App Unit Tests (No LDAP)
         uses: Wandalen/wretry.action@v1.3.0
         with:
           attempt_limit: 2
           current_path: test_apps/python_app
-          command: origen exec pytest -vv
+          command: origen exec pytest -vv -m "not ldap"
+
+      - name: Run Python-App Unit Tests (LDAP)
+        if: matrix.python-version == 3.7 || matrix.python-version == 3.12
+        uses: Wandalen/wretry.action@v1.3.0
+        with:
+          attempt_limit: 2
+          current_path: test_apps/python_app
+          command: origen exec pytest -vv -m "ldap"
 
       - name: Run Python-App Diff Tests
         working-directory: test_apps/python_app
@@ -265,11 +273,6 @@ jobs:
         working-directory: test_apps/python_no_app
         run: poetry run pytest -vv -m "not ldap"
 
-      - name: Run Python-No-App Unit Tests (LDAP Only)
-        if: matrix.python-version == 3.7 || matrix.python-version == 3.12
-        working-directory: test_apps/python_no_app
-        run: poetry run pytest -vv -m "ldap"
-
       - name: Run Rust Tests
         if: matrix.python-version == 3.8
         working-directory: rust/origen
@@ -291,7 +294,7 @@ jobs:
         # They don't take long and, other than ldap, are robust.
         if: matrix.python-version == 3.7 || matrix.python-version == 3.12
         working-directory: python/origen_metal
-        run: poetry run pytest tests\framework\users\test_users.py -vv
+        run: poetry run pytest tests/framework/users/test_users.py -vv
 
       - name: Run Rust Tests - Metal
         working-directory: rust/origen_metal
