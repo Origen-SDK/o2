@@ -211,7 +211,7 @@ jobs:
           command: origen exec pytest -vv -m "not ldap"
 
       - name: Run Python-App Unit Tests (LDAP)
-        if: matrix.python-version == 3.7 || matrix.python-version == 3.12
+        if: matrix.python-version == 3.12
         uses: Wandalen/wretry.action@v1.3.0
         with:
           attempt_limit: 2
@@ -292,7 +292,7 @@ jobs:
       - name: Run Python Unit Tests - Metal (LDAP Only)
         # Dependency in the users tests for ldap. For now, just rerun all the users test.
         # They don't take long and, other than ldap, are robust.
-        if: matrix.python-version == 3.7 || matrix.python-version == 3.12
+        if: matrix.python-version == 3.12
         working-directory: python/origen_metal
         run: poetry run pytest tests/framework/users/test_users.py -vv
 
