@@ -21,10 +21,11 @@ use resources::Resources;
 use origen_metal::ast::Meta;
 use pyo3::types::PyAny;
 use origen_metal::{Result, Error, FLOW};
-use origen_metal::prog_gen::{PGM, ParamType, ParamValue};
+use origen_metal::prog_gen::{PGM, ParamType, ParamValue, UniquenessOption};
 use pyo3::prelude::*;
 use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
 use std::result::Result as StdResult;
+use origen_metal::prog_gen::test_ids::define as define_test_ids;
 
 #[derive(Debug)]
 pub struct FrameInfo {
@@ -57,8 +58,10 @@ enum Filter<'a> {
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
+    define_test_ids(py, subm)?;
     subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
     subm.add_wrapped(wrap_pyfunction!(end_flow))?;
+    subm.add_wrapped(wrap_pyfunction!(reset))?;
     subm.add_wrapped(wrap_pyfunction!(render_program_for))?;
     subm.add_wrapped(wrap_pyfunction!(start_eq_block))?;
     subm.add_wrapped(wrap_pyfunction!(end_eq_block))?;
@@ -70,6 +73,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(ast))?;
     subm.add_wrapped(wrap_pyfunction!(ast_str))?;
     subm.add_wrapped(wrap_pyfunction!(set_test_template_load_path))?;
+    subm.add_wrapped(wrap_pyfunction!(set_uniqueness_option))?;
     m.add_submodule(subm)?;
     Ok(())
 }
@@ -81,8 +85,31 @@ fn set_test_template_load_path(load_path: Vec<PathBuf>) -> PyResult<()> {
 }
 
 #[pyfunction]
+fn set_uniqueness_option(option: String) -> PyResult<()> {
+    match UniquenessOption::from_str(&option) {
+        Ok(uo) => {
+            origen_metal::PROG_GEN_CONFIG.set_uniqueness_option(uo);
+        }
+        Err(e) => {
+            return Err(PyErr::from(Error::new(&format!(
+                "Failed to set the uniqueness option to '{}': {}",
+                option, e
+            ))))
+        }
+    }
+    Ok(())
+}
+
+#[pyfunction]
 fn set_debugging(value: bool) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_debug_enabled(value);
+    Ok(())
+}
+
+#[pyfunction]
+/// Clears all flows and starts program generation from scratch
+fn reset() -> PyResult<()> {
+    origen_metal::FLOW.reset();
     Ok(())
 }
 

@@ -1,4 +1,5 @@
 use std::{path::PathBuf, sync::RwLock};
+use super::UniquenessOption;
 
 /// Configuration for the program generator, an singleton is instantiated as
 /// `PROG_GEN_CONFIG` in `lib.rs`
@@ -9,6 +10,7 @@ pub struct Config {
     debug_enabled: RwLock<bool>,
     src_files: RwLock<Vec<PathBuf>>,
     test_template_load_path: RwLock<Vec<PathBuf>>,
+    uniquess_option: RwLock<Option<UniquenessOption>>,
 }
 
 impl Default for Config {
@@ -19,6 +21,7 @@ impl Default for Config {
             debug_enabled: RwLock::new(false),
             src_files: RwLock::new(vec![]),
             test_template_load_path: RwLock::new(vec![]),
+            uniquess_option: RwLock::new(None),
         }
     }
 }
@@ -71,5 +74,13 @@ impl Config {
     
     pub fn test_template_load_path(&self) -> Vec<PathBuf> {
         self.test_template_load_path.read().unwrap().clone()
+    }
+    
+    pub fn set_uniqueness_option(&self, option: UniquenessOption) {
+        *self.uniquess_option.write().unwrap() = Some(option);
+    }
+    
+    pub fn uniqueness_option(&self) -> Option<UniquenessOption> {
+        self.uniquess_option.read().unwrap().clone()
     }
 }
