@@ -25,3 +25,6 @@ Repeat step 3 after making any changes to `rust/origen_metal` (the Rust library)
 To test out any updates in your application add `python/origen_metal` to your application's
 virtual environment.
 
+If using another venv manager than Poetry, you might need to uncomment the `[project]` section
+in `pyproject.toml`.
+
