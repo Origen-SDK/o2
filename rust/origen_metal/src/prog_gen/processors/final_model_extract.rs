@@ -9,7 +9,7 @@ use crate::ast::{Node, Processor, Return};
 /// The resultant AST has most of the associated nodes removed but is otherwise unchanged.
 /// The model is not considered finalized until after the flow generator for the specific ATE
 /// target has run, at that point any ATE-specific extraction into the model will be complete,
-/// e.g. to extract pattern refernces made by test objects.
+/// e.g. to extract pattern references made by test objects.
 pub struct ExtractToModel {
     model: Model,
 }

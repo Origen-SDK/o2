@@ -29,7 +29,7 @@ pub use test::Test;
 pub use variable::Variable;
 pub use variable::VariableOperation;
 pub use variable::VariableType;
-pub use template_loader::{TestTemplate, TestTemplateParameter};
+pub use template_loader::{TestTemplate, TestTemplateParameter, load_test_from_lib};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum PatternGroupType {
