@@ -1,8 +1,6 @@
-mod processors;
+pub(crate) mod processors;
 
-use super::super::validators as generic_validators;
-use crate::prog_gen::processors as generic_processors;
-use crate::prog_gen::{Model, PatternReferenceType, PatternType, VariableType};
+use crate::prog_gen::{Model, PatternReferenceType, PatternType, VariableType, process_flow};
 use crate::prog_gen::supported_testers::SupportedTester;
 use crate::{Result, FLOW};
 use std::io::Write;
@@ -30,36 +28,11 @@ pub fn render(output_dir: &Path) -> Result<(Vec<PathBuf>, Model)> {
 
         for (name, flow) in flows {
             log_debug!("Rendering flow '{}' for V93k SMT7", name);
-            let ast = flow.process(&mut |n| {
-                generic_processors::target_tester::run(n, SupportedTester::V93KSMT7)
-            })?;
-            generic_validators::duplicate_ids::run(&ast)?;
-            generic_validators::missing_ids::run(&ast)?;
-            generic_validators::jobs::run(&ast)?;
-            generic_validators::flags::run(&ast)?;
-
-            // This should be run at the very start after the AST has been validated, it removes all define test
-            // and attribute nodes which allows the optimizations to
-            let (ast, m) = generic_processors::initial_model_extract::run(
-                &ast,
-                SupportedTester::V93KSMT7,
-                model,
-            )?;
-            let ast = generic_processors::nest_on_result_nodes::run(&ast)?;
-            let ast = generic_processors::relationship::run(&ast)?;
-            let ast = generic_processors::condition::run(&ast)?;
-            let ast = generic_processors::continue_implementer::run(&ast)?;
-            let ast = generic_processors::flag_optimizer::run(&ast, None)?;
-            let ast = generic_processors::adjacent_if_combiner::run(&ast)?;
-
-            // Some V93K-specific model and AST processing
-            let (ast, m) = processors::clean_names_and_add_sig::run(&ast, m)?;
+            let (ast, m) = process_flow(flow, model, SupportedTester::V93KSMT7, true)?;
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Generate the main flow file
             ////////////////////////////////////////////////////////////////////////////////////////////////////////
-            // Do a final model extract for things which may have been optimized away if done earlier, e.g. flag variables
-            let (ast, m) = generic_processors::final_model_extract::run(&ast, m)?;
             let (m, mut new_files) = processors::flow_generator::run(&ast, &testflow_dir, m)?;
             model = m;
             files.append(&mut new_files);

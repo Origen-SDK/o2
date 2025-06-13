@@ -788,7 +788,9 @@ impl Processor<PGM> for FlowGenerator {
                 } else {
                     self.push_body(&format!("{} = 0;", &flag));
                 }
-                self.flow_control_vars.push(flag.to_string());
+                if !self.resources_block {
+                    self.flow_control_vars.push(flag.to_string());
+                }
                 Return::None
             }
             PGM::Bin(bin, softbin, kind) => {
