@@ -21,6 +21,9 @@ pub fn run(node: &Node<PGM>, model: Model) -> Result<(Node<PGM>, Model)> {
         model: model,
         test_suite_names: HashMap::new(),
     };
+    if let Some(o) = crate::PROG_GEN_CONFIG.uniqueness_option() {
+        p.uniq_option = o;
+    }
     let ast = node.process(&mut p)?.unwrap();
 
     Ok((ast, p.model))

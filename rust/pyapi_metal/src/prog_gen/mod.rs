@@ -18,13 +18,14 @@ use pattern_group::PatternGroup;
 use condition::Condition;
 use resources::Resources;
 
-use origen_metal::ast::Meta;
+use origen_metal::ast::{Meta, Node};
 use pyo3::types::PyAny;
 use origen_metal::{Result, Error, FLOW};
-use origen_metal::prog_gen::{PGM, ParamType, ParamValue};
+use origen_metal::prog_gen::{PGM, ParamType, ParamValue, UniquenessOption};
 use pyo3::prelude::*;
 use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
 use std::result::Result as StdResult;
+use origen_metal::prog_gen::test_ids::define as define_test_ids;
 
 #[derive(Debug)]
 pub struct FrameInfo {
@@ -57,8 +58,10 @@ enum Filter<'a> {
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
+    define_test_ids(py, subm)?;
     subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
     subm.add_wrapped(wrap_pyfunction!(end_flow))?;
+    subm.add_wrapped(wrap_pyfunction!(reset))?;
     subm.add_wrapped(wrap_pyfunction!(render_program_for))?;
     subm.add_wrapped(wrap_pyfunction!(start_eq_block))?;
     subm.add_wrapped(wrap_pyfunction!(end_eq_block))?;
@@ -67,9 +70,12 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(set_debugging))?;
     subm.add_wrapped(wrap_pyfunction!(start_src_file))?;
     subm.add_wrapped(wrap_pyfunction!(end_src_file))?;
+    subm.add_wrapped(wrap_pyfunction!(processed_ast))?;
+    subm.add_wrapped(wrap_pyfunction!(processed_ast_str))?;
     subm.add_wrapped(wrap_pyfunction!(ast))?;
     subm.add_wrapped(wrap_pyfunction!(ast_str))?;
     subm.add_wrapped(wrap_pyfunction!(set_test_template_load_path))?;
+    subm.add_wrapped(wrap_pyfunction!(set_uniqueness_option))?;
     m.add_submodule(subm)?;
     Ok(())
 }
@@ -81,8 +87,31 @@ fn set_test_template_load_path(load_path: Vec<PathBuf>) -> PyResult<()> {
 }
 
 #[pyfunction]
+fn set_uniqueness_option(option: String) -> PyResult<()> {
+    match UniquenessOption::from_str(&option) {
+        Ok(uo) => {
+            origen_metal::PROG_GEN_CONFIG.set_uniqueness_option(uo);
+        }
+        Err(e) => {
+            return Err(PyErr::from(Error::new(&format!(
+                "Failed to set the uniqueness option to '{}': {}",
+                option, e
+            ))))
+        }
+    }
+    Ok(())
+}
+
+#[pyfunction]
 fn set_debugging(value: bool) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_debug_enabled(value);
+    Ok(())
+}
+
+#[pyfunction]
+/// Clears all flows and starts program generation from scratch
+fn reset() -> PyResult<()> {
+    origen_metal::FLOW.reset();
     Ok(())
 }
 
@@ -196,7 +225,44 @@ fn end_flow(ref_ids: Vec<usize>) -> PyResult<()> {
     Ok(())
 }
 
-/// Returns the AST for the current flow in Python
+#[pyfunction]
+/// Returns the AST for the current flow after it has been fully processed for the given tester type
+fn processed_ast(tester: String) -> PyResult<Vec<u8>> {
+    Ok(_processed_ast(&tester)?.to_pickle())
+}
+
+fn _processed_ast(tester: &str) -> Result<Node<PGM>> {
+    let tester = match SupportedTester::from_str(&tester) {
+        Ok(t) => t,
+        Err(e) => {
+            bail!(
+                "Failed to identify a supported tester type from '{}': {}",
+                tester, e
+            )
+        }
+    };
+    match tester {
+        SupportedTester::V93KSMT7 => {
+            let ast = FLOW.with_selected_flow(|flow| {
+                let model = origen_metal::prog_gen::Model::new(tester);
+                let (ast, _m) = origen_metal::prog_gen::process_flow(flow, model, tester, false)?;
+                Ok(ast)
+            })?;
+            Ok(ast)
+        }
+        _ => bail!(
+            "The tester type '{}' is not supported yet for processed AST generation",
+            tester
+        )
+    }
+}   
+
+#[pyfunction]   
+fn processed_ast_str(tester: String) -> PyResult<String> {
+    Ok(origen_metal::ast::to_string(&_processed_ast(&tester)?))
+}
+
+/// Returns the raw AST for the current flow in Python
 #[pyfunction]
 fn ast() -> PyResult<Vec<u8>> {
     Ok(FLOW.to_pickle())

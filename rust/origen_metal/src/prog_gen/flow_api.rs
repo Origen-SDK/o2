@@ -147,6 +147,16 @@ pub fn log(text: String, meta: Option<Meta>) -> Result<()> {
     FLOW.push(n)
 }
 
+/// Mark the given flags as volatile, meaning their state could be changed by tests and therefore
+/// should not be optimized out of the flow
+pub fn set_volatile_flags(flags: Vec<String>, meta: Option<Meta>) -> Result<()> {
+    for flag in flags {
+        let n = node!(PGM::Volatile, flag; meta.clone());
+        FLOW.push(n)?;
+    }
+    Ok(())
+}
+
 /// [IGXL only] Set the given wait flags on the given test instance
 pub fn set_wait_flags(ti_id: usize, flags: Vec<String>, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::IGXLSetWaitFlags, ti_id, flags; meta);
@@ -240,6 +250,11 @@ pub fn start_bypass_sub_flows(meta: Option<Meta>) -> Result<usize> {
 
 pub fn flow_description(desc: String, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::FlowDescription, desc; meta);
+    FLOW.push(n)
+}
+
+pub fn flow_name_override(name: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::FlowNameOverride, name; meta);
     FLOW.push(n)
 }
 
