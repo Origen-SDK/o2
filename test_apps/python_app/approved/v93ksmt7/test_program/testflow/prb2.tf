@@ -1366,13 +1366,6 @@ erase_all_40_864CE8F:
   override_testf = tm_86;
   site_control = "parallel:";
   site_match = 2;
-erase_all_41_864CE8F:
-  local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
-  override = 1;
-  override_seqlbl = "erase_all";
-  override_testf = tm_119;
-  site_control = "parallel:";
-  site_match = 2;
 erase_all_4_864CE8F:
   local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
   override = 1;
@@ -1412,7 +1405,7 @@ erase_all_864CE8F:
   local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
   override = 1;
   override_seqlbl = "erase_all";
-  override_testf = tm_4;
+  override_testf = tm_119;
   site_control = "parallel:";
   site_match = 2;
 erase_all_8_864CE8F:
@@ -1443,18 +1436,11 @@ force_serial_true_test_864CE8F:
   override_testf = tm_99;
   site_control = "parallel:";
   site_match = 2;
-margin_read0_ckbd_1_864CE8F:
-  local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
-  override = 1;
-  override_seqlbl = "margin_read0_ckbd";
-  override_testf = tm_118;
-  site_control = "parallel:";
-  site_match = 2;
 margin_read0_ckbd_864CE8F:
   local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
   override = 1;
   override_seqlbl = "margin_read0_ckbd";
-  override_testf = tm_3;
+  override_testf = tm_118;
   site_control = "parallel:";
   site_match = 2;
 margin_read1_all1_10_864CE8F:
@@ -1633,18 +1619,11 @@ margin_read1_all1_9_864CE8F:
   override_testf = tm_62;
   site_control = "parallel:";
   site_match = 2;
-margin_read1_ckbd_1_864CE8F:
-  local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
-  override = 1;
-  override_seqlbl = "margin_read1_ckbd";
-  override_testf = tm_116;
-  site_control = "parallel:";
-  site_match = 2;
 margin_read1_ckbd_864CE8F:
   local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
   override = 1;
   override_seqlbl = "margin_read1_ckbd";
-  override_testf = tm_2;
+  override_testf = tm_116;
   site_control = "parallel:";
   site_match = 2;
 meas_read_pump_1_864CE8F:
@@ -1843,13 +1822,6 @@ program_ckbd_16_864CE8F:
   override_testf = tm_26;
   site_control = "parallel:";
   site_match = 2;
-program_ckbd_17_864CE8F:
-  local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
-  override = 1;
-  override_seqlbl = "program_ckbd";
-  override_testf = tm_111;
-  site_control = "parallel:";
-  site_match = 2;
 program_ckbd_1_864CE8F:
   local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
   override = 1;
@@ -1903,7 +1875,7 @@ program_ckbd_864CE8F:
   local_flags = output_on_pass, output_on_fail, value_on_pass, value_on_fail, per_pin_on_pass, per_pin_on_fail;
   override = 1;
   override_seqlbl = "program_ckbd";
-  override_testf = tm_1;
+  override_testf = tm_111;
   site_control = "parallel:";
   site_match = 2;
 program_ckbd_8_864CE8F:

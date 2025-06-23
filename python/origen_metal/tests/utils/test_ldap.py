@@ -151,6 +151,56 @@ JUMPCLOUD = {
     }
 }
 
+FOXPASS = {
+    "name": "foxpass",
+    "server": "ldaps://ldap.foxpass.com:636",
+    "base": "dc=corymich,dc=heliohost,dc=us",
+    "auth_config": {
+        "scheme": "simple_bind",
+        "username": "uid=spongebob.squarepants,dc=corymich,dc=heliohost,dc=us",
+        "password": "KrabbyPatties#1",
+    },
+    "dn_prefix": "ou=people",
+    "populate_user_config": {
+        "data_id": "uid",
+        "mapping": {
+            "email": "mail",
+            "last_name": "sn",
+            "full_name": "cn"
+        }
+    },
+    "users": {
+        "patrick.star": {
+            "fields": {
+                'sn': ['Star'],
+                'uid': ['patrick.star'],
+                'givenName': ['Patrick'],
+                'cn': ['Patrick Star'],
+                'objectClass': [
+                    'inetOrgPerson',
+                    'organizationalPerson',
+                    'person',
+                    'top'
+                ],
+                'apple-generateduid': ['C865D538-E78C-4A1A-8BE8-3A2AEE7B6758'],
+                'entryUUID': ['c865d538-e78c-4a1a-8be8-3a2aee7b6758'],
+                'lastName': ['Star'],
+                'modifyTimestamp': ['20250616220444Z'],
+                'mail': ['patrick.star@bikini.bottom'],
+                'gn': ['Patrick']
+            },
+            "password": "Jellyfishing!",
+        },
+        "squidward.tentacles": {
+            "fields": {
+                'mail': ['squidward.tentacles@bikini.bottom'],
+                'sn': ['Tentacles'],
+                'cn': ['Squidward Tentacles'],
+            }
+        }
+    }
+}
+
 class Common:
     def dummy_ldap(self, name=None, timeout=5, continuous_bind=False, populate_user_config=False):
         if populate_user_config is True:
@@ -268,7 +318,7 @@ class Common:
 
     @classmethod
     def get_dummy_config(cls):
-        return cls.DummyLDAPConfig(FORUMSYS)
+        return cls.DummyLDAPConfig(FOXPASS)
 
     @property
     def config(self):
