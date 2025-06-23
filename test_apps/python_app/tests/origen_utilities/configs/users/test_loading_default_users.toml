@@ -11,11 +11,11 @@ initialize = false
 
 [ldaps]
 [ldaps.dummy_autopop]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
+server = "ldaps://ldap.foxpass.com:636"
+base = "dc=corymich,dc=heliohost,dc=us"
 [ldaps.dummy_autopop.auth]
-username = "cn=read-only-admin,dc=example,dc=com"
-password = "password"
+username = "uid=spongebob.squarepants,dc=corymich,dc=heliohost,dc=us"
+password = "KrabbyPatties#1"
 [ldaps.dummy_autopop.populate_user_config]
 [ldaps.dummy_autopop.populate_user_config.mapping]
 email = "mail"
@@ -35,10 +35,10 @@ last_name = "USER"
 # full_name = "TEST FULL USER"
 auto_populate = false
 should_validate_passwords = false
-[default_users.euler]
+[default_users."patrick.star"]
 auto_populate = true
 should_validate_passwords = false
-[default_users.gauss]
+[default_users."squidward.tentacles"]
 auto_populate = true
 should_validate_passwords = false
 email = "guest2@origen.org"

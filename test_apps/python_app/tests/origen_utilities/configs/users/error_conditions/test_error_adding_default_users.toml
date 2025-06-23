@@ -18,11 +18,11 @@ initialize = false
 
 [ldaps]
 [ldaps.dummy_autopop]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
+server = "ldaps://ldap.foxpass.com:636"
+base = "dc=corymich,dc=heliohost,dc=us"
 [ldaps.dummy_autopop.auth]
-username = "cn=read-only-admin,dc=example,dc=com"
-password = "password"
+username = "uid=spongebob.squarepants,dc=corymich,dc=heliohost,dc=us"
+password = "KrabbyPatties#1"
 [ldaps.dummy_autopop.populate_user_config]
 [ldaps.dummy_autopop.populate_user_config.mapping]
 full_name = "cn"

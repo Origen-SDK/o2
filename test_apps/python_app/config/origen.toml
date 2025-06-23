@@ -52,18 +52,18 @@ full_name = "cn"
 # LDAP configuration
 [ldaps]
 [ldaps.dummy_ldap]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
+server = "ldaps://ldap.foxpass.com:636"
+base = "dc=corymich,dc=heliohost,dc=us"
 [ldaps.dummy_ldap.auth]
 scheme = "simple_bind"
-username = "cn=read-only-admin,dc=example,dc=com"
-password = "password"
+username = "uid=spongebob.squarepants,dc=corymich,dc=heliohost,dc=us"
+password = "KrabbyPatties#1"
 
 # Service/functional accounts
 [default_users]
 [default_users.dummy_ldap_read_only]
-username = "cn=read-only-admin,dc=example,dc=com"
-password = "password"
+username = "uid=spongebob.squarepants,dc=corymich,dc=heliohost,dc=us"
+password = "KrabbyPatties#1"
 
 [mailer]
 server = "smtp.origen.org"
