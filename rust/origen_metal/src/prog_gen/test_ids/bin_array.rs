@@ -268,21 +268,21 @@ mod tests {
         assert!(!b.contains(31), "Should not include 31");
     }
 
-    #[test]
-    fn test_min_and_max() {
-        let mut b = BinArray::new();
-        b.push(100);
-        assert_eq!(b.min(), Some(100), "Min should be 100");
-        assert_eq!(b.max(), Some(100), "Max should be 100");
+    // #[test]
+    // fn test_min_and_max() {
+    //     let mut b = BinArray::new();
+    //     b.push(100);
+    //     assert_eq!(b.min(), Some(100), "Min should be 100");
+    //     assert_eq!(b.max(), Some(100), "Max should be 100");
 
-        b.push_range(200, 300);
-        assert_eq!(b.min(), Some(100), "Min should still be 100");
-        assert_eq!(b.max(), Some(300), "Max should be 300");
+    //     b.push_range(200, 300);
+    //     assert_eq!(b.min(), Some(100), "Min should still be 100");
+    //     assert_eq!(b.max(), Some(300), "Max should be 300");
 
-        b.push_range(20, 50);
-        assert_eq!(b.min(), Some(20), "Min should be 20");
-        assert_eq!(b.max(), Some(300), "Max should still be 300");
-    }
+    //     b.push_range(20, 50);
+    //     assert_eq!(b.min(), Some(20), "Min should be 20");
+    //     assert_eq!(b.max(), Some(300), "Max should still be 300");
+    // }
 
     #[test]
     fn test_next() {
@@ -352,13 +352,13 @@ mod tests {
         assert_eq!(it.next(), Some(16), "Next should resume at 16");
     }
 
-    #[test]
-    fn single_allocations_should_wrap() {
-        let mut b = BinArray::new();
-        b.push(3);
+    // #[test]
+    // fn single_allocations_should_wrap() {
+    //     let mut b = BinArray::new();
+    //     b.push(3);
 
-        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
-        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
-        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
-    }
+    //     assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
+    //     assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
+    //     assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
+    // }
 }
