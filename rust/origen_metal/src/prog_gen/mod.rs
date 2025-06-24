@@ -154,6 +154,7 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 /// ```no_run
 /// use crate::FLOW;
 /// use crate::prog_gen::Model;
+/// use origen_metal::prog_gen::SupportedTester;
 /// 
 /// FLOW.with_all_flows(|flows| {
 ///     let mut model = Model::new(SupportedTester::V93KSMT7);
