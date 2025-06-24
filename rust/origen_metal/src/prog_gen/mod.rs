@@ -162,7 +162,7 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 ///         (ast, model) = process_flow(flow, model, SupportedTester::V93KSMT7, true)?;
 ///     }
 ///     Ok(())
-/// }
+/// })
 /// ```
 pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, validate: bool) -> crate::Result<(Node<PGM>, Model)> {
     let mut ast = flow.process(&mut |n| {
