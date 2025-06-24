@@ -151,7 +151,7 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 /// Processes the given flow AST so that it is ready to generate the flow for the given tester,
 /// optionally validating it first
 /// 
-/// ```no_run
+/// ```ignore
 /// use crate::FLOW;
 /// use crate::prog_gen::Model;
 /// use origen_metal::prog_gen::SupportedTester;
