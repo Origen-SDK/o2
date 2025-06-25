@@ -38,6 +38,9 @@ class TestIDs:
     tids.allocate("test4", bin=None, softbin=None)   # => {"number": 10003}
     ```
     """
+
+    __test__ = False # Prevents pytest from trying to collect this class as a test case
+
     def __init__(self, file: Optional[Union[Path, str]] = None):
         if file is not None:
             self._backend = _TestIDs.from_file(str(file))
