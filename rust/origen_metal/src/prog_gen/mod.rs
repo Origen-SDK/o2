@@ -151,10 +151,11 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 /// Processes the given flow AST so that it is ready to generate the flow for the given tester,
 /// optionally validating it first
 /// 
-/// ```ignore
-/// use crate::FLOW;
-/// use crate::prog_gen::Model;
+/// ```no_run
+/// use origen_metal::FLOW;
+/// use origen_metal::prog_gen::Model;
 /// use origen_metal::prog_gen::SupportedTester;
+/// use origen_metal::prog_gen::process_flow;
 /// 
 /// FLOW.with_all_flows(|flows| {
 ///     let mut model = Model::new(SupportedTester::V93KSMT7);
@@ -163,7 +164,7 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 ///         (ast, model) = process_flow(flow, model, SupportedTester::V93KSMT7, true)?;
 ///     }
 ///     Ok(())
-/// })
+/// });
 /// ```
 pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, validate: bool) -> crate::Result<(Node<PGM>, Model)> {
     let mut ast = flow.process(&mut |n| {
