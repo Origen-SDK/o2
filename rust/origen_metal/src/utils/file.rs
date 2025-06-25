@@ -219,6 +219,7 @@ impl FilePermissions {
                 let m = f.metadata()?;
                 let mut permissions = m.permissions();
                 permissions.set_mode(self.to_i().into());
+                f.set_permissions(permissions)?;
                 Ok(())
             } else {
                 let message = format!(
