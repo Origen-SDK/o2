@@ -82,7 +82,7 @@ class TestUsers(UsersBase):
         ldap_u2 = ldap_config.users[1]
 
         retn = in_new_origen_proc(mod=user_configs)
-        assert retn["user_ids"] == {"basic", "full user", "squidy", "p-star"}
+        assert retn["user_ids"] == {"basic", "full user", "patrick.star", "squidward.tentacles"}
         u = retn["basic"]
         assert u["dataset_names"] == {'autopop_ldap', 'other'}
         assert u["username"] == "basic"

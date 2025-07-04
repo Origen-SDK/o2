@@ -11,10 +11,10 @@ initialize = false
 
 [ldaps]
 [ldaps.dummy_autopop]
-server = "ldap://ldap.jumpcloud.com:389"
-base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+server = "ldaps://ldap.foxpass.com:636"
+base = "dc=corymich,dc=heliohost,dc=us"
 [ldaps.dummy_autopop.auth]
-username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+username = "uid=spongebob.squarepants,dc=corymich,dc=heliohost,dc=us"
 password = "KrabbyPatties#1"
 [ldaps.dummy_autopop.populate_user_config]
 [ldaps.dummy_autopop.populate_user_config.mapping]
@@ -35,10 +35,10 @@ last_name = "USER"
 # full_name = "TEST FULL USER"
 auto_populate = false
 should_validate_passwords = false
-[default_users.p-star]
+[default_users."patrick.star"]
 auto_populate = true
 should_validate_passwords = false
-[default_users.squidy]
+[default_users."squidward.tentacles"]
 auto_populate = true
 should_validate_passwords = false
 email = "guest2@origen.org"

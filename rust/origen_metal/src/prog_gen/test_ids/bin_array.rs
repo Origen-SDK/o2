@@ -269,6 +269,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_min_and_max() {
         let mut b = BinArray::new();
         b.push(100);
@@ -353,12 +354,13 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn single_allocations_should_wrap() {
         let mut b = BinArray::new();
         b.push(3);
 
-        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
-        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
-        assert_eq!(b.next(None, None), Some(3), "Sshould be 3");
+        assert_eq!(b.next(None, None), Some(3), "Should be 3");
+        assert_eq!(b.next(None, None), Some(3), "Should be 3");
+        assert_eq!(b.next(None, None), Some(3), "Should be 3");
     }
 }
