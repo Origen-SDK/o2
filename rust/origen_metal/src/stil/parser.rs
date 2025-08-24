@@ -696,7 +696,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 )));
                 pairs.push(p);
             }
-            Rule::event => {
+            Rule::event | Rule::event_with_no_semicolon => {
                 ids.push(ast.push_and_open(node!(STIL::Event)));
                 pairs.push(pair.into_inner());
             }
