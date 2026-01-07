@@ -1,0 +1,46 @@
+{
+    "class_name": "dc_tml.DcTest.DpsStatus",
+
+    "parameters": {
+        "dpsPins": {
+            "type": "string",
+            "aliases": [],
+            "value": "@"
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "DPS_Status"
+        },
+        "constantCurrent": {
+            "type": "string",
+            "aliases": [],
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "unregulated": {
+            "type": "string",
+            "aliases": [],
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "overVoltage": {
+            "type": "string",
+            "aliases": [],
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "overPowerTemp": {
+            "type": "string",
+            "aliases": [],
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        }
+    }
+}
