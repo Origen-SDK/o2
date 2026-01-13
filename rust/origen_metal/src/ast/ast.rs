@@ -238,6 +238,11 @@ impl<T: Attrs> AST<T> {
         }
     }
 
+    /// Writes the AST to the given file to allow it to be reviewed for debugging purposes
+    pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        self.to_node().to_file(path)
+    }
+
     /// Clones the current state of the AST into a Node, leaving the AST unmodified
     pub fn to_node(&self) -> Node<T> {
         let mut node = self.nodes.last().unwrap().clone();

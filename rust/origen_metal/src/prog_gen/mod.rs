@@ -192,6 +192,7 @@ pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, vali
         model,
     )?;
 
+    //ast.to_file("unprocesed_ast.txt")?;
     log_debug!("Processing flow for tester {:?}", tester);
     ast = processors::clean_resources::run(&ast)?;
     ast = processors::nest_on_result_nodes::run(&ast)?;
@@ -206,8 +207,13 @@ pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, vali
         SupportedTester::V93KSMT7 => {
             (ast, m) = advantest::smt7::processors::clean_names_and_add_sig::run(&ast, m)?;
         }
+        SupportedTester::V93KSMT8 => {
+            ast = advantest::smt8::processors::create_flow_data::run(&ast)?;
+        }
         _ => { }
     }
+
+    //ast.to_file("ast.txt")?;
 
     // Do a final model extract for things which may have been optimized away if done earlier, e.g. flag variables
     Ok(processors::final_model_extract::run(&ast, m)?)

@@ -1,7 +1,6 @@
 flow PRB2 {
-    in ENABLE = 1;
     in EXTRA_TESTS = -1;
-
+    in PRB2_ENABLE = -1;
 
     setup {
         suite erase_all calls ac_tml.AcTest.FunctionalTest {
@@ -58,7 +57,7 @@ flow PRB2 {
     }
 
     execute {
-        if (ENABLE == 1) {
+        if (PRB2_ENABLE == 1) {
             erase_all.execute();
             margin_read1_all1.execute();
             erase_all_1.execute();
@@ -71,6 +70,7 @@ flow PRB2 {
             } else {
             }
             margin_read1_all1_3.execute();
+        } else {
         }
     }
 }

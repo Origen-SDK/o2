@@ -689,46 +689,51 @@ impl Tester {
                         display!("Created: {}", list.display());
                     }
                     if let Some(ref_dir) = crate::STATUS.reference_dir() {
-                        let ref_list = ref_dir.join("referenced.list");
-                        display!(" - ");
-                        if ref_list.exists() {
-                            let mut differ = ASCIIDiffer::new(&ref_list, &list);
-                            differ.ignore_comments("#")?;
-                            if differ.has_diffs()? {
-                                if let Err(e) = reference_files::create_changed_ref(
-                                    Path::new("referenced.list"),
-                                    &list,
-                                    &ref_list,
-                                ) {
-                                    log_error!("{}", e);
+                        match list.strip_prefix(crate::STATUS.output_dir()) {
+                            Err(e) => log_error!("{}", e),
+                            Ok(stem) => {
+                                let ref_list = ref_dir.join(&stem);
+                                display!(" - ");
+                                if ref_list.exists() {
+                                    let mut differ = ASCIIDiffer::new(&ref_list, &list);
+                                    differ.ignore_comments("#")?;
+                                    if differ.has_diffs()? {
+                                        if let Err(e) = reference_files::create_changed_ref(
+                                            Path::new("referenced.list"),
+                                            &list,
+                                            &ref_list,
+                                        ) {
+                                            log_error!("{}", e);
+                                        }
+                                        self.stats.changed_program_files += 1;
+                                        display_redln!("Diffs found");
+                                        let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
+                                        let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
+                                        let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
+                                            .unwrap_or("tkdiff".to_string());
+                                        displayln!(
+                                            "  {} {} {} &",
+                                            &diff_tool,
+                                            old.display(),
+                                            new.display()
+                                        );
+                                        display!("  origen save_ref referenced.list");
+                                    } else {
+                                        display_green!("No diffs");
+                                    }
+                                } else {
+                                    self.stats.new_program_files += 1;
+                                    if let Err(e) = reference_files::create_new_ref(
+                                        Path::new("referenced.list"),
+                                        &list,
+                                        &ref_list,
+                                    ) {
+                                        log_error!("{}", e);
+                                    }
+                                    display_cyanln!("New file");
+                                    display!("  origen save_ref referenced.list");
                                 }
-                                self.stats.changed_program_files += 1;
-                                display_redln!("Diffs found");
-                                let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
-                                let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
-                                let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
-                                    .unwrap_or("tkdiff".to_string());
-                                displayln!(
-                                    "  {} {} {} &",
-                                    &diff_tool,
-                                    old.display(),
-                                    new.display()
-                                );
-                                display!("  origen save_ref referenced.list");
-                            } else {
-                                display_green!("No diffs");
                             }
-                        } else {
-                            self.stats.new_program_files += 1;
-                            if let Err(e) = reference_files::create_new_ref(
-                                Path::new("referenced.list"),
-                                &list,
-                                &ref_list,
-                            ) {
-                                log_error!("{}", e);
-                            }
-                            display_cyanln!("New file");
-                            display!("  origen save_ref referenced.list");
                         }
                     }
                     displayln!("");

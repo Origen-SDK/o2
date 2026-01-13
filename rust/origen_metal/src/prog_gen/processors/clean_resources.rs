@@ -30,7 +30,7 @@ impl Processor<PGM> for CleanResources {
             _ => {
                 if self.in_resources {
                     // Throw away everything except those with a handler defined above
-                    Ok(Return::None)
+                    Ok(Return::UnwrapWithProcessedChildren)
                 } else {
                     Ok(Return::ProcessChildren)
                 }

@@ -1,6 +1,7 @@
 {
     "parameter_list": {
         "name": "String",
+        "spec": "String",
         "comment": "String",
         "timing_equation": "String",
         "timing_spec": "String",

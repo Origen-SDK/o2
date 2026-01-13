@@ -13,14 +13,6 @@ pub fn render(output_dir: &Path) -> Result<(Vec<PathBuf>, Model)> {
     if !testflow_dir.exists() {
         std::fs::create_dir_all(&testflow_dir)?;
     }
-    //let testflow_setup_dir = testflow_dir.join("setup");
-    //if !testflow_setup_dir.exists() {
-    //    std::fs::create_dir_all(&testflow_setup_dir)?;
-    //}
-    //let vectors_dir = output_dir.join("vectors");
-    //if !vectors_dir.exists() {
-    //    std::fs::create_dir_all(&vectors_dir)?;
-    //}
 
     let model = FLOW.with_all_flows(|flows| {
         let mut model = Model::new(SupportedTester::V93KSMT8);

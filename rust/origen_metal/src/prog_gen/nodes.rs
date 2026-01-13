@@ -3,6 +3,7 @@ use crate::prog_gen::{
     ResourcesType, UniquenessOption,
 };
 use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum PGM {
@@ -95,6 +96,8 @@ pub enum PGM {
     Uniqueness(UniquenessOption),
 
     IGXLSetWaitFlags(usize, Vec<String>),
+
+    FlowData(FlowData)
 }
 
 impl std::fmt::Display for PGM {

@@ -49,6 +49,8 @@ flow ERASE {
     }
 
     execute {
+        ERS_VFY_FAILED = -1;
+
         erase_all.execute();
         erase_all_1.execute();
         erase_all_2.execute();

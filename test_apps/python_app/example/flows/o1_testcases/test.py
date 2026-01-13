@@ -8,7 +8,8 @@ with Flow() as flow:
     flow.description = ''
 
     #if tester.v93k? && tester.create_limits_file
-    #  flow.func("program_ckbd", bin=100, soft_bin=1100, number=40000)
+    with tester().eq("v93ksmt8"):
+        flow.func("program_ckbd", bin=100, soft_bin=1100, number=40000)
 
     flow.meas("read_pump",
               tnum=1050,
@@ -61,29 +62,30 @@ with Flow() as flow:
               number=40060)
 
     #unless tester.v93k? && tester.create_limits_file
-    flow.meas("read_pump",
-              tnum=1120,
-              bin=119,
-              soft_bin=2,
-              hi_limit="_some_spec",
-              lo_limit=0.01,
-              continue_on_fail=True,
-              number=40070)
-    flow.meas("read_pump",
-              tnum=1130,
-              bin=119,
-              soft_bin=2,
-              hi_limit=[1, 2],
-              number=40080)
-    flow.meas("read_pump",
-              tnum=1140,
-              bin=119,
-              soft_bin=2,
-              lo_limit=[1 * uA, 2 * uA, 3 * uA],
-              hi_limit=[4 * uA, 5e-06],
-              units="A",
-              defer_limits=True,
-              number=40090)
+    with tester().neq("v93ksmt8"):
+        flow.meas("read_pump",
+                  tnum=1120,
+                  bin=119,
+                  soft_bin=2,
+                  hi_limit="_some_spec",
+                  lo_limit=0.01,
+                  continue_on_fail=True,
+                  number=40070)
+        flow.meas("read_pump",
+                  tnum=1130,
+                  bin=119,
+                  soft_bin=2,
+                  hi_limit=[1, 2],
+                  number=40080)
+        flow.meas("read_pump",
+                  tnum=1140,
+                  bin=119,
+                  soft_bin=2,
+                  lo_limit=[1 * uA, 2 * uA, 3 * uA],
+                  hi_limit=[4 * uA, 5e-06],
+                  units="A",
+                  defer_limits=True,
+                  number=40090)
 
     # TODO: implement this when test case is imported
     #with tester().eq("uflex"):
