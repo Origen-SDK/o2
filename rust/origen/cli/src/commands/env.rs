@@ -11,6 +11,7 @@ use origen::utility::file_actions as fa;
 use regex::Regex;
 use semver::VersionReq;
 use std::process::Command;
+use std::path::PathBuf;
 
 pub const BASE_CMD: &'static str = "env";
 
@@ -48,7 +49,8 @@ pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
             let origen_root = match invocation
                 .subcommand_matches("setup")
                 .unwrap()
-                .get_one::<&str>("origen")
+                // .get_one::<&str>("origen") produces a panic when executed
+                .get_one::<String>("origen")
             {
                 None => None,
                 Some(x) => {
@@ -98,7 +100,9 @@ pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
                 std::process::exit(1);
             }
 
+            log_trace!("Checking against for origen development path option {:?}", origen_root);
             if let Some(p) = origen_root {
+                log_trace!("origen path provided");
                 let origen_root = p.join("python").join("origen");
 
                 // Poetry seems to have a number of bugs when switching back and forth between path and version
@@ -114,7 +118,7 @@ pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
 
                 // And add a new one pointing to the given path
                 let r = Regex::new(r"^\s*\[\s*tool.poetry.dependencies\s*\].*").unwrap();
-                let line = format!("\norigen = {{ path = \"{}\" }}", origen_root.display());
+                let line = format!("\norigen = {{ path = \"{}\" }}", normalize_path_string(&origen_root));
                 if let Err(e) = fa::insert_after(&pyproject, &r, &line) {
                     display_redln!("{}", e);
                     std::process::exit(1);
@@ -143,6 +147,7 @@ pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
 
             // We want to keep the Origen development apps permanently running on a local reference to Origen
             } else if !origen::STATUS.is_origen_present {
+                log_trace!("No origen development path provided and Origen is not present");
                 // If we are about to switch from a path to a version reference then delete the virtual env to ensure the
                 // switch happens cleanly, this is for a Poetry bug and should be removed in future
                 if origen::STATUS.is_app_in_origen_dev_mode {
@@ -309,5 +314,13 @@ fn delete_virtual_env() {
         if path.exists() {
             let _ = std::fs::remove_dir_all(&path);
         }
+    }
+}
+
+fn normalize_path_string(path: &PathBuf) -> String {
+    if cfg!(windows) {
+        path.display().to_string().trim_start_matches(r"\\?\").to_string().replace("\\", "/")
+    } else {
+        path.display().to_string()
     }
 }
