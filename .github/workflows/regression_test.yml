@@ -412,7 +412,7 @@ jobs:
       - name: Run Global No-Plugins One Above Site-Packages Dir
         working-directory: test_apps/no_workspace
         run: |
-          poetry config solver.lazy-wheel true
+          poetry config cache-dir ~/.cache/pypoetry
           pytest test_global_install.py::TestGlobalInstallNoPlugins -vv
 
       - name: Run Global With Plugins At Site-Packages Dir
