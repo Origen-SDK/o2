@@ -411,15 +411,15 @@ jobs:
       # Leave the no-workspace setup. The global setup should override
       - name: Run Global No-Plugins One Above Site-Packages Dir
         working-directory: test_apps/no_workspace
-        run: pytest test_global_install.py::TestGlobalInstallNoPlugins -vv
+        run: pytest test_global_install.py::TestGlobalInstallNoPlugins -vvv s
 
       - name: Run Global With Plugins At Site-Packages Dir
         working-directory: test_apps/no_workspace
-        run: pytest test_global_install.py::TestGlobalInstallWithPlugins -vv
+        run: pytest test_global_install.py::TestGlobalInstallWithPlugins -vvv s
 
       - name: Run Global No-Plugins At CLI Dir
         working-directory: test_apps/no_workspace
-        run: pytest test_global_install.py::TestGlobalInstallAtCliDir -vv
+        run: pytest test_global_install.py::TestGlobalInstallAtCliDir -vvv s
 
       # With global origen available, test user install errors which fall back to the global install
       - name: Run User Install Errors - Falling Back To Global Install
