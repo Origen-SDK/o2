@@ -411,9 +411,7 @@ jobs:
       # Leave the no-workspace setup. The global setup should override
       - name: Run Global No-Plugins One Above Site-Packages Dir
         working-directory: test_apps/no_workspace
-        run: |
-          poetry config cache-dir ~/.cache/pypoetry
-          pytest test_global_install.py::TestGlobalInstallNoPlugins -vv
+        run: pytest test_global_install.py::TestGlobalInstallNoPlugins -vv
 
       - name: Run Global With Plugins At Site-Packages Dir
         working-directory: test_apps/no_workspace
