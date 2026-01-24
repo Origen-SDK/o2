@@ -119,7 +119,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
                 print(ta_helpers.is_gh_regressions)
                 print(_origen.utility.revision_control.github.get_current_workflow_name())
                 try:
-                    subprocess.run(["poetry", "install", "-vv"], check=True, cwd=cls.target_pyproj_dir)
+                    subprocess.run(["poetry", "install", "-v"], check=True, cwd=cls.target_pyproj_dir)
                     break
                 except subprocess.CalledProcessError as e:
                     if ta_helpers.is_gh_regressions:
