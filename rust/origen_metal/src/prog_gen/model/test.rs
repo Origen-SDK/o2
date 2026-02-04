@@ -6,6 +6,8 @@ use crate::Result;
 use indexmap::IndexMap;
 use std::str::FromStr;
 
+pub const TEST_NUMBER_ALIASES: [&str; 6] = ["testnumber", "test_number", "number", "testnum", "test_num", "tnum"];
+
 /// This is an abstract data object which is used to model test instances on Teradyne platforms
 /// and both test methods and test suites on Advantest platforms.
 /// A test template is modelled as a Test where indirect = true, which means that it will never be
@@ -17,6 +19,7 @@ use std::str::FromStr;
 pub struct Test {
     pub id: usize,
     pub name: String,
+    pub tname: Option<String>, // Secondary test name, if applicable
     pub indirect: bool,
     /// Defines the names of parameters and their types. Child class can override the type of a parameter
     /// inherited from a parent by adding a parameter of the same name to their params map. Then can also
@@ -81,6 +84,7 @@ impl Test {
         let mut t = Test {
             id: id,
             name: name.to_string(),
+            tname: None,
             indirect: false,
             params: IndexMap::new(),
             values: IndexMap::new(),

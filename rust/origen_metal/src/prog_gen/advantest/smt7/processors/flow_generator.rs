@@ -627,7 +627,7 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 Return::ProcessChildren
             }
-            PGM::TestStr(name, _flow_id) => {
+            PGM::TestStr(name, _flow_id, _bin, _softbin, _number) => {
                 if node
                     .children
                     .iter()

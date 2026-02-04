@@ -98,8 +98,8 @@ pub fn execute_test(id: usize, flow_id: FlowID, meta: Option<Meta>) -> Result<()
 /// Execute the given test (or invocation) from the current flow, where the test is a string that
 /// will be rendered verbatim to the flow - no linkage to an actual test object will be checked or
 /// inserted by Origen
-pub fn execute_test_str(name: String, flow_id: FlowID, meta: Option<Meta>) -> Result<()> {
-    let n = node!(PGM::TestStr, name, flow_id; meta);
+pub fn execute_test_str(name: String, flow_id: FlowID, bin: Option<usize>, softbin: Option<usize>, number: Option<usize>, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::TestStr, name, flow_id, bin, softbin, number; meta);
     FLOW.push(n)
 }
 

@@ -16,6 +16,8 @@ log/
 /test_apps/**/.session
 rls/
 .pytest_cache
+.cline_storage/
+
 
 # pyenv
 .python-version

@@ -22,6 +22,7 @@ struct FlowGenerator {
     test_method_names: HashMap<usize, String>,
     resources_block: bool,
     flow_stack: Vec<FlowFile>,
+    limits_file: Option<std::fs::File>,
 }
 
 /// Contains the data for a .flow file
@@ -65,7 +66,7 @@ impl FlowFile {
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
-    //ast.to_file("ast.txt")?;
+    ast.to_file("smt8_flow.txt")?;
 
     let mut p = FlowGenerator {
         name: "".to_string(),
@@ -81,6 +82,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         test_method_names: HashMap::new(),
         resources_block: false,
         flow_stack: vec![],
+        limits_file: None,
     };
 
     let mut i = 0;
@@ -100,6 +102,22 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
 }
 
 impl FlowGenerator {
+    fn current_flow_path(&self) -> Option<String> {
+        if self.flow_stack.is_empty() || self.flow_stack.len() == 1 {
+            None
+        } else {
+            let mut p = "".to_string();
+            for f in &self.flow_stack[1..self.flow_stack.len()] {
+                if p.is_empty() {
+                    p = f.name.to_string();
+                } else {
+                    p = format!("{}.{}", p, f.name);
+                }
+            }
+            Some(p)
+        }
+    }
+
     fn open_flow_file(&mut self, name: &str, flow_data: FlowData) -> Result<()> {
         // Create a clean name where all spaces are underscores and lowercase and any multiple underscores
         // are reduced to single underscores
@@ -260,232 +278,35 @@ impl Processor<PGM> for FlowGenerator {
                 Return::Unmodified
             }
             PGM::Flow(name) => {
-                {
-                    log_debug!("Rendering flow '{}' for V93k SMT8", name);
-                    self.name = name.to_owned();
-                    self.model.select_flow(name)?;
-                    let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                        fdata.clone()
-                    } else {
-                        FlowData::default()
-                    };
-                    self.open_flow_file(name, flow_data)?;
-                    node.process_children(self)?;
-                    self.close_flow_file()?;
+                log_debug!("Rendering flow '{}' for V93k SMT8", name);
 
-            //        writeln!(&mut f, "testmethodlimits")?;
-            //        if self.inline_limits {
-            //            writeln!(&mut f, "")?;
-            //            for (name, id) in &self.test_methods {
-            //                let tm = self.model.tests.get(id).unwrap();
-            //                writeln!(&mut f, "{}:", name)?;
-            //                if tm.sub_tests.is_empty() {
-            //                    let test_name = match tm.get("TestName") {
-            //                        Ok(n) => match n {
-            //                            Some(n) => Some(n.to_string()),
-            //                            None => None,
-            //                        },
-            //                        Err(_) => None,
-            //                    };
-            //                    let test_name = match test_name {
-            //                        Some(x) => x,
-            //                        None => "Functional".to_string(),
-            //                    };
-            //                    let number = match tm.invocation(&self.model).unwrap().number {
-            //                        Some(x) => format!("{}", x),
-            //                        None => "".to_string(),
-            //                    };
-            //                    if tm.hi_limit.is_none() && tm.lo_limit.is_none() {
-            //                        // Don't know why, but to align to O1, can be removed later if necessary
-            //                        if number == "" {
-            //                            writeln!(
-            //                                &mut f,
-            //                                r#"  "{}" = "":"NA":"":"NA":"":"":"";"#,
-            //                                test_name
-            //                            )?;
-            //                        } else {
-            //                            writeln!(
-            //                                &mut f,
-            //                                r#"  "{}" = "":"NA":"":"NA":"":"{}":"0";"#,
-            //                                test_name, &number
-            //                            )?;
-            //                        }
-            //                    } else if tm.lo_limit.is_none() {
-            //                        let limit = tm.hi_limit.as_ref().unwrap();
-            //                        writeln!(
-            //                            &mut f,
-            //                            r#"  "{}" = "":"NA":"{}":"LE":"{}":"{}":"0";"#,
-            //                            test_name,
-            //                            limit.value,
-            //                            limit.unit_str(),
-            //                            &number
-            //                        )?;
-            //                    } else if tm.hi_limit.is_none() {
-            //                        let limit = tm.lo_limit.as_ref().unwrap();
-            //                        writeln!(
-            //                            &mut f,
-            //                            r#"  "{}" = "{}":"GE":"":"NA":"{}":"{}":"0";"#,
-            //                            test_name,
-            //                            limit.value,
-            //                            limit.unit_str(),
-            //                            &number
-            //                        )?;
-            //                    } else {
-            //                        let lo_limit = tm.lo_limit.as_ref().unwrap();
-            //                        let hi_limit = tm.hi_limit.as_ref().unwrap();
-            //                        writeln!(
-            //                            &mut f,
-            //                            r#"  "{}" = "{}":"GE":"{}":"LE":"{}":"{}":"0";"#,
-            //                            test_name,
-            //                            lo_limit.value,
-            //                            hi_limit.value,
-            //                            lo_limit.unit_str(),
-            //                            &number
-            //                        )?;
-            //                    }
-            //                } else {
-            //                    bail!("Inline multi-limits is not implemented for V93K SMT7 yet, multiple limits encountered for test '{}'", name);
-            //                }
-            //            }
-            //        }
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "testmethods")?;
-            //        writeln!(&mut f, "")?;
-            //        for (name, id) in &self.test_methods {
-            //            let tm = self.model.tests.get(id).unwrap();
-            //            writeln!(&mut f, "{}:", name)?;
-            //            if let Some(class) = &tm.class_name {
-            //                writeln!(&mut f, r#"  testmethod_class = "{}";"#, class)?;
-            //            }
-            //        }
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "test_suites")?;
-            //        writeln!(&mut f, "")?;
-
-            //        for (name, id) in &self.test_suites {
-            //            let ts = self.model.test_invocations.get(id).unwrap();
-            //            writeln!(&mut f, "{}:", name)?;
-            //            if let Some(v) = ts.get("comment")? {
-            //                writeln!(&mut f, "  comment = \"{}\";", v)?;
-            //            }
-            //            if is_true(ts, "log_first")? {
-            //                writeln!(&mut f, "  ffc_on_fail = 1;")?;
-            //            }
-            //            let fls = flags(ts)?;
-            //            if !fls.is_empty() {
-            //                writeln!(&mut f, "  local_flags = {};", fls.join(", "))?;
-            //            }
-            //            writeln!(&mut f, "  override = 1;")?;
-            //            if let Some(v) = ts.get("analog_set")? {
-            //                writeln!(&mut f, "  override_anaset = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("level_equation")? {
-            //                writeln!(&mut f, "  override_lev_equ_set = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("level_spec")? {
-            //                writeln!(&mut f, "  override_lev_spec_set = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("level_set")? {
-            //                writeln!(&mut f, "  override_levset = {};", v)?;
-            //            }
-            //            if let Some(v) = ts.get("pattern")? {
-            //                writeln!(&mut f, "  override_seqlbl = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("test_number")? {
-            //                writeln!(&mut f, "  override_test_number = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.test_id {
-            //                writeln!(&mut f, "  override_testf = {};", self.test_method_names[&v])?;
-            //            }
-            //            if let Some(v) = ts.get("timing_equation")? {
-            //                writeln!(&mut f, "  override_tim_equ_set = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("timing_spec")? {
-            //                writeln!(&mut f, "  override_tim_spec_set = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("timing_set")? {
-            //                writeln!(&mut f, "  override_timset = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("site_control")? {
-            //                writeln!(&mut f, "  site_control = \"{}\";", v)?;
-            //            }
-            //            if let Some(v) = ts.get("site_match")? {
-            //                writeln!(&mut f, "  site_match = {};", v)?;
-            //            }
-            //            if let Some(v) = ts.get("test_level")? {
-            //                writeln!(&mut f, "  test_level = \"{}\";", v)?;
-            //            }
-            //        }
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "test_flow")?;
-            //        writeln!(&mut f, "")?;
-            //        for line in &self.flow_header {
-            //            writeln!(&mut f, "{}", line)?;
-            //        }
-            //        for line in &self.flow_body {
-            //            writeln!(&mut f, "{}", line)?;
-            //        }
-            //        for line in &self.flow_footer {
-            //            writeln!(&mut f, "{}", line)?;
-            //        }
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "binning")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "oocrule")?;
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "context")?;
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
-            //        writeln!(&mut f, "hardware_bin_descriptions")?;
-            //        writeln!(&mut f, "")?;
-            //        let flow = self.model.get_flow(None).unwrap();
-            //        for (number, bin) in &flow.hardbins {
-            //            if let Some(desc) = &bin.description {
-            //                writeln!(&mut f, "  {} = \"{}\";", number, desc)?;
-            //            }
-            //        }
-            //        writeln!(&mut f, "")?;
-            //        writeln!(&mut f, "end")?;
-            //        writeln!(
-            //            &mut f,
-            //            "-----------------------------------------------------------------"
-            //        )?;
+                let limits_dir = self.output_dir.parent().unwrap().join("limits");
+                if !limits_dir.exists() {
+                    std::fs::create_dir_all(&limits_dir)?;
                 }
+                let limits_file = limits_dir.join(format!(
+                    "Main.{}_Tests.csv",
+                    name.replace(" ", "_").to_uppercase()
+                ));
+
+                let mut f = std::fs::File::create(&limits_file)?;
+                self.generated_files.push(limits_file.clone());
+                writeln!(&mut f, "Test Suite,Test,Test Number,Test Text,Low Limit,High Limit,Unit,Soft Bin")?;
+                writeln!(&mut f, ",,,,default,default")?;
+                self.limits_file = Some(f);
+
+
+                self.name = name.to_owned();
+                self.model.select_flow(name)?;
+                let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
+                    fdata.clone()
+                } else {
+                    FlowData::default()
+                };
+                self.open_flow_file(name, flow_data)?;
+                node.process_children(self)?;
+                self.close_flow_file()?;
+
                 Return::None
             }
             PGM::BypassSubFlows => {
@@ -599,32 +420,84 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             PGM::Test(id, _flow_id) => {
-                let (test_name, pattern) = {
-                    let test = &self.model.test_invocations[id];
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    let mut test_name = test.get("name")?.unwrap().to_string();
-                    if current_flow.existing_test_counter.contains_key(&test_name) {
-                        let orig_test_name = test_name.clone();
-                        test_name = format!(
-                            "{}_{}",
+                let mut test_number = "".to_string();
+                let mut lo_limit = "".to_string();
+                let mut hi_limit = "".to_string();
+                let (bin, softbin) = extract_bin(&node.children);
+                let (test_name, pattern, tname) = {
+                    let test_invocation = &self.model.test_invocations[id];
+                    let mut test_name = test_invocation.get("name")?.unwrap().to_string();
+                    {
+                        let current_flow = self.flow_stack.last_mut().unwrap();
+                        if current_flow.existing_test_counter.contains_key(&test_name) {
+                            let orig_test_name = test_name.clone();
+                            test_name = format!(
+                                "{}_{}",
+                                test_name,
+                                current_flow.existing_test_counter.get(&orig_test_name).unwrap()
+                            );
+                            let count = current_flow.existing_test_counter.get(&orig_test_name).unwrap() + 1;
+                            current_flow
+                                .existing_test_counter
+                                .insert(orig_test_name, count);
+                        } else {
+                            current_flow
+                                .existing_test_counter
+                                .insert(test_name.to_owned(), 1);
+                        }
+                        current_flow.test_ids.push((test_name.clone(), *id));
+                        if let Some(tn) = test_invocation.number {
+                            test_number = format!("{}", tn);
+                        }
+                        if let Some(l) = &test_invocation.lo_limit {
+                            lo_limit = format!("{}{}", l.value, l.unit_str());
+                        }
+                        if let Some(h) = &test_invocation.hi_limit {
+                            hi_limit = format!("{}{}", h.value, h.unit_str());
+                        }
+                        //if *id == 6 {
+                        //    dbg!(&test_invocation);
+                        //    let test = test_invocation.test(&self.model).unwrap();
+                        //    dbg!(test);
+                        //}
+                        (
                             test_name,
-                            current_flow.existing_test_counter.get(&orig_test_name).unwrap()
-                        );
-                        let count = current_flow.existing_test_counter.get(&orig_test_name).unwrap() + 1;
-                        current_flow
-                            .existing_test_counter
-                            .insert(orig_test_name, count);
-                    } else {
-                        current_flow
-                            .existing_test_counter
-                            .insert(test_name.to_owned(), 1);
+                            test_invocation.get("pattern")?.map(|p| p.to_string()),
+                            test_invocation.tname.clone()
+                        )
                     }
-                    current_flow.test_ids.push((test_name.clone(), *id));
-                    (
-                        test_name,
-                        test.get("pattern")?.map(|p| p.to_string()),
-                    )
+
                 };
+                if !self.resources_block {
+                    let test_path = match self.current_flow_path() {
+                        Some(p) => format!("{}.{}", p, &test_name),
+                        None => test_name.clone(),
+                    };  
+                    let b = if let Some(softbin) = softbin {
+                        softbin.to_string()
+                    } else if let Some(bin) = bin {
+                        bin.to_string()
+                    } else {
+                        "".to_string()
+                    };
+                    // Test Suite,Test,Test Number,Test Text,Low Limit,High Limit,Unit,Soft Bin"
+                    let test_text = if let Some(test_name_alt) = &tname {
+                        format!("{}.{}", test_name, test_name_alt)
+                    } else {
+                        test_name.clone()
+                    };
+                    writeln!(
+                        self.limits_file.as_mut().unwrap(),
+                        "{},{},{},{},{},{},,{}",
+                        test_path,
+                        &tname.as_ref().unwrap_or(&test_name),
+                        test_number,
+                        &test_text,
+                        &lo_limit,
+                        &hi_limit,
+                        b
+                    )?;
+                }
                 // Record any pattern reference made by this test in the model
                 if let Some(pattern) = pattern {
                     self.model.record_pattern_reference(pattern, None, None);
@@ -672,7 +545,22 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 Return::ProcessChildren
             }
-            PGM::TestStr(name, _flow_id) => {
+            PGM::TestStr(name, _flow_id, _bin, softbin, number) => {
+                if !self.resources_block {
+                    let test_path = match self.current_flow_path() {
+                        Some(p) => format!("{}.{}", p, &name),
+                        None => name.clone(),
+                    };  
+                    writeln!(
+                        self.limits_file.as_mut().unwrap(),
+                        "{},{},{},{},0,0,,{}",
+                        test_path,
+                        &name,
+                        number.as_ref().map(|n| n.to_string()).unwrap_or_default(),
+                        &name,
+                        softbin.as_ref().map(|b| b.to_string()).unwrap_or_default()
+                    )?;
+                }
                 self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", name));
                 if node
                     .children
@@ -903,4 +791,21 @@ impl Processor<PGM> for FlowGenerator {
         };
         Ok(result)
     }
+}
+
+
+fn extract_bin(nodes: &Vec<Box<Node<PGM>>>) -> (Option<usize>, Option<usize>) {
+    for n in nodes {
+        match &n.attrs {
+            PGM::OnFailed(_) => {
+                for n in &n.children {
+                    if let PGM::Bin(bin, softbin, _) = n.attrs {
+                        return (Some(bin), softbin);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    (None, None)
 }

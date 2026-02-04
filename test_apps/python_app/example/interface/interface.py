@@ -1,8 +1,12 @@
 import origen
 from origen.interface import BaseInterface, dut, tester
-from contextlib import contextmanager, ContextDecorator
+from contextlib import contextmanager
+from origen_metal._origen_metal import prog_gen as origen_prog_gen
 #import pdb; pdb.set_trace()
 
+# Make some templates for SMT8 available
+load_path = [origen.app.root.joinpath("example", "interface", "test_templates")]
+origen_prog_gen.set_test_template_load_path(load_path)
 
 class Interface(BaseInterface):
     #def func(self, name):
@@ -36,8 +40,6 @@ class Interface(BaseInterface):
                     nonlocal number
                     nonlocal igxl
                     nonlocal group
-                    if number and i:
-                        number += i
                     ins = igxl.new_test_instance(name,
                                                  library="std",
                                                  template="functional",
@@ -79,8 +81,6 @@ class Interface(BaseInterface):
                     nonlocal number
                     nonlocal v93k
                     nonlocal group
-                    if number and i:
-                        number += i
                     tm = v93k.new_test_method("functional_test",
                                               library="ac_tml",
                                               allow_missing=True,
@@ -88,6 +88,10 @@ class Interface(BaseInterface):
                     ts = v93k.new_test_suite(name, **kwargs)
                     ts.test_method = tm
                     with tester().eq("v93ksmt8"):
+                        if number is not None:
+                            ts.number = number + (i or 0)
+                        ts.set_lo_limit(0)
+                        ts.set_hi_limit(0)
                         if kwargs.get("pin_levels"):
                             ts.spec = kwargs.pop("pin_levels")
                         else:
@@ -166,7 +170,7 @@ class Interface(BaseInterface):
             self.add_test(ins, **options)
             j750.new_patset(f"{name}_pset", pattern=f"{name}.PAT")
 
-    def meas(self, name, **kwargs):
+    def meas(self, name, number=None, **kwargs):
         options = {"duration": "static"}
         options.update(kwargs)
 
@@ -232,6 +236,7 @@ class Interface(BaseInterface):
             ts = v93k.new_test_suite(name, **options)
             ts.test_method = tm
             with tester().eq("v93ksmt8"):
+                ts.number = number
                 if kwargs.get("pin_levels"):
                     ts.spec = kwargs.pop("pin_levels")
                 else:

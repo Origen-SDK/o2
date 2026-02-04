@@ -115,7 +115,7 @@ impl Processor<PGM> for Collector {
                 self.processing_subflow = orig;
                 return Ok(Return::Replace(n));
             }
-            PGM::Test(_, _) | PGM::TestStr(_, _) => {
+            PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
                 let orig = self.processing_subflow;
                 self.processing_subflow = false;
                 let n = node.process_and_update_children(self)?;

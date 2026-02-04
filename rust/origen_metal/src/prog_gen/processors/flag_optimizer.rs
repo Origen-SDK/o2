@@ -27,6 +27,7 @@ pub struct FlagOptimizer {
 }
 
 pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Node<PGM>> {
+    //node.to_file("pre_flag_optimization.txt")?;
     let optimize_when_continue = match optimize_when_continue {
         Some(x) => x,
         None => true,
@@ -44,7 +45,7 @@ pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Nod
     let ast = ast.process(&mut p)?.unwrap();
     p.pass = 1;
     let ast = ast.process(&mut p)?.unwrap();
-
+    //node.to_file("post_flag_optimization.txt")?;
     Ok(ast)
 }
 

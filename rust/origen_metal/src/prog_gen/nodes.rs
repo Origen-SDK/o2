@@ -43,7 +43,8 @@ pub enum PGM {
     Test(usize, FlowID),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
     /// into the flow
-    TestStr(String, FlowID),
+    ///                     Bin            Softbin        Number
+    TestStr(String, FlowID, Option<usize>, Option<usize>, Option<usize>),
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     /// Push a pattern to the given pattern group ID

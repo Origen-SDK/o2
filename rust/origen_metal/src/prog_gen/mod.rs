@@ -169,6 +169,7 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 /// ```
 pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, validate: bool) -> crate::Result<(Node<PGM>, Model)> {
     log_debug!("Screening flow for tester {:?}", tester);
+    //flow.to_file("unprocessed_ast.txt")?;
     let mut ast = flow.process(&mut |n| {
         processors::target_tester::run(n, tester)
     })?;
@@ -186,6 +187,7 @@ pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, vali
     // and attribute nodes
     let mut m;
     log_debug!("Extracting initial model from flow for tester {:?}", tester);
+    //ast.to_file("pre_initial_model_extract_ast.txt")?;
     (ast, m) = processors::initial_model_extract::run(
         &ast,
         tester,

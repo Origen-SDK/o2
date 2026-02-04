@@ -64,7 +64,7 @@ pub fn run(node: &Node<PGM>) -> Result<()> {
 impl Processor<PGM> for MissingIDs {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            PGM::Test(_, id) | PGM::TestStr(_, id) | PGM::Cz(_, _, id) => {
+            PGM::Test(_, id) | PGM::TestStr(_, id, _, _, _) | PGM::Cz(_, _, id) => {
                 self.ids.insert(id.to_owned(), node.without_children());
                 Return::ProcessChildren
             }

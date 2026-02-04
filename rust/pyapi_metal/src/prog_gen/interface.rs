@@ -75,6 +75,7 @@ impl PyInterface {
         let id = flow_options::get_flow_id(kwargs)?;
         let bin = flow_options::get_bin(kwargs)?;
         let softbin = flow_options::get_softbin(kwargs)?;
+        let number = flow_options::get_number(kwargs)?;
 
         Ok(flow_options::wrap_in_conditions(kwargs, false, || {
             if let Ok(t) = test_obj.extract::<TestInvocation>() {
@@ -100,7 +101,7 @@ impl PyInterface {
                     }
                 }
             } else if let Ok(t) = test_obj.extract::<String>() {
-                flow_api::execute_test_str(t, id.clone(), src_caller_meta())?;
+                flow_api::execute_test_str(t, id.clone(), bin, softbin, number, src_caller_meta())?;
             } else {
                 bail!(
                     "add_test must be given a valid test object, or a String, this is neither: {:?}",
