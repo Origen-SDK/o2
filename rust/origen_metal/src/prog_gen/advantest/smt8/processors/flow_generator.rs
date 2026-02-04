@@ -66,7 +66,7 @@ impl FlowFile {
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
-    ast.to_file("smt8_flow.txt")?;
+    //ast.to_file("smt8_flow.txt")?;
 
     let mut p = FlowGenerator {
         name: "".to_string(),
