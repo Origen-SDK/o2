@@ -76,6 +76,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(ast_str))?;
     subm.add_wrapped(wrap_pyfunction!(set_test_template_load_path))?;
     subm.add_wrapped(wrap_pyfunction!(set_uniqueness_option))?;
+    subm.add_wrapped(wrap_pyfunction!(set_namespace))?;
     m.add_submodule(subm)?;
     Ok(())
 }
@@ -211,6 +212,12 @@ fn start_new_flow(
     }
     refs.reverse();
     Ok(refs)
+}
+
+#[pyfunction]
+fn set_namespace(namespace: String) -> PyResult<()> {
+    flow_api::set_namespace(namespace, None)?;
+    Ok(())
 }
 
 #[pyfunction]

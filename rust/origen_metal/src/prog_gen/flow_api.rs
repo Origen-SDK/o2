@@ -232,6 +232,11 @@ pub fn set_default_flag_state(name: String, state: bool, meta: Option<Meta>) -> 
     FLOW.push(n)
 }
 
+pub fn set_namespace(namespace: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::Namespace, namespace; meta);
+    FLOW.push(n)
+}
+
 pub fn continue_on_fail(meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::Continue; meta);
     FLOW.push(n)

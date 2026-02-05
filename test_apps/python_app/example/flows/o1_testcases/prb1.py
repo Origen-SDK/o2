@@ -1,4 +1,4 @@
-with Flow(flow_description="Probe1 Main") as flow:
+with Flow(flow_description="Probe1 Main", namespace="OrigenTesters") as flow:
 
     #unless Origen.app.environment.name == 'v93k_global'
     flow.set_resources_filename('prb1')

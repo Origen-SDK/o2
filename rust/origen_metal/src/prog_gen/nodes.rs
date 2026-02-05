@@ -93,6 +93,7 @@ pub enum PGM {
     BypassSubFlows,
     FlowDescription(String),
     FlowNameOverride(String),
+    Namespace(String),
     /// Apply the given uniqueness option to all contained test names, etc.
     Uniqueness(UniquenessOption),
 

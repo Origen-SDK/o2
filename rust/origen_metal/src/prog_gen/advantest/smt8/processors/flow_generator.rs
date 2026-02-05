@@ -23,6 +23,7 @@ struct FlowGenerator {
     resources_block: bool,
     flow_stack: Vec<FlowFile>,
     limits_file: Option<std::fs::File>,
+    namespaces: Vec<String>,
 }
 
 /// Contains the data for a .flow file
@@ -83,6 +84,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         resources_block: false,
         flow_stack: vec![],
         limits_file: None,
+        namespaces: vec![],
     };
 
     let mut i = 0;
@@ -154,8 +156,14 @@ impl FlowGenerator {
         Ok(())
     }
 
-    fn close_flow_file(&mut self) -> Result<FlowFile> {
+    fn close_flow_file(&mut self, namespace: Option<String>) -> Result<FlowFile> {
         let flow_file = self.flow_stack.pop().unwrap();
+        let namespace = {
+            match namespace {
+                Some(n) => format!("{}.", n),
+                None => "".to_string(),
+            }
+        };
         let mut f = std::fs::File::create(&flow_file.path)?;
         self.generated_files.push(flow_file.path.clone());
 
@@ -197,10 +205,10 @@ impl FlowGenerator {
                 //}
                 writeln!(&mut f, "        suite {} calls {} {{", test_name, test.class_name.as_ref().unwrap())?;
                 if let Some(pattern) = test_invocation.get("pattern")?.map(|p| p.to_string()) {
-                    writeln!(&mut f, "            measurement.pattern = setupRef(OrigenTesters.patterns.{});", pattern)?;
+                    writeln!(&mut f, "            measurement.pattern = setupRef({}patterns.{});", &namespace, pattern)?;
                 }
                 if let Some(spec) = test_invocation.get("spec")?.map(|p| p.to_string()) {
-                    writeln!(&mut f, "            measurement.specification = setupRef(OrigenTesters.specs.{});", spec)?;
+                    writeln!(&mut f, "            measurement.specification = setupRef({}specs.{});", &namespace, spec)?;
                 }
                 let sorted_param_keys =  {
                     let mut keys: Vec<&String> = test.values.keys().collect();
@@ -250,7 +258,7 @@ impl FlowGenerator {
         }
         for sub_flow in &flow_file.sub_flows {
             let relative_path = flow_file.path.strip_prefix(&self.output_dir).unwrap().parent().unwrap().join(flow_file.name.to_lowercase());
-            writeln!(&mut f, "        flow {} calls OrigenTesters.flows.{}.{} {{ }}", sub_flow, relative_path.to_str().unwrap().replace("/", "."), sub_flow)?;
+            writeln!(&mut f, "        flow {} calls {}flows.{}.{} {{ }}", sub_flow, &namespace, relative_path.to_str().unwrap().replace("/", "."), sub_flow)?;
         }
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
@@ -276,6 +284,10 @@ impl Processor<PGM> for FlowGenerator {
             PGM::ResourcesFilename(name, kind) => {
                 self.model.set_resources_filename(name.to_owned(), kind);
                 Return::Unmodified
+            }
+            PGM::Namespace(namespace) => {
+                self.namespaces.push(namespace.to_owned());
+                Return::None
             }
             PGM::Flow(name) => {
                 log_debug!("Rendering flow '{}' for V93k SMT8", name);
@@ -305,7 +317,7 @@ impl Processor<PGM> for FlowGenerator {
                 };
                 self.open_flow_file(name, flow_data)?;
                 node.process_children(self)?;
-                self.close_flow_file()?;
+                self.close_flow_file(self.namespaces.last().cloned())?;
 
                 Return::None
             }
@@ -340,7 +352,7 @@ impl Processor<PGM> for FlowGenerator {
                 self.sub_flow_open = true;
                 node.process_children(self)?;
                 self.sub_flow_open = orig;
-                let flow = self.close_flow_file()?;
+                let flow = self.close_flow_file(self.namespaces.last().cloned())?;
                 let current_flow = self.flow_stack.last_mut().unwrap(); 
                 for v in flow.flow_data.sorted_input_vars() {
                     current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
@@ -364,7 +376,7 @@ impl Processor<PGM> for FlowGenerator {
                     };
                     self.open_flow_file(name, flow_data)?;
                     node.process_children(self)?;
-                    let flow = self.close_flow_file()?;
+                    let flow = self.close_flow_file(self.namespaces.last().cloned())?;
                     let current_flow = self.flow_stack.last_mut().unwrap(); 
                     for v in flow.flow_data.sorted_input_vars() {
                         current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
@@ -790,6 +802,16 @@ impl Processor<PGM> for FlowGenerator {
             _ => Return::ProcessChildren,
         };
         Ok(result)
+    }
+
+    fn on_processed_node(&mut self, node: &Node<PGM>) -> Result<Return<PGM>> {
+        match &node.attrs {
+            PGM::Namespace(_) => {
+                self.namespaces.pop();
+            }
+            _ => {}
+        }
+        Ok(Return::Unmodified)
     }
 }
 
