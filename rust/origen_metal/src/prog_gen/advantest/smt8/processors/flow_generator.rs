@@ -269,7 +269,7 @@ impl FlowGenerator {
         }
         for sub_flow in &flow_file.sub_flows {
             let relative_path = flow_file.path.strip_prefix(&self.output_dir).unwrap().parent().unwrap().join(flow_file.name.to_lowercase());
-            writeln!(&mut f, "        flow {} calls {}flows.{}.{} {{ }}", sub_flow, &namespace, relative_path.to_str().unwrap().replace("/", "."), sub_flow)?;
+            writeln!(&mut f, "        flow {} calls {}flows.{}.{} {{ }}", sub_flow, &namespace, relative_path.to_str().unwrap().replace("\\", ".").replace("/", "."), sub_flow)?;
         }
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
