@@ -1,3 +1,4 @@
+use crate::prog_gen::config::SMT7Config;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamType, Test, PGM};
 use crate::Result;
 use crate::ast::{Node, Processor, Return};
@@ -29,6 +30,7 @@ pub struct FlowGenerator {
     on_fails: Vec<Node<PGM>>,
     on_passes: Vec<Node<PGM>>,
     resources_block: bool,
+    options: SMT7Config
 }
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
@@ -54,6 +56,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         on_fails: vec![],
         on_passes: vec![],
         resources_block: false,
+        options: crate::PROG_GEN_CONFIG.smt7_options(),
     };
 
     let mut i = 0;
@@ -267,9 +270,19 @@ impl Processor<PGM> for FlowGenerator {
                     writeln!(&mut f, "")?;
                     for (name, id) in &self.test_methods {
                         writeln!(&mut f, "{}:", name)?;
-                        for (name, kind, value) in self.model.tests.get(id).unwrap().sorted_params()
+                        let test = self.model.tests.get(id).unwrap();
+                        for (name, kind, value) in test.sorted_params()
                         {
                             if let Some(v) = value {
+                                if !self.options.render_default_tmparams {
+                                    // Skip this if the value is the same as the default value for this parameter, to reduce clutter in the output file
+                                    let default_value = test.default_values.get(name);
+                                    if let Some(default_value) = default_value {
+                                        if default_value == v {
+                                            continue;
+                                        }
+                                    }
+                                }
                                 match kind {
                                     ParamType::Voltage => {
                                         writeln!(&mut f, r#"  "{}" = "{}[V]";"#, name, v)?

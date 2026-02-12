@@ -126,7 +126,7 @@ pub fn render_program(tester: SupportedTester, output_dir: &Path) -> crate::Resu
 /// would return a list of all test suite attributes
 pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<String>> {
     match tester {
-        SupportedTester::V93KSMT7 => {
+        SupportedTester::V93KSMT7 | SupportedTester::V93KSMT8 => {
             let t = load_test_from_lib(
                 &tester,
                 "_internal",

@@ -27,6 +27,7 @@ pub struct Test {
     /// from a parent Test.
     pub params: IndexMap<String, ParamType>,
     pub values: IndexMap<String, ParamValue>,
+    pub default_values: IndexMap<String, ParamValue>,
     pub aliases: IndexMap<String, String>,
     pub constraints: IndexMap<String, Vec<Constraint>>,
     pub tester: SupportedTester,
@@ -88,6 +89,7 @@ impl Test {
             indirect: false,
             params: IndexMap::new(),
             values: IndexMap::new(),
+            default_values: IndexMap::new(),
             aliases: IndexMap::new(),
             constraints: IndexMap::new(),
             tester: tester,
@@ -143,7 +145,8 @@ impl Test {
                 }
                 if let Some(value) = &param.value {
                     let v = self.import_value(&kind, name, value)?;
-                    self.values.insert(name.to_owned(), v);
+                    self.values.insert(name.to_owned(), v.clone());
+                    self.default_values.insert(name.to_owned(), v);
                 }
                 if let Some(accepted_values) = &param.accepted_values {
                     let mut values: Vec<ParamValue> = vec![];

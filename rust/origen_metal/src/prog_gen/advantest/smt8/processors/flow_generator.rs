@@ -1,4 +1,5 @@
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
+use crate::prog_gen::config::SMT8Config;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, PGM, ParamValue};
 use crate::Result;
 use crate::ast::{Node, Processor, Return};
@@ -24,6 +25,7 @@ struct FlowGenerator {
     flow_stack: Vec<FlowFile>,
     limits_file: Option<std::fs::File>,
     namespaces: Vec<String>,
+    options: SMT8Config,
 }
 
 /// Contains the data for a .flow file
@@ -85,6 +87,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         flow_stack: vec![],
         limits_file: None,
         namespaces: vec![],
+        options: crate::PROG_GEN_CONFIG.smt8_options(),
     };
 
     let mut i = 0;
@@ -218,6 +221,14 @@ impl FlowGenerator {
 
                 for param in sorted_param_keys {
                     let value = test.values.get(param).unwrap();
+                    if !self.options.render_default_tmparams {
+                        let default_value = test.default_values.get(param);
+                        if let Some(default_value) = default_value {
+                            if default_value == value {
+                                continue;
+                            }
+                        }
+                    }
                     match value {
                         ParamValue::String(v) | ParamValue::Any(v) => {
                             writeln!(&mut f, "            {} = \"{}\";", param, v)?;
@@ -292,21 +303,22 @@ impl Processor<PGM> for FlowGenerator {
             PGM::Flow(name) => {
                 log_debug!("Rendering flow '{}' for V93k SMT8", name);
 
-                let limits_dir = self.output_dir.parent().unwrap().join("limits");
-                if !limits_dir.exists() {
-                    std::fs::create_dir_all(&limits_dir)?;
+                if self.options.create_limits_file {
+                    let limits_dir = self.output_dir.parent().unwrap().join("limits");
+                    if !limits_dir.exists() {
+                        std::fs::create_dir_all(&limits_dir)?;
+                    }
+                    let limits_file = limits_dir.join(format!(
+                        "Main.{}_Tests.csv",
+                        name.replace(" ", "_").to_uppercase()
+                    ));
+
+                    let mut f = std::fs::File::create(&limits_file)?;
+                    self.generated_files.push(limits_file.clone());
+                    writeln!(&mut f, "Test Suite,Test,Test Number,Test Text,Low Limit,High Limit,Unit,Soft Bin")?;
+                    writeln!(&mut f, ",,,,default,default")?;
+                    self.limits_file = Some(f);
                 }
-                let limits_file = limits_dir.join(format!(
-                    "Main.{}_Tests.csv",
-                    name.replace(" ", "_").to_uppercase()
-                ));
-
-                let mut f = std::fs::File::create(&limits_file)?;
-                self.generated_files.push(limits_file.clone());
-                writeln!(&mut f, "Test Suite,Test,Test Number,Test Text,Low Limit,High Limit,Unit,Soft Bin")?;
-                writeln!(&mut f, ",,,,default,default")?;
-                self.limits_file = Some(f);
-
 
                 self.name = name.to_owned();
                 self.model.select_flow(name)?;
@@ -480,7 +492,7 @@ impl Processor<PGM> for FlowGenerator {
                     }
 
                 };
-                if !self.resources_block {
+                if !self.resources_block && self.options.create_limits_file {
                     let test_path = match self.current_flow_path() {
                         Some(p) => format!("{}.{}", p, &test_name),
                         None => test_name.clone(),
@@ -558,7 +570,7 @@ impl Processor<PGM> for FlowGenerator {
                 Return::ProcessChildren
             }
             PGM::TestStr(name, _flow_id, _bin, softbin, number) => {
-                if !self.resources_block {
+                if !self.resources_block && self.options.create_limits_file {
                     let test_path = match self.current_flow_path() {
                         Some(p) => format!("{}.{}", p, &name),
                         None => name.clone(),

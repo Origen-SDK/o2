@@ -10,7 +10,20 @@ pub struct Config {
     debug_enabled: RwLock<bool>,
     src_files: RwLock<Vec<PathBuf>>,
     test_template_load_path: RwLock<Vec<PathBuf>>,
-    uniquess_option: RwLock<Option<UniquenessOption>>,
+    uniqueness_option: RwLock<Option<UniquenessOption>>,
+    smt7: RwLock<SMT7Config>,
+    smt8: RwLock<SMT8Config>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMT8Config {
+    pub create_limits_file: bool,
+    pub render_default_tmparams: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMT7Config {
+    pub render_default_tmparams: bool,
 }
 
 impl Default for Config {
@@ -21,7 +34,14 @@ impl Default for Config {
             debug_enabled: RwLock::new(false),
             src_files: RwLock::new(vec![]),
             test_template_load_path: RwLock::new(vec![]),
-            uniquess_option: RwLock::new(None),
+            uniqueness_option: RwLock::new(None),
+            smt7: RwLock::new(SMT7Config {
+                render_default_tmparams: true,
+            }),
+            smt8: RwLock::new(SMT8Config {
+                create_limits_file: true,
+                render_default_tmparams: true,
+            }),
         }
     }
 }
@@ -77,10 +97,31 @@ impl Config {
     }
     
     pub fn set_uniqueness_option(&self, option: UniquenessOption) {
-        *self.uniquess_option.write().unwrap() = Some(option);
+        *self.uniqueness_option.write().unwrap() = Some(option);
     }
     
     pub fn uniqueness_option(&self) -> Option<UniquenessOption> {
-        self.uniquess_option.read().unwrap().clone()
+        self.uniqueness_option.read().unwrap().clone()
+    }
+
+    pub fn set_smt7_options(&self, render_default_tmparams: bool) {
+        *self.smt7.write().unwrap() = SMT7Config {
+            render_default_tmparams,
+        };
+    }
+
+    pub fn smt7_options(&self) -> SMT7Config {
+        self.smt7.read().unwrap().clone()
+    }
+
+    pub fn set_smt8_options(&self, create_limits_file: bool, render_default_tmparams: bool) {
+        *self.smt8.write().unwrap() = SMT8Config {
+            create_limits_file,
+            render_default_tmparams,
+        };
+    }
+
+    pub fn smt8_options(&self) -> SMT8Config {
+        self.smt8.read().unwrap().clone()
     }
 }
