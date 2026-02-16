@@ -7,6 +7,19 @@ authors = ["Origen-SDK"]
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
 docutils = "!=0.21.post1"
+
+# Pin dependencies that have dropped Python 3.7 support (saves 30 minutes of dependency resolving)
+# These versions are the last to support 3.7 while still working on 3.12
+more-itertools = ">=8.0.0,<10.0.0"
+zipp = ">=3.4.0,<3.16.0"
+setuptools = ">=40.0.0,<70.0.0"
+importlib-metadata = ">=4.0.0,<7.0.0"
+filelock = ">=3.0.0,<3.13.0"
+pygments = ">=2.7.0,<2.18.0"
+virtualenv = ">=20.0.0,<20.27.0"
+platformdirs = ">=2.0.0,<4.0.0"
+distlib = ">=0.3.0,<1.0.0"
+
 {% if local_origen %}
 origen = { path = "{{ o2_root.joinpath("python/origen").as_posix() }}", develop = true }
 origen_metal = { path = "{{ o2_root.joinpath("python/origen_metal").as_posix() }}", develop = true }
