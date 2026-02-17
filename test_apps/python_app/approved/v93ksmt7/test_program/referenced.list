@@ -1,4 +1,8 @@
 another_not_p1_or_p2_test
+bitcell_iv_0
+bitcell_iv_1
+bitcell_iv_2
+bitmap_all0
 cc_test_0
 cc_test_1
 cc_test_2
@@ -11,6 +15,7 @@ margin_read1_ckbd
 meas_read_pump
 mixed_flag_check
 mrd_ckbd
+normal_read_ckbd
 not_p1_or_p2_test
 not_p1_test
 p1_only_test

@@ -44,7 +44,7 @@ impl DuplicateIDs {
 impl Processor<PGM> for DuplicateIDs {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            PGM::Test(_, id) | PGM::TestStr(_, id) | PGM::Cz(_, _, id) => {
+            PGM::Test(_, id) | PGM::TestStr(_, id, _, _, _) | PGM::Cz(_, _, id) => {
                 self.validate_id(id, node)?;
                 Return::ProcessChildren
             }

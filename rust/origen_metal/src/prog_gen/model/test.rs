@@ -6,6 +6,8 @@ use crate::Result;
 use indexmap::IndexMap;
 use std::str::FromStr;
 
+pub const TEST_NUMBER_ALIASES: [&str; 6] = ["testnumber", "test_number", "number", "testnum", "test_num", "tnum"];
+
 /// This is an abstract data object which is used to model test instances on Teradyne platforms
 /// and both test methods and test suites on Advantest platforms.
 /// A test template is modelled as a Test where indirect = true, which means that it will never be
@@ -17,6 +19,7 @@ use std::str::FromStr;
 pub struct Test {
     pub id: usize,
     pub name: String,
+    pub tname: Option<String>, // Secondary test name, if applicable
     pub indirect: bool,
     /// Defines the names of parameters and their types. Child class can override the type of a parameter
     /// inherited from a parent by adding a parameter of the same name to their params map. Then can also
@@ -24,6 +27,7 @@ pub struct Test {
     /// from a parent Test.
     pub params: IndexMap<String, ParamType>,
     pub values: IndexMap<String, ParamValue>,
+    pub default_values: IndexMap<String, ParamValue>,
     pub aliases: IndexMap<String, String>,
     pub constraints: IndexMap<String, Vec<Constraint>>,
     pub tester: SupportedTester,
@@ -81,9 +85,11 @@ impl Test {
         let mut t = Test {
             id: id,
             name: name.to_string(),
+            tname: None,
             indirect: false,
             params: IndexMap::new(),
             values: IndexMap::new(),
+            default_values: IndexMap::new(),
             aliases: IndexMap::new(),
             constraints: IndexMap::new(),
             tester: tester,
@@ -139,7 +145,8 @@ impl Test {
                 }
                 if let Some(value) = &param.value {
                     let v = self.import_value(&kind, name, value)?;
-                    self.values.insert(name.to_owned(), v);
+                    self.values.insert(name.to_owned(), v.clone());
+                    self.default_values.insert(name.to_owned(), v);
                 }
                 if let Some(accepted_values) = &param.accepted_values {
                     let mut values: Vec<ParamValue> = vec![];

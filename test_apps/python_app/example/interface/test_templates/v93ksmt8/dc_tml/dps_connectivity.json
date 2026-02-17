@@ -1,0 +1,22 @@
+{
+    "class_name": "dc_tml.DcTest.DpsConnectivity",
+
+    "parameters": {
+        "dpsPins": {
+            "type": "string",
+            "aliases": [],
+            "value": "@"
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "DPS_ForceSense"
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        }
+    }
+}

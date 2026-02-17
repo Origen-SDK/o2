@@ -219,6 +219,22 @@ pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
     Ok(None)
 }
 
+pub fn get_number(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
+    if let Some(kwargs) = kwargs {
+        if let Some(n) = kwargs.get_item("number") {
+            if let Ok(v) = n.extract::<usize>() {
+                return Ok(Some(v));
+            } else {
+                bail!(
+                    "Illegal 'number' value, expected an Integer, got: '{}'",
+                    n
+                );
+            }
+        }
+    }
+    Ok(None)
+}   
+
 pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
     if let Some(kwargs) = kwargs {
         let cont =

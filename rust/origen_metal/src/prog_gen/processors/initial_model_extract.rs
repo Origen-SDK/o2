@@ -1,4 +1,4 @@
-use crate::prog_gen::{Model, PGM};
+use crate::prog_gen::{Model, PGM, LimitSelector};
 use crate::prog_gen::supported_testers::SupportedTester;
 use crate::Result;
 use crate::ast::{Node, Processor, Return};
@@ -76,6 +76,24 @@ impl Processor<PGM> for ExtractToModel {
                 }
                 PGM::SetAttr(id, name, value, allow_missing) => {
                     trace!(self.model.set_test_attr(*id, name, value.to_owned(), *allow_missing), node);
+                    Return::None
+                }
+                PGM::SetLimit(test_id, inv_id, selector, value) => {
+                    let t = {
+                        if let Some(id) = test_id {
+                            self.model.tests.get_mut(id)
+                        } else if let Some(id) = inv_id {
+                            self.model.test_invocations.get_mut(id)
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(t) = t {
+                        match selector {
+                            LimitSelector::Hi => t.hi_limit = value.to_owned(),
+                            LimitSelector::Lo => t.lo_limit = value.to_owned(),
+                        }
+                    }
                     Return::None
                 }
                 _ => Return::ProcessChildren,

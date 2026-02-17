@@ -186,17 +186,31 @@ impl BinArray {
     }
 
     pub fn min(&self) -> Option<u32> {
-        self.store.iter().next().map(|b| match b {
-            Bin::Single(x) => *x,
-            Bin::Range(start, _) => *start,
-        })
+        let mut min = None;
+        for b in &self.store {
+            let val = match b {
+                Bin::Single(x) => *x,
+                Bin::Range(start, _) => *start,
+            };
+            if min.is_none() || val < min.unwrap() {
+                min = Some(val);
+            }
+        }
+        min
     }
 
     pub fn max(&self) -> Option<u32> {
-        self.store.iter().next_back().map(|b| match b {
-            Bin::Single(x) => *x,
-            Bin::Range(_, end) => *end,
-        })
+        let mut max = None;
+        for b in &self.store {
+            let val = match b {
+                Bin::Single(x) => *x,
+                Bin::Range(_, end) => *end,
+            };
+            if max.is_none() || val > max.unwrap() {
+                max = Some(val);
+            }
+        }
+        max
     }
 }
 
@@ -269,7 +283,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_min_and_max() {
         let mut b = BinArray::new();
         b.push(100);

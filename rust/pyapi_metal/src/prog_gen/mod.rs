@@ -76,6 +76,9 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(ast_str))?;
     subm.add_wrapped(wrap_pyfunction!(set_test_template_load_path))?;
     subm.add_wrapped(wrap_pyfunction!(set_uniqueness_option))?;
+    subm.add_wrapped(wrap_pyfunction!(set_namespace))?;
+    subm.add_wrapped(wrap_pyfunction!(set_smt7_options))?;
+    subm.add_wrapped(wrap_pyfunction!(set_smt8_options))?;
     m.add_submodule(subm)?;
     Ok(())
 }
@@ -99,6 +102,18 @@ fn set_uniqueness_option(option: String) -> PyResult<()> {
             ))))
         }
     }
+    Ok(())
+}
+
+#[pyfunction]
+fn set_smt7_options(render_default_tm_params: bool) -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.set_smt7_options(render_default_tm_params);
+    Ok(())
+}
+
+#[pyfunction]
+fn set_smt8_options(create_limits_file: bool, render_default_tm_params: bool) -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.set_smt8_options(create_limits_file, render_default_tm_params);
     Ok(())
 }
 
@@ -211,6 +226,12 @@ fn start_new_flow(
     }
     refs.reverse();
     Ok(refs)
+}
+
+#[pyfunction]
+fn set_namespace(namespace: String) -> PyResult<()> {
+    flow_api::set_namespace(namespace, None)?;
+    Ok(())
 }
 
 #[pyfunction]

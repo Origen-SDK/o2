@@ -3,6 +3,7 @@ use crate::prog_gen::{
     ResourcesType, UniquenessOption,
 };
 use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum PGM {
@@ -42,7 +43,8 @@ pub enum PGM {
     Test(usize, FlowID),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
     /// into the flow
-    TestStr(String, FlowID),
+    ///                     Bin            Softbin        Number
+    TestStr(String, FlowID, Option<usize>, Option<usize>, Option<usize>),
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     /// Push a pattern to the given pattern group ID
@@ -91,10 +93,13 @@ pub enum PGM {
     BypassSubFlows,
     FlowDescription(String),
     FlowNameOverride(String),
+    Namespace(String),
     /// Apply the given uniqueness option to all contained test names, etc.
     Uniqueness(UniquenessOption),
 
     IGXLSetWaitFlags(usize, Vec<String>),
+
+    FlowData(FlowData)
 }
 
 impl std::fmt::Display for PGM {

@@ -3,6 +3,7 @@ use super::{
     Flow, ParamValue, Pattern, PatternReferenceType, PatternType, ResourcesType, SubTest, Test,
     Variable, VariableOperation, VariableType,
 };
+use crate::prog_gen::model::test::TEST_NUMBER_ALIASES;
 use crate::prog_gen::supported_testers::SupportedTester;
 use crate::Result;
 use indexmap::IndexMap;
@@ -384,7 +385,40 @@ impl Model {
     ) -> Result<()> {
         if self.test_invocations.contains_key(&id) {
             let inv = self.test_invocations.get_mut(&id).unwrap();
-            if inv.has_param(name) {
+            if name.to_lowercase().as_str() == "tname" {
+                inv.tname = value.as_ref().and_then(|v| match v {
+                    ParamValue::String(s) => Some(s.to_owned()),
+                    _ => None,
+                });
+            } else if TEST_NUMBER_ALIASES.contains(&name.to_lowercase().as_str()) {
+            
+                // Special case for test number aliases
+                match value {
+                    Some(ParamValue::Int(n)) => {
+                        inv.number = Some(n as usize);
+                    }
+                    Some(ParamValue::UInt(n)) => {
+                        inv.number = Some(n as usize);
+                    }
+                    Some(ParamValue::String(s)) => {
+                        let parsed = s.parse::<usize>();
+                        match parsed {
+                            Ok(n) => {
+                                inv.number = Some(n);
+                            }
+                            Err(_) => {
+                                bail!("Invalid value '{}' for test number attribute, must be an integer", s);
+                            }
+                        }
+                    }
+                    None => {
+                        inv.number = None;
+                    }
+                    _ => {
+                        bail!("Invalid value for test number attribute, must be an integer or string representing an integer");
+                    }
+                }
+            } else if inv.has_param(name) {
                 inv.set(name, value, true)?;
             } else {
                 if let Some(tid) = inv.test_id {

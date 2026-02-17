@@ -1,5 +1,5 @@
 use crate::prog_gen::{
-    Bin, BinType, FlowCondition, LimitSelector, Model, VariableOperation, VariableType, PGM,
+    Bin, BinType, FlowCondition, Model, VariableOperation, VariableType, PGM,
 };
 use crate::Result;
 use crate::ast::{Node, Processor, Return};
@@ -65,24 +65,6 @@ impl Processor<PGM> for ExtractToModel {
                     VariableOperation::Set,
                 );
                 Return::ProcessChildren
-            }
-            PGM::SetLimit(test_id, inv_id, selector, value) => {
-                let t = {
-                    if let Some(id) = test_id {
-                        self.model.tests.get_mut(id)
-                    } else if let Some(id) = inv_id {
-                        self.model.test_invocations.get_mut(id)
-                    } else {
-                        None
-                    }
-                };
-                if let Some(t) = t {
-                    match selector {
-                        LimitSelector::Hi => t.hi_limit = value.to_owned(),
-                        LimitSelector::Lo => t.lo_limit = value.to_owned(),
-                    }
-                }
-                Return::None
             }
             //PGM::PatternGroup(id, name, _, kind) => Ok(Return::None),
             //PGM::PushPattern(id, name, start_label) => Ok(Return::None),

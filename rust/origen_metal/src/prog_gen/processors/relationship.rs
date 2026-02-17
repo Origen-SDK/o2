@@ -141,7 +141,7 @@ fn process_test_results(
                     match &node.attrs {
                         // For a test, set a flag immediately after the referenced test has executed
                         // but don't change its pass/fail handling
-                        PGM::Test(_, _) | PGM::TestStr(_, _) => {
+                        PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
                             return Ok(Return::Inline(vec![node, set_flag]));
                         }
                         // For a group, set a flag immediately upon entry to the group to signal that
@@ -168,7 +168,7 @@ fn ids_to_flags(ids: &Vec<FlowID>, name: &str) -> Vec<String> {
 impl Processor<PGM> for Relationship {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            PGM::Test(_, fid) | PGM::TestStr(_, fid) => {
+            PGM::Test(_, fid) | PGM::TestStr(_, fid, _, _, _) => {
                 let node = node.process_and_update_children(self)?;
                 process_test_results(fid, node, &self)?
             }
