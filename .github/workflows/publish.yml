@@ -91,7 +91,10 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Run Build Script in Docker container
-        uses: addnab/docker-run-action@v3
+        # Using someone else's fixed version of the docker-run-action until this PR is merged:
+        # https://github.com/addnab/docker-run-action/pull/64
+        #uses: addnab/docker-run-action@v3
+        uses: Baardrw/docker-run-action@main
         with:
           image: quay.io/pypa/manylinux2014_x86_64
           options: |
