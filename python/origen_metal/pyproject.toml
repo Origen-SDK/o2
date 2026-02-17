@@ -3,7 +3,7 @@ name = "origen_metal"
 #*****************************************************
 # Also update the version in  the [project] section below!!!!!
 #*****************************************************
-version = "1.1.0"
+version = "1.2.0"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
@@ -26,7 +26,7 @@ importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
 # [project]
 # name = "origen-metal"
-# version = "1.1.0"
+# version = "1.2.0"
 # description = "Bare metal APIs for the Origen SDK"
 ## UV doesn't like some of these, the author I think
 ##license = "MIT"
