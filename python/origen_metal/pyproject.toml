@@ -3,7 +3,7 @@ name = "origen_metal"
 #*****************************************************
 # Also update the version in  the [project] section below!!!!!
 #*****************************************************
-version = "1.2.1"
+version = "1.2.2"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
@@ -12,11 +12,6 @@ authors = ["Origen-SDK"]
 # Need to explicity list these for Python 3.12 support under the version of Poetry we're using (since it predates Py 3.12 release),
 # otherwise it doesn't include 3.12 in the wheel METADATA and the package won't work on Python 3.12
 classifiers = [
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 include = [
@@ -36,7 +31,7 @@ importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
 # [project]
 # name = "origen-metal"
-# version = "1.2.1"
+# version = "1.2.2"
 # description = "Bare metal APIs for the Origen SDK"
 ## UV doesn't like some of these, the author I think
 ##license = "MIT"
