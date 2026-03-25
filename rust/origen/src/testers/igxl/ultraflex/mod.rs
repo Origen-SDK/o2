@@ -7,7 +7,7 @@ use super::base::IGXLBase;
 /// Teradyne UltraFlex tester implementation.
 /// 
 /// Inherits IGXL pattern generation from IGXLBase trait.
-/// No tester-specific customization currently required.
+/// Adds UltraFlex-specific header directives.
 #[derive(Debug, Clone)]
 pub struct UltraFlex {}
 
@@ -27,7 +27,16 @@ impl std::default::Default for UltraFlex {
 impl Interceptor for UltraFlex {}
 
 /// Provides IGXL pattern generation via blanket impl in base.rs.
-impl IGXLBase for UltraFlex {}
+impl IGXLBase for UltraFlex {
+    /// UltraFlex-specific header directives (placed before vector declaration)
+    fn additional_header_lines(&self) -> Option<Vec<String>> {
+        Some(vec![
+            "opcode_mode = single;".to_string(),
+            "digital_inst = hsdp;".to_string(),
+            "compressed = yes;".to_string(),
+        ])
+    }
+}
 
 impl TesterID for UltraFlex {
     fn id(&self) -> SupportedTester {

@@ -14,6 +14,12 @@ pub trait IGXLBase: VectorBased + Interceptor {
     fn requires_end_module(&self) -> bool {
         false
     }
+
+    /// Returns additional header lines to be inserted before the vector declaration
+    /// Default is None (J750), UltraFlex overrides to add opcode_mode, digital_inst, etc.
+    fn additional_header_lines(&self) -> Option<Vec<String>> {
+        None
+    }
 }
 
 impl<T: IGXLBase> VectorBased for T {
@@ -83,7 +89,8 @@ impl<T: IGXLBase> VectorBased for T {
     }
 
     /// Generates the pattern header with pin list declaration.
-    /// Format: vector ($tset, pin1, pin2, ...)
+    /// Format: [additional_header_lines for UltraFlex]
+    ///         vector ($tset, pin1, pin2, ...)
     ///         {
     ///         start_label pattern_st:
     fn print_pinlist(&self, renderer: &mut Renderer) -> Option<Result<String>> {
@@ -92,7 +99,19 @@ impl<T: IGXLBase> VectorBased for T {
             "vector ($tset, {})",
             renderer.states(&dut).names().join(", ")
         );
-        Some(Ok([&pins, "{", "start_label pattern_st:"].join("\n")))
+        
+        let mut lines = vec![];
+        
+        // Add tester-specific header lines if any (before vector declaration)
+        if let Some(additional) = self.additional_header_lines() {
+            lines.extend(additional);
+        }
+        
+        lines.push(pins);
+        lines.push("{".to_string());
+        lines.push("start_label pattern_st:".to_string());
+        
+        Some(Ok(lines.join("\n")))
     }
 
     /// Maps Origen pin actions to IGXL pattern characters.
