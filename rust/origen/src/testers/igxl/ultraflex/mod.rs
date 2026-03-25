@@ -32,7 +32,7 @@ impl IGXLBase for UltraFlex {
     fn additional_header_lines(&self) -> Option<Vec<String>> {
         Some(vec![
             "opcode_mode = single;".to_string(),
-            "digital_inst = hsdp;".to_string(),
+            "digital_inst = hsdm;".to_string(),
             "compressed = yes;".to_string(),
         ])
     }
