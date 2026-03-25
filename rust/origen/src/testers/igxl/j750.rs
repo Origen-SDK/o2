@@ -18,12 +18,16 @@ impl std::default::Default for J750 {
     }
 }
 
-
 /// Uses default interceptor behavior (no command interception).
 impl Interceptor for J750 {}
 
 /// Provides IGXL pattern generation via blanket impl in base.rs.
-impl IGXLBase for J750 {}
+impl IGXLBase for J750 {
+    /// J750 requires the end_module statement
+    fn requires_end_module(&self) -> bool {
+        true
+    }
+}
 
 impl TesterID for J750 {
     fn id(&self) -> SupportedTester {

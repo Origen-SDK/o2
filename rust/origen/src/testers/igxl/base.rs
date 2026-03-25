@@ -9,7 +9,11 @@ use crate::core::model::timesets::timeset::default_resolver;
 /// 
 /// This trait provides common pattern generation behavior via a blanket VectorBased impl.
 pub trait IGXLBase: VectorBased + Interceptor {
-    // Default implementations for common IGXL behavior
+    /// Returns true if this tester requires the end_module statement
+    /// Default is false (UltraFlex), J750 overrides to return true
+    fn requires_end_module(&self) -> bool {
+        false
+    }
 }
 
 impl<T: IGXLBase> VectorBased for T {
@@ -22,12 +26,18 @@ impl<T: IGXLBase> VectorBased for T {
     }
 
     fn print_pattern_end(&self, renderer: &mut Renderer) -> Option<Result<String>> {
-        let tname = renderer.timeset_name().unwrap();
-        Some(Ok(format!(
-            "end_module > {} {} ;\n}}",
-            tname,
-            renderer.render_states().unwrap()
-        )))
+        if self.requires_end_module() {
+            // J750: includes end_module statement
+            let tname = renderer.timeset_name().unwrap();
+            Some(Ok(format!(
+                "end_module > {} {} ;\n}}",
+                tname,
+                renderer.render_states().unwrap()
+            )))
+        } else {
+            // UltraFlex: just closing brace
+            Some(Ok("}".to_string()))
+        }
     }
 
     /// Generates IGXL vector statements with format: [repeat N] > timeset states ;
