@@ -1,6 +1,4 @@
 flow TEST {
-
-
     setup {
         suite meas_read_pump calls dc_tml.DcTest.GeneralPMU {
             measurement.pattern = setupRef(OrigenTesters.patterns.meas_read_pump);
@@ -18,8 +16,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite meas_read_pump_1 calls dc_tml.DcTest.GeneralPMU {
@@ -38,8 +36,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite meas_read_pump_2 calls dc_tml.DcTest.GeneralPMU {
@@ -58,8 +56,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite meas_read_pump_3 calls dc_tml.DcTest.GeneralPMU {
@@ -78,8 +76,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite meas_read_pump_4 calls dc_tml.DcTest.GeneralPMU {
@@ -98,8 +96,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite meas_read_pump_5 calls dc_tml.DcTest.GeneralPMU {
@@ -118,8 +116,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite meas_read_pump_6 calls dc_tml.DcTest.GeneralPMU {
@@ -138,8 +136,8 @@ flow TEST {
             settlingTime = "0[s]";
             spmuClamp = "0[A]";
             termination = "OFF";
-            testName = "passLimit_uA_mV";
             testerState = "CONNECTED";
+            testName = "passLimit_uA_mV";
         }
 
         suite program_ckbd calls ac_tml.AcTest.FunctionalTest {
@@ -149,10 +147,76 @@ flow TEST {
             testName = "Functional";
         }
 
+        suite thermal_tsen_sensor_read_calibration calls com.amd.testmethod.ate.TsenSensorRead {
+            measurement.pattern = setupRef(OrigenTesters.patterns.program_ckbd);
+            measurement.specification = setupRef(OrigenTesters.specs.specs.Nominal);
+            activateSpec.afterRunActivateSpec = "specs.Nominal";
+            binning.binnable = false;
+            enableSoftset = true;
+            registerSetupPinList = "BP_BTDO";
+            softsetPatternInfo[param1] = {
+                patternName = "pats.shell.pat.common.PHC_CCD_RESET_Unified_Reset_Sequence_Fuse_Override_pJtag";
+                pinNames = "BP_BTDI";
+                profileName = "SoftsetProfile_shell";
+            };
+            softsetPatternInfo[param2] = {
+                patternName = "pats.shell.pat.common.PHC_CCD_RESET_Unified_Reset_Sequence_Fuse_Override_pJtag";
+                pinNames = "BP_BTDI";
+                profileName = "SoftsetProfile_shell";
+            };
+            softsetPatternInfo[param10] = {
+                patternName = "pats.shell.pat.common.PHC_CCD_RESET_Unified_Reset_Sequence_Fuse_Override_pJtag";
+                pinNames = "BP_BTDI";
+                profileName = "SoftsetProfile_shell";
+            };
+            testDescription.baseClass = "TCC";
+            testDescription.componentHash = "PHCX3D.0";
+            testDescription.paramRefGroup = "thermal_tsen_sensor_read_calibration";
+            testDescription.subClass = "CAL";
+            tsen[ctsen2] = {
+                registers[rtsen3] = {
+                    name = "WS1_CTSEN2_RTSEN3";
+                    zHighLimit = 2000.0;
+                    zLowLimit = 0.0;
+                };
+                registers[rtsen11] = {
+                    name = "WS1_CTSEN2_RTSEN11";
+                    zHighLimit = 2000.0;
+                    zLowLimit = 0.0;
+                };
+                sensorAverageVariable = "ctsen2_avg";
+                tdiodeTemperatureVariable = "ctsen2_tdiode";
+                Y1Variable = "ctsen2_y1";
+                zDataDeltaLimit = 0.0;
+            };
+            tsen[ctsen10] = {
+                registers[rtsen1] = {
+                    name = "WS1_CTSEN10_RTSEN1";
+                    zHighLimit = 2000.0;
+                    zLowLimit = 0.0;
+                };
+                registers[rtsen2] = {
+                    name = "WS1_CTSEN10_RTSEN2";
+                    zHighLimit = 2000.0;
+                    zLowLimit = 0.0;
+                };
+                registers[rtsen10] = {
+                    name = "WS1_CTSEN10_RTSEN10";
+                    zHighLimit = 2000.0;
+                    zLowLimit = 0.0;
+                };
+                sensorAverageVariable = "ctsen10_avg";
+                tdiodeTemperatureVariable = "ctsen10_tdiode";
+                Y1Variable = "ctsen10_y1";
+                zDataDeltaLimit = 0.0;
+            };
+        }
+
     }
 
     execute {
         program_ckbd.execute();
+        thermal_tsen_sensor_read_calibration.execute();
         meas_read_pump.execute();
         meas_read_pump_1.execute();
         meas_read_pump_2.execute();

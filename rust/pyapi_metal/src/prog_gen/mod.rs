@@ -2,6 +2,7 @@ pub mod tester_apis;
 mod test_invocation;
 mod flow_options;
 mod test;
+mod test_collection_item;
 mod group;
 mod pattern_group;
 mod condition;
@@ -13,6 +14,7 @@ use std::str::FromStr;
 
 use test_invocation::TestInvocation;
 use test::Test;
+use test_collection_item::TestCollectionItem;
 use group::Group;
 use pattern_group::PatternGroup;
 use condition::Condition;

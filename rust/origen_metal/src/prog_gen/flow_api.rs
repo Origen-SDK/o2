@@ -89,6 +89,27 @@ pub fn assign_test_to_invocation(
     Ok(())
 }
 
+pub fn define_test_collection_item(
+    parent_id: usize,
+    collection_name: &str,
+    instance_id: &str,
+    allow_missing: bool,
+    meta: Option<Meta>,
+) -> Result<usize> {
+    let id = crate::PROG_GEN_CONFIG.generate_unique_id();
+    let n = node!(
+        PGM::DefTestCollectionItem,
+        id,
+        parent_id,
+        collection_name.to_owned(),
+        instance_id.to_owned(),
+        allow_missing;
+        meta
+    );
+    FLOW.push(n)?;
+    Ok(id)
+}
+
 /// Execute the given test (or invocation) from the current flow
 pub fn execute_test(id: usize, flow_id: FlowID, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::Test, id, flow_id; meta);

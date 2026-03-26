@@ -25,11 +25,13 @@ pub use pattern::PatternType;
 use std::fmt;
 use std::str::FromStr;
 pub use sub_test::SubTest;
-pub use test::Test;
+pub use test::{Test, TestCollection, TestCollectionItem};
 pub use variable::Variable;
 pub use variable::VariableOperation;
 pub use variable::VariableType;
-pub use template_loader::{TestTemplate, TestTemplateParameter, load_test_from_lib};
+pub use template_loader::{
+    load_test_from_lib, TestTemplate, TestTemplateCollection, TestTemplateParameter,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum PatternGroupType {
@@ -158,10 +160,10 @@ impl FromStr for ParamType {
         // Accept any case and with or without underscores
         let str = s.to_lowercase();
         match str.trim() {
-            "string" => Ok(ParamType::String),
+            "string" | "class" => Ok(ParamType::String),
             "int" | "integer" => Ok(ParamType::Int),
             "uint" | "uinteger" => Ok(ParamType::UInt),
-            "float" | "number" | "num" => Ok(ParamType::Float),
+            "float" | "double" | "number" | "num" => Ok(ParamType::Float),
             "current" | "curr" | "i" => Ok(ParamType::Current),
             "voltage" | "volt" | "v" => Ok(ParamType::Voltage),
             "time" | "t" | "s" => Ok(ParamType::Time),

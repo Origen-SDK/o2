@@ -1,7 +1,7 @@
 use super::template_loader::load_test_from_lib;
 use super::{
     Flow, ParamValue, Pattern, PatternReferenceType, PatternType, ResourcesType, SubTest, Test,
-    Variable, VariableOperation, VariableType,
+    TestCollectionItem, Variable, VariableOperation, VariableType,
 };
 use crate::prog_gen::model::test::TEST_NUMBER_ALIASES;
 use crate::prog_gen::supported_testers::SupportedTester;
@@ -21,6 +21,8 @@ pub struct Model {
     /// Test invocation objects, stored by their internal ID.
     /// These map to test flow lines for IG-XL and test suites for V93K.
     pub test_invocations: IndexMap<usize, Test>,
+    /// Collection item objects referenced by test methods and nested collection items.
+    pub test_collection_items: IndexMap<usize, TestCollectionItem>,
     /// Tests can store a single limit, but if a test has multiple limits then they are represented as sub-tests
     pub sub_tests: Vec<SubTest>,
     /// All pattern references made in the test program, flows and pattern_collections make reference to these
@@ -52,6 +54,7 @@ impl Model {
             current_variable_resource: None,
             tests: IndexMap::new(),
             test_invocations: IndexMap::new(),
+            test_collection_items: IndexMap::new(),
             sub_tests: vec![],
             templates: IndexMap::new(),
             patterns: vec![],
@@ -436,9 +439,99 @@ impl Model {
             test.set(name, value, allow_missing)?;
             return Ok(());
         }
+        if self.test_collection_items.contains_key(&id) {
+            let item = self.test_collection_items.get_mut(&id).unwrap();
+            item.set(name, value, allow_missing)?;
+            return Ok(());
+        }
         bail!(
             "Something has gone wrong, no test or invocation exists with ID '{}'",
             id
         )
+    }
+
+    pub fn add_test_collection_item(
+        &mut self,
+        parent_id: usize,
+        item_id: usize,
+        collection_name: &str,
+        instance_id: &str,
+        allow_missing: bool,
+    ) -> Result<()> {
+        if self.test_collection_items.contains_key(&item_id) {
+            bail!(
+                "Something has gone wrong, two collection items have been generated with the same internal ID '{}' in flow '{}'",
+                item_id,
+                &self.current_flow
+            );
+        }
+
+        let item = if self.tests.contains_key(&parent_id) {
+            let test = self.tests.get_mut(&parent_id).unwrap();
+            let schema = test.collection_defs.get(collection_name).cloned();
+            let item = match schema {
+                Some(schema) => TestCollectionItem::from_collection(
+                    item_id,
+                    parent_id,
+                    instance_id,
+                    &schema,
+                ),
+                None if allow_missing => {
+                    TestCollectionItem::unavailable(item_id, parent_id, collection_name, instance_id)
+                }
+                None => {
+                    bail!(
+                        "Test '{}' does not have a collection named '{}'",
+                        test.name,
+                        collection_name
+                    );
+                }
+            };
+            test.collections
+                .entry(item.collection_name.clone())
+                .or_insert_with(Vec::new)
+                .push(item_id);
+            item
+        } else if self.test_collection_items.contains_key(&parent_id) {
+            let parent = self.test_collection_items.get_mut(&parent_id).unwrap();
+            let schema = if parent.available {
+                parent.collection_defs.get(collection_name).cloned()
+            } else {
+                None
+            };
+            let item = match schema {
+                Some(schema) => TestCollectionItem::from_collection(
+                    item_id,
+                    parent_id,
+                    instance_id,
+                    &schema,
+                ),
+                None if allow_missing || !parent.available => {
+                    TestCollectionItem::unavailable(item_id, parent_id, collection_name, instance_id)
+                }
+                None => {
+                    bail!(
+                        "Collection item '{}[{}]' does not have a collection named '{}'",
+                        parent.collection_name,
+                        parent.instance_id,
+                        collection_name
+                    );
+                }
+            };
+            parent
+                .collections
+                .entry(item.collection_name.clone())
+                .or_insert_with(Vec::new)
+                .push(item_id);
+            item
+        } else {
+            bail!(
+                "Something has gone wrong, no test or collection item exists with ID '{}'",
+                parent_id
+            );
+        };
+
+        self.test_collection_items.insert(item_id, item);
+        Ok(())
     }
 }
