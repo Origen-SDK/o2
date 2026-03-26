@@ -1,13 +1,18 @@
 name: Regression Tests
 on:
   push:
-    paths-ignore:
+    branches:
+      - master
+    paths-ignore: &regression-test-paths-ignore
       # Ignore updates to just the publish action
       - '.github/workflows/publish.yml'
       # Ignore updates to just version files for Origen/OM/CLI
       - 'rust/origen/cli/Cargo.toml'
       - 'python/origen/pyproject.toml'
       - 'python/origen_metal/pyproject.toml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: *regression-test-paths-ignore
   workflow_dispatch:
 jobs:
   build:
