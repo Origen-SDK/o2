@@ -6,7 +6,14 @@ use crate::Result;
 use indexmap::IndexMap;
 use std::str::FromStr;
 
-pub const TEST_NUMBER_ALIASES: [&str; 6] = ["testnumber", "test_number", "number", "testnum", "test_num", "tnum"];
+pub const TEST_NUMBER_ALIASES: [&str; 6] = [
+    "testnumber",
+    "test_number",
+    "number",
+    "testnum",
+    "test_num",
+    "tnum",
+];
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TestCollection {
@@ -176,7 +183,12 @@ impl TestCollectionItem {
         }
     }
 
-    pub fn unavailable(id: usize, parent_id: usize, collection_name: &str, instance_id: &str) -> Self {
+    pub fn unavailable(
+        id: usize,
+        parent_id: usize,
+        collection_name: &str,
+        instance_id: &str,
+    ) -> Self {
         Self {
             id,
             parent_id,
@@ -265,9 +277,7 @@ impl TestCollectionItem {
                 let available_attributes = self.params.keys().collect::<Vec<&String>>();
                 let mut msg = format!(
                     "Collection item '{}[{}]' does not have an attribute named '{}'",
-                    self.collection_name,
-                    self.instance_id,
-                    name
+                    self.collection_name, self.instance_id, name
                 );
                 msg += "\nThe available attributes are:";
                 for attr in available_attributes {
@@ -509,8 +519,7 @@ impl Test {
                 let available_attributes = self.params.keys().collect::<Vec<&String>>();
                 let mut msg = format!(
                     "Test '{}' does not have an attribute named '{}'",
-                    self.name,
-                    name
+                    self.name, name
                 );
                 msg += "\nThe available attributes are:";
                 for attr in available_attributes {
@@ -668,14 +677,12 @@ fn import_value(
                 name, owner_name, value
             ))
         }),
-        ParamType::Frequency => {
-            parse_f64(value).map(ParamValue::Frequency).ok_or_else(|| {
-                crate::Error::new(&format!(
-                    "Value given for '{}' in test '{}' is not a number: '{:?}'",
-                    name, owner_name, value
-                ))
-            })
-        }
+        ParamType::Frequency => parse_f64(value).map(ParamValue::Frequency).ok_or_else(|| {
+            crate::Error::new(&format!(
+                "Value given for '{}' in test '{}' is not a number: '{:?}'",
+                name, owner_name, value
+            ))
+        }),
         ParamType::Bool => parse_bool(value).map(ParamValue::Bool).ok_or_else(|| {
             crate::Error::new(&format!(
                 "Value given for '{}' in test '{}' is not a boolean: '{:?}'",
@@ -849,8 +856,72 @@ mod tests {
             .set("count", Some(ParamValue::Int(-1)), false)
             .unwrap_err();
 
-        assert!(err
-            .to_string()
-            .contains("does not match the required type"));
+        assert!(err.to_string().contains("does not match the required type"));
+    }
+
+    #[test]
+    fn imports_v93k_param_kind_aliases() {
+        let template: TestTemplate = serde_json::from_str(
+            r#"{
+                "class_name": "com.example.Test",
+                "parameters": {
+                    "registerSetup.pinList": {
+                        "kind": "PinString",
+                        "value": "BP_BTDO"
+                    },
+                    "trigger.delay": {
+                        "kind": "SpecValue",
+                        "value": "0[ms]"
+                    },
+                    "search.specVar": {
+                        "kind": "SpecVariable",
+                        "value": "specs.Nominal"
+                    },
+                    "search.focusedPins": {
+                        "kind": "ContextPins",
+                        "value": "Tj_PWM"
+                    },
+                    "mode.select": {
+                        "kind": "OptionList",
+                        "value": "pass/fail"
+                    },
+                    "bitNumbers": {
+                        "kind": "long",
+                        "value": "0"
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let mut test = Test::new("example", 1, SupportedTester::V93KSMT8);
+        test.import_test_template(&template).unwrap();
+
+        assert_eq!(
+            test.params.get("registerSetup.pinList"),
+            Some(&ParamType::String)
+        );
+        assert_eq!(test.params.get("trigger.delay"), Some(&ParamType::String));
+        assert_eq!(test.params.get("search.specVar"), Some(&ParamType::String));
+        assert_eq!(
+            test.params.get("search.focusedPins"),
+            Some(&ParamType::String)
+        );
+        assert_eq!(test.params.get("mode.select"), Some(&ParamType::String));
+        assert_eq!(test.params.get("bitNumbers"), Some(&ParamType::Int));
+
+        assert_eq!(
+            test.values.get("registerSetup.pinList"),
+            Some(&ParamValue::String("BP_BTDO".to_string()))
+        );
+        assert_eq!(
+            test.values.get("trigger.delay"),
+            Some(&ParamValue::String("0[ms]".to_string()))
+        );
+        assert_eq!(
+            test.values.get("mode.select"),
+            Some(&ParamValue::String("pass/fail".to_string()))
+        );
+        assert_eq!(test.values.get("bitNumbers"), Some(&ParamValue::Int(0)));
     }
 }
