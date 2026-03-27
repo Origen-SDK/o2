@@ -1,0 +1,32 @@
+// ******************************************************************************************
+// Generated
+//   Time: 2026-03-25 18:07:42.441660300 -05:00
+//   By: nxf65099
+//   Command: origen generate \\?\C:\Tools\Origen\O2\forked\o2\test_apps\python_app\example\patterns\looped_produce_pattern.py
+// ******************************************************************************************
+// Workspace
+//   Environment
+//     OS: Windows Unknown
+//     Mode: development
+//     Targets
+//         C:\Tools\Origen\O2\forked\o2\test_apps\python_app\targets\dut\falcon.py
+//   Application
+//     Local Path: C:\Tools\Origen\O2\forked\o2\test_apps\python_app
+//   Origen Core
+//     Version: 2.0.0-dev.7
+//     Executable Path: C:\Users\nxf65099\AppData\Local\Programs\Python\Python311\python.exe
+// ******************************************************************************************
+// Header Comments
+//   From the Application
+//     Hello pattern from the application!
+// ******************************************************************************************
+opcode_mode = single;
+digital_inst = hsdm;
+compressed = yes;
+vector ($tset, clk, portc)
+{
+start_label pattern_st:
+repeat 100 > simple 0 XX ;
+// Producing pattern at index 1
+repeat 20 > simple 0 XX ;
+}

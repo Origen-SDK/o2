@@ -15,7 +15,7 @@ def run(**kwargs):
                 "reference_dir": "approved",
             },
             debug=debug,
-            targets=["dut/eagle", "tester/v93k_smt7", "tester/j750"])
+            targets=["dut/eagle", "tester/v93k_smt7", "tester/j750","tester/uflex"])
 
     run_cmd("generate",
             args={
