@@ -66,6 +66,19 @@ impl Processor<PGM> for ExtractToModel {
                     trace!(self.model.assign_test_to_inv(*inv_id, *test_id), node);
                     Return::None
                 }
+                PGM::DefTestCollectionItem(id, parent_id, collection_name, instance_id, allow_missing) => {
+                    trace!(
+                        self.model.add_test_collection_item(
+                            *parent_id,
+                            *id,
+                            collection_name,
+                            instance_id,
+                            *allow_missing,
+                        ),
+                        node
+                    );
+                    Return::None
+                }
                 _ => Return::ProcessChildren,
             })
         } else {

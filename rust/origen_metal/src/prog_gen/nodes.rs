@@ -34,6 +34,9 @@ pub enum PGM {
     /// Assign an existing test to an existing invocation
     ///                 InvID  TestID
     AssignTestToInv(usize, usize),
+    /// Define a collection item underneath a test or another collection item
+    ///                       ItemID ParentID CollectionName InstanceID AllowMissing
+    DefTestCollectionItem(usize, usize, String, String, bool),
     /// Set the attribute with the given name within the given test (ID), to the given value
     SetAttr(usize, String, Option<ParamValue>, bool),
     /// Set the limit of the given test or invocation, (test_id, inv_id, hi/lo, value). Note that either test_id

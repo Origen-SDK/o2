@@ -25,11 +25,13 @@ pub use pattern::PatternType;
 use std::fmt;
 use std::str::FromStr;
 pub use sub_test::SubTest;
-pub use test::Test;
+pub use template_loader::{
+    load_test_from_lib, TestTemplate, TestTemplateCollection, TestTemplateParameter,
+};
+pub use test::{Test, TestCollection, TestCollectionItem};
 pub use variable::Variable;
 pub use variable::VariableOperation;
 pub use variable::VariableType;
-pub use template_loader::{TestTemplate, TestTemplateParameter, load_test_from_lib};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum PatternGroupType {
@@ -156,20 +158,56 @@ impl FromStr for ParamType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Accept any case and with or without underscores
-        let str = s.to_lowercase();
-        match str.trim() {
-            "string" => Ok(ParamType::String),
+        let normalized = s.trim().to_ascii_lowercase().replace('_', "");
+        match normalized.as_str() {
+            "string" | "class" => Ok(ParamType::String),
+            "pinstring" | "specvalue" | "specvariable" | "contextpins" | "optionlist" => {
+                Ok(ParamType::String)
+            }
             "int" | "integer" => Ok(ParamType::Int),
+            "long" => Ok(ParamType::Int),
             "uint" | "uinteger" => Ok(ParamType::UInt),
-            "float" | "number" | "num" => Ok(ParamType::Float),
+            "float" | "double" | "number" | "num" => Ok(ParamType::Float),
             "current" | "curr" | "i" => Ok(ParamType::Current),
             "voltage" | "volt" | "v" => Ok(ParamType::Voltage),
             "time" | "t" | "s" => Ok(ParamType::Time),
             "frequency" | "freq" | "hz" => Ok(ParamType::Frequency),
             "boolean" | "bool" => Ok(ParamType::Bool),
             "any" => Ok(ParamType::Any),
-            _ => Err(format!("'{}' is not a valid parameter type, the available types are: String, Int, UInt, Number, Current, Voltage, Time, Frequency, Bool, Any", str)),
+            _ => Err(format!(
+                "'{}' is not a valid parameter type, the available types are: String, PinString, SpecValue, SpecVariable, ContextPins, OptionList, Int, long, UInt, Number, Current, Voltage, Time, Frequency, Bool, Any",
+                s.trim()
+            )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ParamType;
+    use std::str::FromStr;
+
+    #[test]
+    fn param_type_accepts_v93k_aliases() {
+        assert_eq!(ParamType::from_str("PinString").unwrap(), ParamType::String);
+        assert_eq!(
+            ParamType::from_str("pin_string").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(ParamType::from_str("SpecValue").unwrap(), ParamType::String);
+        assert_eq!(
+            ParamType::from_str("spec_variable").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(
+            ParamType::from_str("ContextPins").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(
+            ParamType::from_str("OptionList").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(ParamType::from_str("long").unwrap(), ParamType::Int);
     }
 }
 
