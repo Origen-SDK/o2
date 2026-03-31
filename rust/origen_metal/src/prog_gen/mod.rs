@@ -30,12 +30,14 @@ pub use model::PatternGroupType;
 pub use model::PatternReferenceType;
 pub use model::PatternType;
 pub use model::Test;
+pub use model::TestCollection;
+pub use model::TestCollectionItem;
 pub use model::Variable;
 pub use model::VariableOperation;
 pub use model::VariableType;
 pub use nodes::PGM;
 pub use supported_testers::SupportedTester;
-pub use model::{TestTemplate, TestTemplateParameter};
+pub use model::{TestTemplate, TestTemplateCollection, TestTemplateParameter};
 use model::load_test_from_lib;
 
 use crate::ast::AST;

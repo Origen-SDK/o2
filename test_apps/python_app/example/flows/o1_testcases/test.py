@@ -10,6 +10,7 @@ with Flow() as flow:
     #if tester.v93k? && tester.create_limits_file
     with tester().eq("v93ksmt8"):
         flow.func("program_ckbd", bin=100, soft_bin=1100, number=40000)
+        flow.collection_test("thermal_tsen_sensor_read_calibration", number=40002)
 
     flow.meas("read_pump",
               bin=119,

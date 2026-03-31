@@ -17,6 +17,8 @@ log/
 rls/
 .pytest_cache
 .cline_storage/
+.codex/
+.claude/
 
 
 # pyenv

@@ -3,6 +3,8 @@ use crate::prog_gen::config::SMT8Config;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, PGM, ParamValue};
 use crate::Result;
 use crate::ast::{Node, Processor, Return};
+use indexmap::IndexMap;
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -107,6 +109,201 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
 }
 
 impl FlowGenerator {
+    fn alpha_cmp(a: &str, b: &str) -> Ordering {
+        a.to_ascii_lowercase()
+            .cmp(&b.to_ascii_lowercase())
+            .then_with(|| a.cmp(b))
+    }
+
+    fn natural_cmp(a: &str, b: &str) -> Ordering {
+        let mut left = a.chars().peekable();
+        let mut right = b.chars().peekable();
+
+        loop {
+            match (left.peek(), right.peek()) {
+                (None, None) => return Ordering::Equal,
+                (None, Some(_)) => return Ordering::Less,
+                (Some(_), None) => return Ordering::Greater,
+                (Some(lc), Some(rc)) => {
+                    if lc.is_ascii_digit() && rc.is_ascii_digit() {
+                        let mut l_digits = String::new();
+                        let mut r_digits = String::new();
+                        while let Some(c) = left.peek() {
+                            if c.is_ascii_digit() {
+                                l_digits.push(*c);
+                                left.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        while let Some(c) = right.peek() {
+                            if c.is_ascii_digit() {
+                                r_digits.push(*c);
+                                right.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        let l_trimmed = l_digits.trim_start_matches('0');
+                        let r_trimmed = r_digits.trim_start_matches('0');
+                        let number_cmp = l_trimmed
+                            .len()
+                            .cmp(&r_trimmed.len())
+                            .then_with(|| l_trimmed.cmp(r_trimmed))
+                            .then_with(|| l_digits.len().cmp(&r_digits.len()));
+                        if number_cmp != Ordering::Equal {
+                            return number_cmp;
+                        }
+                    } else {
+                        let l = left.next().unwrap();
+                        let r = right.next().unwrap();
+                        let char_cmp = l
+                            .to_ascii_lowercase()
+                            .cmp(&r.to_ascii_lowercase())
+                            .then_with(|| l.cmp(&r));
+                        if char_cmp != Ordering::Equal {
+                            return char_cmp;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn format_number(value: f64) -> String {
+        if value.is_infinite() {
+            if value.is_sign_positive() {
+                "Infinity".to_string()
+            } else {
+                "-Infinity".to_string()
+            }
+        } else {
+            format!("{}", value)
+        }
+    }
+
+    fn format_plain_float(value: f64) -> String {
+        if value.is_infinite() {
+            Self::format_number(value)
+        } else if value.fract() == 0.0 {
+            format!("{:.1}", value)
+        } else {
+            format!("{}", value)
+        }
+    }
+
+    fn write_param_value(
+        f: &mut std::fs::File,
+        indent: usize,
+        name: &str,
+        value: &ParamValue,
+    ) -> Result<()> {
+        let indent = "    ".repeat(indent);
+        match value {
+            ParamValue::String(v) | ParamValue::Any(v) => {
+                writeln!(f, "{}{} = \"{}\";", indent, name, v)?;
+            }
+            ParamValue::Int(v) => {
+                writeln!(f, "{}{} = {};", indent, name, v)?;
+            }
+            ParamValue::UInt(v) => {
+                writeln!(f, "{}{} = {};", indent, name, v)?;
+            }
+            ParamValue::Float(v) => {
+                writeln!(f, "{}{} = {};", indent, name, Self::format_plain_float(*v))?;
+            }
+            ParamValue::Current(v) => {
+                writeln!(f, "{}{} = \"{}[A]\";", indent, name, Self::format_number(*v))?;
+            }
+            ParamValue::Voltage(v) => {
+                writeln!(f, "{}{} = \"{}[V]\";", indent, name, Self::format_number(*v))?;
+            }
+            ParamValue::Time(v) => {
+                writeln!(f, "{}{} = \"{}[s]\";", indent, name, Self::format_number(*v))?;
+            }
+            ParamValue::Frequency(v) => {
+                writeln!(f, "{}{} = \"{}[Hz]\";", indent, name, Self::format_number(*v))?;
+            }
+            ParamValue::Bool(v) => {
+                writeln!(f, "{}{} = {};", indent, name, if *v { "true" } else { "false" })?;
+            }
+        }
+        Ok(())
+    }
+
+    fn render_sorted_contents(
+        &self,
+        f: &mut std::fs::File,
+        indent: usize,
+        values: &IndexMap<String, ParamValue>,
+        default_values: &IndexMap<String, ParamValue>,
+        collections: &IndexMap<String, Vec<usize>>,
+    ) -> Result<()> {
+        let mut names: Vec<String> = values
+            .iter()
+            .filter_map(|(name, value)| {
+                if !self.options.render_default_tmparams
+                    && default_values.get(name).is_some_and(|default| default == value)
+                {
+                    None
+                } else {
+                    Some(name.clone())
+                }
+            })
+            .collect();
+        for (collection_name, ids) in collections {
+            let has_renderable_items = ids.iter().any(|id| {
+                self.model
+                    .test_collection_items
+                    .get(id)
+                    .is_some_and(|item| item.available)
+            });
+            if has_renderable_items {
+                names.push(collection_name.clone());
+            }
+        }
+        names.sort_by(|a, b| Self::alpha_cmp(a, b));
+        names.dedup();
+
+        for name in names {
+            if let Some(value) = values.get(&name) {
+                if !self.options.render_default_tmparams
+                    && default_values.get(&name).is_some_and(|default| default == value)
+                {
+                    continue;
+                }
+                Self::write_param_value(f, indent, &name, value)?;
+                continue;
+            }
+
+            if let Some(ids) = collections.get(&name) {
+                let mut items = ids
+                    .iter()
+                    .filter_map(|id| self.model.test_collection_items.get(id))
+                    .filter(|item| item.available)
+                    .collect::<Vec<_>>();
+                items.sort_by(|a, b| Self::natural_cmp(&a.instance_id, &b.instance_id));
+                for item in items {
+                    let indent_str = "    ".repeat(indent);
+                    writeln!(
+                        f,
+                        "{}{}[{}] = {{",
+                        indent_str, item.collection_name, item.instance_id
+                    )?;
+                    self.render_sorted_contents(
+                        f,
+                        indent + 1,
+                        &item.values,
+                        &item.default_values,
+                        &item.collections,
+                    )?;
+                    writeln!(f, "{}}};", indent_str)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn current_flow_path(&self) -> Option<String> {
         if self.flow_stack.is_empty() || self.flow_stack.len() == 1 {
             None
@@ -213,56 +410,13 @@ impl FlowGenerator {
                 if let Some(spec) = test_invocation.get("spec")?.map(|p| p.to_string()) {
                     writeln!(&mut f, "            measurement.specification = setupRef({}specs.{});", &namespace, spec)?;
                 }
-                let sorted_param_keys =  {
-                    let mut keys: Vec<&String> = test.values.keys().collect();
-                    keys.sort();
-                    keys
-                };
-
-                for param in sorted_param_keys {
-                    let value = test.values.get(param).unwrap();
-                    if !self.options.render_default_tmparams {
-                        let default_value = test.default_values.get(param);
-                        if let Some(default_value) = default_value {
-                            if default_value == value {
-                                continue;
-                            }
-                        }
-                    }
-                    match value {
-                        ParamValue::String(v) | ParamValue::Any(v) => {
-                            writeln!(&mut f, "            {} = \"{}\";", param, v)?;
-                        }
-                        ParamValue::Int(v) => {
-                            writeln!(&mut f, "            {} = {};", param, v)?;
-                        }
-                        ParamValue::UInt(v) =>  {
-                            writeln!(&mut f, "            {} = {};", param, v)?;
-                        }
-                        ParamValue::Float(v) => {
-                            writeln!(&mut f, "            {} = {};", param, v)?;
-                        }
-                        ParamValue::Current(v) => {
-                            writeln!(&mut f, "            {} = \"{}[A]\";", param, v)?;
-                        }
-                        ParamValue::Voltage(v) =>  {
-                            writeln!(&mut f, "            {} = \"{}[V]\";", param, v)?;
-                        }
-                        ParamValue::Time(v) => {
-                            writeln!(&mut f, "            {} = \"{}[s]\";", param, v)?;
-                        }
-                        ParamValue::Frequency(v) => {
-                            writeln!(&mut f, "            {} = \"{}[Hz]\";", param, v)?;
-                        }
-                        ParamValue::Bool(v) => {
-                            if *v {
-                                writeln!(&mut f, "            {} = true;", param)?;
-                            } else {
-                                writeln!(&mut f, "            {} = false;", param)?;
-                            }
-                        }
-                    }
-                }
+                self.render_sorted_contents(
+                    &mut f,
+                    3,
+                    &test.values,
+                    &test.default_values,
+                    &test.collections,
+                )?;
                 writeln!(&mut f, "        }}")?;
             }
             writeln!(&mut f, "")?;
@@ -824,6 +978,25 @@ impl Processor<PGM> for FlowGenerator {
             _ => {}
         }
         Ok(Return::Unmodified)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FlowGenerator;
+    use std::cmp::Ordering;
+
+    #[test]
+    fn natural_sort_orders_numeric_suffixes() {
+        let mut ids = vec!["param10", "param2", "param1", "param11", "param3"];
+        ids.sort_by(|a, b| FlowGenerator::natural_cmp(a, b));
+        assert_eq!(ids, vec!["param1", "param2", "param3", "param10", "param11"]);
+    }
+
+    #[test]
+    fn alpha_sort_is_case_insensitive() {
+        assert_eq!(FlowGenerator::alpha_cmp("testName", "testerState"), Ordering::Greater);
+        assert_eq!(FlowGenerator::alpha_cmp("Y1Variable", "zDataDeltaLimit"), Ordering::Less);
     }
 }
 
