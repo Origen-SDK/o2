@@ -167,7 +167,7 @@ jobs:
         python-version: ${{ fromJSON(vars.PYTHON_VERSIONS) }}
     needs: [precheck]
 
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
 
@@ -231,7 +231,7 @@ jobs:
       #   run: echo "${{ github.workspace }}/rust/origen/target/release" >> $GITHUB_PATH
 
       # - name: Add Origen to PATH (Windows)
-      #   if: matrix.os == 'windows-latest'
+      #   if: startsWith(matrix.os, 'windows-')
       #   run: echo "${{ github.workspace }}/rust/origen/target/release" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       # - name: Display Origen CLI Version

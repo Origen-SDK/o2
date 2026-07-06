@@ -203,6 +203,55 @@ impl FlowGenerator {
         }
     }
 
+    fn render_result_branch(
+        &mut self,
+        branch: &Node<PGM>,
+        subject_name: &str,
+        suppress_bins: bool,
+    ) -> Result<()> {
+        let guard = match &branch.attrs {
+            PGM::OnPassed(_) => Some(format!("if ({}.pass) {{", subject_name)),
+            PGM::OnFailed(_) => Some(format!("if (!{}.pass) {{", subject_name)),
+            _ => None,
+        };
+
+        if let Some(guard) = guard {
+            let original_render_bins = {
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                let original_render_bins = current_flow.render_bins;
+                current_flow.start_execute_buffer();
+                if suppress_bins {
+                    current_flow.render_bins = false;
+                }
+                original_render_bins
+            };
+            branch.process_children(self)?;
+            {
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                current_flow.render_bins = original_render_bins;
+                let buffered_lines = current_flow.finish_execute_buffer();
+                if !buffered_lines.is_empty() {
+                    current_flow.execute_line(guard);
+                    current_flow.flush_buffered_execute_lines(buffered_lines, 1);
+                    current_flow.execute_line("}".to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn render_result_branches(
+        &mut self,
+        children: &Vec<Box<Node<PGM>>>,
+        subject_name: &str,
+        suppress_bins: bool,
+    ) -> Result<()> {
+        for branch in children {
+            self.render_result_branch(branch, subject_name, suppress_bins)?;
+        }
+        Ok(())
+    }
+
     fn write_param_value(
         f: &mut std::fs::File,
         indent: usize,
@@ -565,40 +614,7 @@ impl Processor<PGM> for FlowGenerator {
                             current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                         }
                     }
-                    if node
-                        .children
-                        .iter()
-                        .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
-                    {
-                        for n in &node.children {
-                            if matches!(n.attrs, PGM::OnPassed(_)) {
-                                self.flow_stack.last_mut().unwrap().start_execute_buffer();
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    let buffered_lines = current_flow.finish_execute_buffer();
-                                    if !buffered_lines.is_empty() {
-                                        current_flow.execute_line(format!("if ({}.pass) {{", flow.name));
-                                        current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                            if matches!(n.attrs, PGM::OnFailed(_)) {
-                                self.flow_stack.last_mut().unwrap().start_execute_buffer();
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    let buffered_lines = current_flow.finish_execute_buffer();
-                                    if !buffered_lines.is_empty() {
-                                        current_flow.execute_line(format!("if (!{}.pass) {{", flow.name));
-                                        current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    self.render_result_branches(&node.children, &flow.name, false)?;
                 } else {
                     node.process_children(self)?;
                 }
@@ -693,54 +709,7 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 if !self.resources_block {
                     self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", &test_name));
-                    if node
-                        .children
-                        .iter()
-                        .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
-                    {
-                        for n in &node.children {
-                            if matches!(n.attrs, PGM::OnPassed(_)) {
-                                let original_render_bins = {
-                                    let current_flow = self.flow_stack.last_mut().unwrap();
-                                    let original_render_bins = current_flow.render_bins;
-                                    current_flow.start_execute_buffer();
-                                    current_flow.render_bins = false;
-                                    original_render_bins
-                                };
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    current_flow.render_bins = original_render_bins;
-                                    let buffered_lines = current_flow.finish_execute_buffer();
-                                    if !buffered_lines.is_empty() {
-                                        current_flow.execute_line(format!("if ({}.pass) {{", &test_name));
-                                        current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                            if matches!(n.attrs, PGM::OnFailed(_)) {
-                                let original_render_bins = {
-                                    let current_flow = self.flow_stack.last_mut().unwrap();
-                                    let original_render_bins = current_flow.render_bins;
-                                    current_flow.start_execute_buffer();
-                                    current_flow.render_bins = false;
-                                    original_render_bins
-                                };
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    current_flow.render_bins = original_render_bins;
-                                    let buffered_lines = current_flow.finish_execute_buffer();
-                                    if !buffered_lines.is_empty() {
-                                        current_flow.execute_line(format!("if (!{}.pass) {{", &test_name));
-                                        current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    self.render_result_branches(&node.children, &test_name, true)?;
                 }
                 Return::ProcessChildren
             }
@@ -761,54 +730,7 @@ impl Processor<PGM> for FlowGenerator {
                     )?;
                 }
                 self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", name));
-                if node
-                    .children
-                    .iter()
-                    .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
-                {
-                    for n in &node.children {
-                        if matches!(n.attrs, PGM::OnPassed(_)) {
-                            let original_render_bins = {
-                                let current_flow = self.flow_stack.last_mut().unwrap();
-                                let original_render_bins = current_flow.render_bins;
-                                current_flow.start_execute_buffer();
-                                current_flow.render_bins = false;
-                                original_render_bins
-                            };
-                            n.process_children(self)?;
-                            {
-                                let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                current_flow.render_bins = original_render_bins;
-                                let buffered_lines = current_flow.finish_execute_buffer();
-                                if !buffered_lines.is_empty() {
-                                    current_flow.execute_line(format!("if ({}.pass) {{", name));
-                                    current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                                    current_flow.execute_line("}".to_string());
-                                }
-                            }
-                        }
-                        if matches!(n.attrs, PGM::OnFailed(_)) {
-                            let original_render_bins = {
-                                let current_flow = self.flow_stack.last_mut().unwrap();
-                                let original_render_bins = current_flow.render_bins;
-                                current_flow.start_execute_buffer();
-                                current_flow.render_bins = false;
-                                original_render_bins
-                            };
-                            n.process_children(self)?;
-                            {
-                                let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                current_flow.render_bins = original_render_bins;
-                                let buffered_lines = current_flow.finish_execute_buffer();
-                                if !buffered_lines.is_empty() {
-                                    current_flow.execute_line(format!("if (!{}.pass) {{", name));
-                                    current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                                    current_flow.execute_line("}".to_string());
-                                }
-                            }
-                        }
-                    }
-                }
+                self.render_result_branches(&node.children, name, true)?;
                 Return::ProcessChildren
             }
             PGM::OnFailed(_) => Return::None, // Handled within the PGMTest handler
