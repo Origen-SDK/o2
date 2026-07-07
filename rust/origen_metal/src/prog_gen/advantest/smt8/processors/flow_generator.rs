@@ -37,8 +37,7 @@ struct FlowFile {
     path: PathBuf,
     indent: usize,
     execute_lines: Vec<String>,
-    execute_lines_buffer: Vec<String>,
-    buffer_execute_lines: bool,
+    execute_line_buffers: Vec<Vec<String>>,
     render_bins: bool,
     test_ids: Vec<(String, usize)>,
     existing_test_counter: HashMap<String, usize>,
@@ -52,20 +51,32 @@ impl FlowFile {
     /// indenting it appropriately
     fn execute_line(&mut self, line: String) {
         let indent = "    ".repeat(self.indent);
-        if self.buffer_execute_lines {
-            self.execute_lines_buffer.push(format!("{}{}", indent, line));
+        self.push_execute_line(format!("{}{}", indent, line));
+    }
+
+    fn push_execute_line(&mut self, line: String) {
+        if let Some(buffer) = self.execute_line_buffers.last_mut() {
+            buffer.push(line);
         } else {
-            self.execute_lines.push(format!("{}{}", indent, line));
+            self.execute_lines.push(line);
         }
     }
 
-    /// Flushes any buffered execute lines to the main execute lines
-    /// section
-    fn flush_buffered_execute_lines(&mut self, indent: usize) {
-        for line in &self.execute_lines_buffer {
-            self.execute_lines.push(format!("{}{}", "    ".repeat(indent), line));
+    fn start_execute_buffer(&mut self) {
+        self.execute_line_buffers.push(vec![]);
+    }
+
+    fn finish_execute_buffer(&mut self) -> Vec<String> {
+        self.execute_line_buffers.pop().unwrap_or_default()
+    }
+
+    /// Flushes captured execute lines to the active output target.
+    /// If a parent result branch is being buffered, these lines are appended to
+    /// that parent buffer rather than directly to the final execute section.
+    fn flush_buffered_execute_lines(&mut self, lines: Vec<String>, indent: usize) {
+        for line in lines {
+            self.push_execute_line(format!("{}{}", "    ".repeat(indent), line));
         }
-        self.execute_lines_buffer.clear();
     }
 }
 
@@ -190,6 +201,55 @@ impl FlowGenerator {
         } else {
             format!("{}", value)
         }
+    }
+
+    fn render_result_branch(
+        &mut self,
+        branch: &Node<PGM>,
+        subject_name: &str,
+        suppress_bins: bool,
+    ) -> Result<()> {
+        let guard = match &branch.attrs {
+            PGM::OnPassed(_) => Some(format!("if ({}.pass) {{", subject_name)),
+            PGM::OnFailed(_) => Some(format!("if (!{}.pass) {{", subject_name)),
+            _ => None,
+        };
+
+        if let Some(guard) = guard {
+            let original_render_bins = {
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                let original_render_bins = current_flow.render_bins;
+                current_flow.start_execute_buffer();
+                if suppress_bins {
+                    current_flow.render_bins = false;
+                }
+                original_render_bins
+            };
+            branch.process_children(self)?;
+            {
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                current_flow.render_bins = original_render_bins;
+                let buffered_lines = current_flow.finish_execute_buffer();
+                if !buffered_lines.is_empty() {
+                    current_flow.execute_line(guard);
+                    current_flow.flush_buffered_execute_lines(buffered_lines, 1);
+                    current_flow.execute_line("}".to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn render_result_branches(
+        &mut self,
+        children: &Vec<Box<Node<PGM>>>,
+        subject_name: &str,
+        suppress_bins: bool,
+    ) -> Result<()> {
+        for branch in children {
+            self.render_result_branch(branch, subject_name, suppress_bins)?;
+        }
+        Ok(())
     }
 
     fn write_param_value(
@@ -554,40 +614,7 @@ impl Processor<PGM> for FlowGenerator {
                             current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                         }
                     }
-                    if node
-                        .children
-                        .iter()
-                        .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
-                    {
-                        for n in &node.children {
-                            if matches!(n.attrs, PGM::OnPassed(_)) {
-                                self.flow_stack.last_mut().unwrap().buffer_execute_lines = true;
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    current_flow.buffer_execute_lines = false;
-                                    if !current_flow.execute_lines_buffer.is_empty() {
-                                        current_flow.execute_line(format!("if ({}.pass) {{", flow.name));
-                                        current_flow.flush_buffered_execute_lines(1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                            if matches!(n.attrs, PGM::OnFailed(_)) {
-                                self.flow_stack.last_mut().unwrap().buffer_execute_lines = true;
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    current_flow.buffer_execute_lines = false;
-                                    if !current_flow.execute_lines_buffer.is_empty() {
-                                        current_flow.execute_line(format!("if (!{}.pass) {{", flow.name));
-                                        current_flow.flush_buffered_execute_lines(1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    self.render_result_branches(&node.children, &flow.name, false)?;
                 } else {
                     node.process_children(self)?;
                 }
@@ -682,44 +709,7 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 if !self.resources_block {
                     self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", &test_name));
-                    if node
-                        .children
-                        .iter()
-                        .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
-                    {
-                        for n in &node.children {
-                            if matches!(n.attrs, PGM::OnPassed(_)) {
-                                self.flow_stack.last_mut().unwrap().buffer_execute_lines = true;
-                                self.flow_stack.last_mut().unwrap().render_bins = false;
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    current_flow.buffer_execute_lines = false;
-                                    current_flow.render_bins = true;
-                                    if !current_flow.execute_lines_buffer.is_empty() {
-                                        current_flow.execute_line(format!("if ({}.pass) {{", &test_name));
-                                        current_flow.flush_buffered_execute_lines(1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                            if matches!(n.attrs, PGM::OnFailed(_)) {
-                                self.flow_stack.last_mut().unwrap().buffer_execute_lines = true;
-                                self.flow_stack.last_mut().unwrap().render_bins = false;
-                                n.process_children(self)?;
-                                {
-                                    let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                    current_flow.buffer_execute_lines = false;
-                                    current_flow.render_bins = true;
-                                    if !current_flow.execute_lines_buffer.is_empty() {
-                                        current_flow.execute_line(format!("if (!{}.pass) {{", &test_name));
-                                        current_flow.flush_buffered_execute_lines(1);
-                                        current_flow.execute_line("}".to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    self.render_result_branches(&node.children, &test_name, true)?;
                 }
                 Return::ProcessChildren
             }
@@ -740,44 +730,7 @@ impl Processor<PGM> for FlowGenerator {
                     )?;
                 }
                 self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", name));
-                if node
-                    .children
-                    .iter()
-                    .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
-                {
-                    for n in &node.children {
-                        if matches!(n.attrs, PGM::OnPassed(_)) {
-                            self.flow_stack.last_mut().unwrap().buffer_execute_lines = true;
-                            self.flow_stack.last_mut().unwrap().render_bins = false;
-                            n.process_children(self)?;
-                            {
-                                let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                current_flow.buffer_execute_lines = false;
-                                current_flow.render_bins = true;
-                                if !current_flow.execute_lines_buffer.is_empty() {
-                                    current_flow.execute_line(format!("if ({}.pass) {{", name));
-                                    current_flow.flush_buffered_execute_lines(1);
-                                    current_flow.execute_line("}".to_string());
-                                }
-                            }
-                        }
-                        if matches!(n.attrs, PGM::OnFailed(_)) {
-                            self.flow_stack.last_mut().unwrap().buffer_execute_lines = true;
-                            self.flow_stack.last_mut().unwrap().render_bins = false;
-                            n.process_children(self)?;
-                            {
-                                let current_flow = self.flow_stack.last_mut().unwrap(); 
-                                current_flow.buffer_execute_lines = false;
-                                current_flow.render_bins = true;
-                                if !current_flow.execute_lines_buffer.is_empty() {
-                                    current_flow.execute_line(format!("if (!{}.pass) {{", name));
-                                    current_flow.flush_buffered_execute_lines(1);
-                                    current_flow.execute_line("}".to_string());
-                                }
-                            }
-                        }
-                    }
-                }
+                self.render_result_branches(&node.children, name, true)?;
                 Return::ProcessChildren
             }
             PGM::OnFailed(_) => Return::None, // Handled within the PGMTest handler
@@ -983,8 +936,11 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::FlowGenerator;
+    use super::{run, FlowGenerator};
+    use crate::prog_gen::{process_flow, FlowCondition, FlowID, Model, PGM, SupportedTester};
     use std::cmp::Ordering;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn natural_sort_orders_numeric_suffixes() {
@@ -997,6 +953,45 @@ mod tests {
     fn alpha_sort_is_case_insensitive() {
         assert_eq!(FlowGenerator::alpha_cmp("testName", "testerState"), Ordering::Greater);
         assert_eq!(FlowGenerator::alpha_cmp("Y1Variable", "zDataDeltaLimit"), Ordering::Less);
+    }
+
+    #[test]
+    fn nested_result_branch_keeps_parent_guard() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "if_failed_retest".to_string() =>
+            node!(PGM::Volatile, "$Alarm".to_string()),
+            node!(PGM::TestStr, "primary_check".to_string(), FlowID::from_str("primary_check"), None, None, None),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_str("primary_check")]) =>
+                node!(PGM::TestStr, "primary_check_retest".to_string(), FlowID::from_str("primary_check_retest_id"), None, None, None),
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_str("primary_check_retest_id")]) =>
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["$Alarm".to_string()]))
+                )
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| path.file_name().and_then(|name| name.to_str()) == Some("IF_FAILED_RETEST.flow"))
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(flow.contains("primary_check.execute();"));
+        assert!(flow.contains("if (!primary_check.pass) {"));
+        assert!(flow.contains("primary_check_retest.execute();"));
+        assert!(flow.contains("if (!primary_check_retest.pass) {"));
+        assert!(!flow.contains(
+            "primary_check.execute();\n        if (!primary_check_retest.pass) {"
+        ));
+        Ok(())
     }
 }
 

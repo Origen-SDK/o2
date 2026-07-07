@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(vars.SUPPORTED_OS) }}
+        os: ["ubuntu-22.04", "windows-2022"]
         python-version: ${{ fromJSON(vars.PYTHON_VERSIONS) }}
 
     runs-on: ${{ matrix.os }}
@@ -52,7 +52,7 @@ jobs:
       # in GA. Next few steps are all messiness to debug/work around that.
       # Not an issue in Linux, so Windows only will be moved. linux will maintained across different drives.
       - name: Pre-Python Install Setup (Windows-Only)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: |
           $env:RUNNER_TOOL_CACHE = '${{ github.workspace }}' | Split-Path | Join-Path -ChildPath o2_GA_tools
           $env:AGENT_TOOLSDIRECTORY = $env:RUNNER_TOOL_CACHE
@@ -66,7 +66,7 @@ jobs:
           echo "AGENT_TOOLSDIRECTORY=$env:AGENT_TOOLSDIRECTORY" >> $GITHUB_ENV
 
       - name: Check ENV Variables (Windows-Only)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: |
           echo $env:AGENT_TOOLSDIRECTORY
           echo $env:RUNNER_TOOL_CACHE
@@ -74,13 +74,13 @@ jobs:
           echo $AGENT_TOOLSDIRECTORY
 
       - name: Setup Python ${{ matrix.python-version }}
-        if: matrix.os != 'windows-latest'
+        if: ${{ !startsWith(matrix.os, 'windows-') }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Setup Python ${{ matrix.python-version }}
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         uses: actions/setup-python@v4
         env:
           RUNNER_TOOL_CACHE: D:\a\o2\o2_GA_tools
@@ -89,7 +89,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Check Python Install (Windows-Only)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: |
           echo $RUNNER_TOOL_CACHE
           echo $AGENT_TOOLSDIRECTORY
@@ -119,7 +119,7 @@ jobs:
           export PATH="${{ github.workspace }}/rust/origen/target/debug:$PATH"
 
       - name: Add Origen to PATH (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: |
           echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           $env:Path = "${{ github.workspace }}/rust/origen/target/debug;$env:Path"
@@ -147,7 +147,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: which origen
       - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: where.exe origen
 
       - name: Display Poetry Version
@@ -165,7 +165,7 @@ jobs:
       #     echo $POETRY_VER
       #     echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
       # - name: Cache Poetry Version (Windows)
-      #   if: matrix.os == 'windows-latest'
+      #   if: startsWith(matrix.os, 'windows-')
       #   working-directory: test_apps/python_app
       #   run: |
       #     $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))"
@@ -179,7 +179,7 @@ jobs:
           which origen
           poetry run which origen
       - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         working-directory: test_apps/python_app
         run: |
           where.exe origen
@@ -191,7 +191,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: cp rust/origen/target/debug/origen python/origen/origen/__bin__/bin
       - name: Move Origen executable (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: cp rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
       - name: Show Origen Binary Location (Linux)
@@ -201,7 +201,7 @@ jobs:
           which origen
           poetry run which origen
       - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         working-directory: test_apps/python_app
         run: |
           where.exe origen
@@ -233,7 +233,7 @@ jobs:
 
       # Copy _origen
       - name: Copy Origen Library (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         working-directory: .\rust\pyapi\
         run: cp .\target\debug\_origen.dll ..\..\python\origen\_origen.pyd
 
@@ -255,7 +255,7 @@ jobs:
           which origen
           poetry run which origen
       - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         working-directory: test_apps/python_no_app
         run: |
           where.exe origen
@@ -310,7 +310,7 @@ jobs:
         run: rm rust/origen/target/debug/origen
 #        run: rm rust/origen/target/debug/origen python/origen/origen/__bin__/bin
       - name: Remove Origen executable (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: rm rust/origen/target/debug/origen.exe
 #        run: rm rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
@@ -336,7 +336,7 @@ jobs:
           poetry build --format wheel
 
       - name: Save wheel name (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         working-directory: python/origen/dist
         run: |
           ls
@@ -361,7 +361,7 @@ jobs:
           poetry --version
 
       - name: Install Origen Package Globally (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: |
           echo $GITHUB_ENV
           echo "Installing Local Origen ($env:DIST)"
@@ -383,7 +383,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: which origen
       - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         run: where.exe origen
 
       # - name: Reinstall Poetry Version
