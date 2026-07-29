@@ -4,6 +4,7 @@ macro_rules! _origen {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! origen {
     ($py: expr) => {
         pyo3::types::PyModule::import($py, "origen")?

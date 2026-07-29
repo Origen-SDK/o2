@@ -1,4 +1,4 @@
-use crate::prog_gen::{Test, TestInvocation};
+use crate::prog_gen::{Test, TestInvocation, to_param_value};
 use origen_metal::prog_gen::{ParamValue, SupportedTester};
 use pyo3::{exceptions, prelude::*};
 use pyo3::types::PyDict;
@@ -50,6 +50,18 @@ impl V93K {
     ) -> PyResult<TestInvocation> {
         let t = TestInvocation::new(name.clone(), self.tester.to_owned(), allow_missing, kwargs)?;
         t.set_attr("name", Some(ParamValue::String(name.to_owned())), allow_missing)?;
+        if let Some(kwargs) = kwargs {
+            for (k, v) in kwargs {
+                if let Ok(name) = k.extract::<String>() {
+                    t.set_attr(&name, to_param_value(v)?, allow_missing)?;
+                } else {
+                    return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
+                        "Illegal attribute name type '{}', should be a String",
+                        k
+                    )));
+                }
+            }
+        }
         Ok(t)
     }
 }

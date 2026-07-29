@@ -1,0 +1,87 @@
+// ******************************************************************************************
+// Generated
+//   Time: 2026-03-25 18:07:42.833096300 -05:00
+//   By: nxf65099
+//   Command: origen generate \\?\C:\Tools\Origen\O2\forked\o2\test_apps\python_app\example\patterns\simple_sanity.py
+// ******************************************************************************************
+// Workspace
+//   Environment
+//     OS: Windows Unknown
+//     Mode: development
+//     Targets
+//         C:\Tools\Origen\O2\forked\o2\test_apps\python_app\targets\dut\falcon.py
+//   Application
+//     Local Path: C:\Tools\Origen\O2\forked\o2\test_apps\python_app
+//   Origen Core
+//     Version: 2.0.0-dev.7
+//     Executable Path: C:\Users\nxf65099\AppData\Local\Programs\Python\Python311\python.exe
+// ******************************************************************************************
+// Header Comments
+//   From the Application
+//     Hello pattern from the application!
+// ******************************************************************************************
+opcode_mode = single;
+digital_inst = hsdm;
+compressed = yes;
+vector ($tset, clk, porta, portb, portc)
+{
+start_label pattern_st:
+repeat 100 > simple 0 XX XXXX XX ;
+// Simple 8-bit write/verify
+// SimpleProtocol: Return SimpleProtocol to default pin states
+ > simple 0 0X XXXX XX ;
+// SimpleProtocol: Simple Write: 171 <- 15
+// SimpleProtocol: Writing Address: 171 (address width: 8)
+ > simple 0 10 1101 XX ;
+ > simple 0 10 0101 XX ;
+// SimpleProtocol: Writing Data: 15 (data width: 8)
+ > simple 0 10 1111 XX ;
+ > simple 0 10 0000 XX ;
+ > simple 0 0X XXXX XX ;
+// SimpleProtocol: Simple Verify: 171 =? 15
+// SimpleProtocol: Verifying Address: 171 (address width: 8)
+ > simple 0 11 1101 XX ;
+ > simple 0 11 0101 XX ;
+// SimpleProtocol: Verifying Data: 15 (data width: 8)
+ > simple 0 11 HHHH XX ;
+ > simple 0 11 LLLL XX ;
+ > simple 0 0X XXXX XX ;
+// Simple 32-bit write/verify
+// SimpleProtocol: Return SimpleProtocol to default pin states
+ > simple 0 0X XXXX 0X ;
+// SimpleProtocol: Simple Write: 305419896 <- 3469672447
+// SimpleProtocol: Writing Address: 305419896 (address width: 32)
+ > simple 0 0X 0001 10 ;
+ > simple 0 0X 1110 10 ;
+ > simple 0 0X 0110 10 ;
+ > simple 0 0X 1010 10 ;
+ > simple 0 0X 0010 10 ;
+ > simple 0 0X 1100 10 ;
+ > simple 0 0X 0100 10 ;
+ > simple 0 0X 1000 10 ;
+// SimpleProtocol: Writing Data: 3469672447 (data width: 32)
+repeat 4 > simple 0 0X 1111 10 ;
+ > simple 0 0X 0111 10 ;
+ > simple 0 0X 0011 10 ;
+ > simple 0 0X 0111 10 ;
+ > simple 0 0X 0011 10 ;
+ > simple 0 0X XXXX 0X ;
+// SimpleProtocol: Simple Verify: 305419896 =? 3469672447
+// SimpleProtocol: Verifying Address: 305419896 (address width: 32)
+ > simple 0 0X 0001 11 ;
+ > simple 0 0X 1110 11 ;
+ > simple 0 0X 0110 11 ;
+ > simple 0 0X 1010 11 ;
+ > simple 0 0X 0010 11 ;
+ > simple 0 0X 1100 11 ;
+ > simple 0 0X 0100 11 ;
+ > simple 0 0X 1000 11 ;
+// SimpleProtocol: Verifying Data: 3469672447 (data width: 32)
+repeat 4 > simple 0 0X HHHH 11 ;
+ > simple 0 0X LHHH 11 ;
+ > simple 0 0X LLHH 11 ;
+ > simple 0 0X LHHH 11 ;
+ > simple 0 0X LLHH 11 ;
+ > simple 0 0X XXXX 0X ;
+repeat 10 > simple 0 0X XXXX 0X ;
+}

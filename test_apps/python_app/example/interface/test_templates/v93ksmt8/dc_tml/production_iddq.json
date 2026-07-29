@@ -1,0 +1,55 @@
+{
+    "class_name": "dc_tml.DcTest.ProductionIddq",
+
+    "parameters": {
+        "dpsPins": {
+            "type": "string",
+            "value": "Vee"
+        },
+        "disconnectPins": {
+            "type": "string"
+        },
+        "settlingTime": {
+            "type": "time",
+            "value": 0
+        },
+        "stopMode": {
+            "type": "string",
+            "value": "ToStopVEC",
+            "accepted_values": ["ToStopVEC", "ToStopCYC"]
+        },
+        "strStopVecCycNum": {
+            "type": "string"
+        },
+        "samples": {
+            "type": "integer",
+            "value": 16
+        },
+        "checkFunctional": {
+            "type": "string",
+            "value": "ON",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "checkTestNumOfFunctional": {
+            "type": "string",
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "gangedMode": {
+            "type": "string",
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "passCurrLimit_uA"
+        }
+    }
+}

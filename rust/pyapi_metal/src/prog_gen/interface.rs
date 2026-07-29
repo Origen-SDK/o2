@@ -7,6 +7,7 @@ use origen_metal::Result;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
+use std::collections::HashSet;
 use std::str::FromStr;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
@@ -74,6 +75,7 @@ impl PyInterface {
         let id = flow_options::get_flow_id(kwargs)?;
         let bin = flow_options::get_bin(kwargs)?;
         let softbin = flow_options::get_softbin(kwargs)?;
+        let number = flow_options::get_number(kwargs)?;
 
         Ok(flow_options::wrap_in_conditions(kwargs, false, || {
             if let Ok(t) = test_obj.extract::<TestInvocation>() {
@@ -99,7 +101,7 @@ impl PyInterface {
                     }
                 }
             } else if let Ok(t) = test_obj.extract::<String>() {
-                flow_api::execute_test_str(t, id.clone(), src_caller_meta())?;
+                flow_api::execute_test_str(t, id.clone(), bin, softbin, number, src_caller_meta())?;
             } else {
                 bail!(
                     "add_test must be given a valid test object, or a String, this is neither: {:?}",
@@ -274,6 +276,40 @@ impl PyInterface {
             ))),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
+    }
+
+    #[pyo3(signature=(*ids, **_kwargs))]
+    fn if_flag(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
+        match extract_to_string_vec(ids) {
+            Ok(v) => Ok(Condition::new(FlowCondition::IfFlag(v))),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
+        }
+    }
+
+    #[pyo3(signature=(*ids, **_kwargs))]
+    fn unless_flag(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
+        match extract_to_string_vec(ids) {
+            Ok(v) => Ok(Condition::new(FlowCondition::UnlessFlag(v))),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
+        }
+    }
+
+    #[pyo3(signature=(*flags))]
+    fn volatile(&mut self, flags: &PyTuple) -> PyResult<()> {
+        match extract_to_string_vec(flags) {
+            Ok(v) => Ok(flow_api::set_volatile_flags(v, None)?),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
+        }
+    }
+
+    #[pyo3(signature=(tester))]
+    /// Returns a list of valid test invocation options for the given tester type.
+    fn test_invocation_options(&self, tester: String) -> PyResult<HashSet<String>> {
+        let tester = SupportedTester::from_str(&tester).map_err(|e| {
+            PyTypeError::new_err(format!("Invalid tester type: {}", e))
+        })?;
+        let opts = origen_metal::prog_gen::test_invocation_options(tester)?;
+        Ok(opts.into_iter().collect())
     }
 
     /// Bin out

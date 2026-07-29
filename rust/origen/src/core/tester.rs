@@ -23,12 +23,47 @@ use std::collections::HashSet;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[macro_export]
 macro_rules! push_pin_actions {
     ($pin_info:expr) => {{
         crate::TEST.push(node!(PAT::PinAction, $pin_info));
     }};
+}
+
+/// When running on GitHub Actions, this function runs a diff command
+/// to show the differences in the CI log. Does nothing otherwise.
+fn display_diff_on_ci(old_path: &Path, new_path: &Path) {
+    if env::var("GITHUB_ACTIONS").map(|v| v == "true").unwrap_or(false) {
+        println!("Running diff for GitHub Actions CI:");
+        match Command::new("diff")
+            .arg("-u")
+            .arg(old_path)
+            .arg(new_path)
+            .output()
+        {
+            Ok(output) => {
+                if !output.stdout.is_empty() {
+                    println!("--- Diff Output ---");
+                    if let Ok(stdout) = String::from_utf8(output.stdout) {
+                        for line in stdout.lines() {
+                            println!("{}", line);
+                        }
+                    }
+                    println!("--- End Diff ---");
+                }
+                if !output.stderr.is_empty() {
+                    if let Ok(stderr) = String::from_utf8(output.stderr) {
+                        eprintln!("Diff stderr: {}", stderr);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to run diff command: {}", e);
+            }
+        }
+    }
 }
 
 #[macro_export]
@@ -523,6 +558,7 @@ impl Tester {
                                                     }
                                                     self.stats.changed_pattern_files += 1;
                                                     display_redln!("Diffs found");
+                                                    display_diff_on_ci(&ref_pat, &path);
                                                     let old = to_relative_path(&ref_pat, None)
                                                         .unwrap_or(ref_pat);
                                                     let new = to_relative_path(&path, None)
@@ -620,6 +656,7 @@ impl Tester {
                                                     }
                                                     self.stats.changed_program_files += 1;
                                                     display_redln!("Diffs found");
+                                                    display_diff_on_ci(&ref_pat, &path);
                                                     let old = to_relative_path(&ref_pat, None)
                                                         .unwrap_or(ref_pat);
                                                     let new = to_relative_path(&path, None)
@@ -689,46 +726,52 @@ impl Tester {
                         display!("Created: {}", list.display());
                     }
                     if let Some(ref_dir) = crate::STATUS.reference_dir() {
-                        let ref_list = ref_dir.join("referenced.list");
-                        display!(" - ");
-                        if ref_list.exists() {
-                            let mut differ = ASCIIDiffer::new(&ref_list, &list);
-                            differ.ignore_comments("#")?;
-                            if differ.has_diffs()? {
-                                if let Err(e) = reference_files::create_changed_ref(
-                                    Path::new("referenced.list"),
-                                    &list,
-                                    &ref_list,
-                                ) {
-                                    log_error!("{}", e);
+                        match list.strip_prefix(crate::STATUS.output_dir()) {
+                            Err(e) => log_error!("{}", e),
+                            Ok(stem) => {
+                                let ref_list = ref_dir.join(&stem);
+                                display!(" - ");
+                                if ref_list.exists() {
+                                    let mut differ = ASCIIDiffer::new(&ref_list, &list);
+                                    differ.ignore_comments("#")?;
+                                    if differ.has_diffs()? {
+                                        if let Err(e) = reference_files::create_changed_ref(
+                                            Path::new("referenced.list"),
+                                            &list,
+                                            &ref_list,
+                                        ) {
+                                            log_error!("{}", e);
+                                        }
+                                        self.stats.changed_program_files += 1;
+                                        display_redln!("Diffs found");
+                                        display_diff_on_ci(&ref_list, &list);
+                                        let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
+                                        let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
+                                        let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
+                                            .unwrap_or("tkdiff".to_string());
+                                        displayln!(
+                                            "  {} {} {} &",
+                                            &diff_tool,
+                                            old.display(),
+                                            new.display()
+                                        );
+                                        display!("  origen save_ref referenced.list");
+                                    } else {
+                                        display_green!("No diffs");
+                                    }
+                                } else {
+                                    self.stats.new_program_files += 1;
+                                    if let Err(e) = reference_files::create_new_ref(
+                                        Path::new("referenced.list"),
+                                        &list,
+                                        &ref_list,
+                                    ) {
+                                        log_error!("{}", e);
+                                    }
+                                    display_cyanln!("New file");
+                                    display!("  origen save_ref referenced.list");
                                 }
-                                self.stats.changed_program_files += 1;
-                                display_redln!("Diffs found");
-                                let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
-                                let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
-                                let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
-                                    .unwrap_or("tkdiff".to_string());
-                                displayln!(
-                                    "  {} {} {} &",
-                                    &diff_tool,
-                                    old.display(),
-                                    new.display()
-                                );
-                                display!("  origen save_ref referenced.list");
-                            } else {
-                                display_green!("No diffs");
                             }
-                        } else {
-                            self.stats.new_program_files += 1;
-                            if let Err(e) = reference_files::create_new_ref(
-                                Path::new("referenced.list"),
-                                &list,
-                                &ref_list,
-                            ) {
-                                log_error!("{}", e);
-                            }
-                            display_cyanln!("New file");
-                            display!("  origen save_ref referenced.list");
                         }
                     }
                     displayln!("");

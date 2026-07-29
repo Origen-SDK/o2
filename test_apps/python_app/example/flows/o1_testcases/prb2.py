@@ -1,5 +1,6 @@
 with Flow(bypass_sub_flows=True,
           add_flow_enable="enabled",
+          namespace="OrigenTesters",
           environment="probe") as flow:
     flow.name_override = 'prb2' # simple override to avoid uppercase
     flow.description = '''

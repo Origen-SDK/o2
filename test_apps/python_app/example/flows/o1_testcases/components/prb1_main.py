@@ -3,7 +3,7 @@ with Flow() as flow:
     # interface
     flow.func('program_ckbd',
               tname='PGM_CKBD',
-              tnum=1000,
+              number=1000,
               bin=100,
               soft_bin=1100)
     flow.func('margin_read1_ckbd', number=1010)
@@ -187,27 +187,27 @@ with Flow() as flow:
         flow.log('direct call')
 
         flow.meas("bgap_voltage_meas",
-                  tnum=1050,
+                  number=1050,
                   bin=119,
                   soft_bin=2,
                   hi_limit=45,
-                  number=5910)
+                  )
         flow.meas("bgap_voltage_meas1", number=5920)
 
     with tester().eq("j750"):
-        flow.meas("lo_voltage", tnum=1150, bin=95, soft_bin=5, number=5920)
+        flow.meas("lo_voltage", number=1150, bin=95, soft_bin=5)
         flow.meas("hi_voltage",
                   pins="hi_v",
-                  tnum=1160,
+                  number=1160,
                   bin=96,
-                  soft_bin=6,
-                  number=5930)
+                  soft_bin=6
+                  )
         flow.meas("ps_leakage",
                   pins="power",
-                  tnum=1170,
+                  number=1170,
                   bin=97,
                   soft_bin=6,
-                  number=5940)
+                  )
 
     flow.log('Speed binning example bug from video 5')
     with flow.group("200Mhz Tests", id="g200"):

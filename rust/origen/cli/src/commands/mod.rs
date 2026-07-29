@@ -155,8 +155,8 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
             let arg_str: String;
             if arg.is_takes_value_set() {
                 if arg.is_multiple_values_set() {
-                    // Give to Python as an array of string values
-                    let r = invocation.get_many::<String>(arg_n).unwrap().map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
+                    // Give to Python as an array of string values - prevent windows path strings causing issues (replace \ with /)
+                    let r = invocation.get_many::<String>(arg_n).unwrap().map(|x| format!("\"{}\"", x).replace("\\", "/")).collect::<Vec<String>>();
                     arg_str = format!("r'{}': [{}]", as_name!(arg_n), r.join(", "));
                 } else {
                     // Give to Python a single string value

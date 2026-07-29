@@ -1,4 +1,5 @@
 use super::to_param_value;
+use super::TestCollectionItem;
 use crate::prog_gen::flow_options;
 use super::src_caller_meta;
 use origen_metal::prog_gen::{flow_api, Limit, LimitSelector, ParamValue, SupportedTester};
@@ -114,6 +115,23 @@ impl Test {
         };
         flow_api::set_test_attr(self.id, name, value, allow_missing, src_caller_meta())?;
         Ok(())
+    }
+
+    #[pyo3(signature=(collection_name, instance_id, allow_missing=false))]
+    pub fn add_collection_item(
+        &self,
+        collection_name: &str,
+        instance_id: &str,
+        allow_missing: bool,
+    ) -> Result<TestCollectionItem> {
+        let id = flow_api::define_test_collection_item(
+            self.id,
+            collection_name,
+            instance_id,
+            allow_missing,
+            src_caller_meta(),
+        )?;
+        Ok(TestCollectionItem::new(id))
     }
 
     fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {

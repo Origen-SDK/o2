@@ -481,6 +481,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 pairs.push(pair.into_inner());
             }
             Rule::name => ast.push(node!(STIL::String, unquote(pair.as_str()))),
+            Rule::signal_name => ast.push(node!(STIL::String, pair.as_str().to_string())),
             Rule::expression | Rule::expression_ => {
                 ast.push(build_expression(pair)?);
             }
@@ -704,7 +705,33 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 let mut vals: Vec<char> = Vec::new();
                 for inner_pair in pair.into_inner() {
                     match inner_pair.as_rule() {
-                        Rule::event_char => vals.push(inner_pair.as_str().parse().unwrap()),
+                        Rule::event_char => {
+                            let c = match inner_pair.as_str() {
+                                "ForceDown"          => 'D',
+                                "ForceUp"            => 'U',
+                                "ForceOff"           => 'Z',
+                                "ForcePrior"         => 'P',
+                                "ForceUnknown"       => 'N',
+                                "CompareLow"         => 'L',
+                                "CompareHigh"        => 'H',
+                                "CompareUnknown"     => 'X',
+                                "CompareOff"         => 'T',
+                                "CompareValid"       => 'V',
+                                "CompareLowWindow"   => 'l',
+                                "CompareHighWindow"  => 'h',
+                                "CompareOffWindow"   => 't',
+                                "CompareValidWindow" => 'v',
+                                "LogicLow"           => 'A',
+                                "LogicHigh"          => 'B',
+                                "LogicZUnknown"      => 'F',
+                                "ExpectHigh"         => 'G',
+                                "ExpectLow"          => 'R',
+                                "ExpectOff"          => 'Q',
+                                "Marker"             => 'M',
+                                s                    => s.chars().next().unwrap(),
+                            };
+                            vals.push(c);
+                        }
                         _ => unreachable!(),
                     };
                 }
@@ -895,7 +922,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 ids.push(ast.push_and_open(node!(STIL::TimeUnit)));
                 pairs.push(pair.into_inner());
             }
-            Rule::vector | Rule::vector_with_comment => {
+            Rule::vector => {
                 ids.push(ast.push_and_open(node!(STIL::Vector)));
                 pairs.push(pair.into_inner());
             }
@@ -913,7 +940,9 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 ids.push(ast.push_and_open(node!(STIL::NonCyclizedData)));
                 pairs.push(pair.into_inner());
             }
-            Rule::repeat => ast.push(node!(STIL::Repeat, inner_strs(pair)[0].parse().unwrap())),
+            Rule::repeat => ast.push(node!(STIL::Repeat, pair.as_str()[2..].parse::<u64>().unwrap())),
+            Rule::capture => ast.push(node!(STIL::WfcData, pair.as_str().to_string())),
+            Rule::noop => ast.push(node!(STIL::WfcData, pair.as_str().to_string())),
             Rule::waveform_format => ast.push(node!(STIL::WaveformFormat)),
             Rule::pattern_statement => {
                 ids.push(0);
@@ -951,6 +980,31 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 ids.push(ast.push_and_open(node!(STIL::Condition)));
                 pairs.push(pair.into_inner());
             }
+            Rule::fixed_statement => {
+                // Fixed statement has identical structure to Condition; reuse Condition node
+                ids.push(ast.push_and_open(node!(STIL::Condition)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::user_keywords_block => {
+                ids.push(ast.push_and_open(node!(STIL::UserKeywords)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::user_functions_block => {
+                ids.push(ast.push_and_open(node!(STIL::UserFunctions)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::udb_stmt => {
+                // User-defined block: silently consume content, no meaningful AST
+                ids.push(ast.push_and_open(node!(STIL::Udb)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::udb_block => {
+                ids.push(0);
+                pairs.push(pair.into_inner());
+            }
+            Rule::udb_pre_content | Rule::udb_block_inner => {
+                // Atomic opaque content — nothing to do
+            }
             Rule::call => {
                 let mut p = pair.into_inner();
                 ids.push(
@@ -965,7 +1019,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 );
                 pairs.push(p);
             }
-            Rule::loop_statement | Rule::loop_statement_with_comment => {
+            Rule::loop_statement => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
                     STIL::Loop,
@@ -1195,6 +1249,99 @@ mod tests {
                 println!("{}", e);
                 assert_eq!(1, 0);
             }
+        }
+    }
+
+    #[test]
+    fn test_example8_can_parse() {
+        let txt = read("example8");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example8_to_ast() {
+        let _stil = from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example8.stil",
+        ))
+        .expect("Imported example8");
+        println!("{}", _stil);
+    }
+
+    #[test]
+    fn test_example9_can_parse() {
+        let txt = read("example9");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example10_can_parse() {
+        let txt = read("example10");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example11_can_parse() {
+        let txt = read("example11");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example12_can_parse() {
+        let txt = read("example12");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example13_can_parse() {
+        let txt = read("example13");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example14_can_parse() {
+        let txt = read("example14");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example15_can_parse() {
+        let txt = read("example15");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    #[test]
+    fn test_example16_can_parse() {
+        let txt = read("example16");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
         }
     }
 }

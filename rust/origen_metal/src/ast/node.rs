@@ -4,6 +4,7 @@ use super::processors::ToString;
 use crate::ast::processor::{Processor, Return};
 use crate::Result;
 use std::fmt::{self, Debug, Display};
+use std::io::Write;
 
 pub trait Attrs: Clone + std::cmp::PartialEq + serde::Serialize + Display + Debug {}
 impl<T: Clone + std::cmp::PartialEq + serde::Serialize + Display + Debug> Attrs for T {}
@@ -314,6 +315,13 @@ impl<T: Attrs> Node<T> {
     /// Serializes the AST for import into Python
     pub fn to_pickle(&self) -> Vec<u8> {
         serde_pickle::to_vec(self, true).unwrap()
+    }
+
+    /// Writes the AST to the given file to allow it to be reviewed for debugging purposes
+    pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        let mut f = std::fs::File::create(path)?;
+        writeln!(&mut f, "{:#?}", self)?;
+        Ok(())
     }
 
     pub fn add_child(&mut self, node: Node<T>) {

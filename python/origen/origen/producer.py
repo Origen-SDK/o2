@@ -159,6 +159,9 @@ class Producer(_origen.producer.PyProducer):
             flow_refs = _origen_metal.prog_gen.start_new_flow(flow.name, **options)
             origen.interface.top_level_options = kwargs
 
+        if "namespace" in kwargs:
+            _origen_metal.prog_gen.set_namespace(kwargs["namespace"])
+
         #origen.tester.reset()
         #origen.target.reload()
         #origen.tester.clear_dut_dependencies(ast_name=flow.name)

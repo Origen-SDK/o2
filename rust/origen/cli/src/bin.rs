@@ -251,7 +251,7 @@ fn main() -> Result<()> {
                 log_error!("Failed to collect plugins. Encountered error: {}", e);
                 None
             } else {
-                // _origen isn't available. This could be an error is retrieving plugins.
+                // _origen isn't available. This could be an error in retrieving plugins.
                 // Print a warning instead of error, while logging the error
                 log_trace!("Failed to collect plugins. Encountered error: {}", e);
                 log_warning!("Failed to collect plugins: _origen module missing");

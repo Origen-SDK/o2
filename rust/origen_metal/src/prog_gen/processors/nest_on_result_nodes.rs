@@ -50,7 +50,7 @@ impl Processor<PGM> for NestOnResultNodes {
                     Ok(Return::ProcessChildren)
                 }
             }
-            PGM::Test(_, fid) | PGM::TestStr(_, fid) | PGM::Cz(_, _, fid) => {
+            PGM::Test(_, fid) | PGM::TestStr(_, fid, _, _, _) | PGM::Cz(_, _, fid) => {
                 if self.pass == 1 && self.nodes.contains_key(fid) {
                     let n = { self.nodes.remove(fid).unwrap() };
                     let mut nodes = vec![n.process_and_update_children(self)?];

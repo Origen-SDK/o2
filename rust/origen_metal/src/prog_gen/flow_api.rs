@@ -89,6 +89,27 @@ pub fn assign_test_to_invocation(
     Ok(())
 }
 
+pub fn define_test_collection_item(
+    parent_id: usize,
+    collection_name: &str,
+    instance_id: &str,
+    allow_missing: bool,
+    meta: Option<Meta>,
+) -> Result<usize> {
+    let id = crate::PROG_GEN_CONFIG.generate_unique_id();
+    let n = node!(
+        PGM::DefTestCollectionItem,
+        id,
+        parent_id,
+        collection_name.to_owned(),
+        instance_id.to_owned(),
+        allow_missing;
+        meta
+    );
+    FLOW.push(n)?;
+    Ok(id)
+}
+
 /// Execute the given test (or invocation) from the current flow
 pub fn execute_test(id: usize, flow_id: FlowID, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::Test, id, flow_id; meta);
@@ -98,8 +119,8 @@ pub fn execute_test(id: usize, flow_id: FlowID, meta: Option<Meta>) -> Result<()
 /// Execute the given test (or invocation) from the current flow, where the test is a string that
 /// will be rendered verbatim to the flow - no linkage to an actual test object will be checked or
 /// inserted by Origen
-pub fn execute_test_str(name: String, flow_id: FlowID, meta: Option<Meta>) -> Result<()> {
-    let n = node!(PGM::TestStr, name, flow_id; meta);
+pub fn execute_test_str(name: String, flow_id: FlowID, bin: Option<usize>, softbin: Option<usize>, number: Option<usize>, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::TestStr, name, flow_id, bin, softbin, number; meta);
     FLOW.push(n)
 }
 
@@ -145,6 +166,16 @@ pub fn render(text: String, meta: Option<Meta>) -> Result<()> {
 pub fn log(text: String, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::Log, text; meta);
     FLOW.push(n)
+}
+
+/// Mark the given flags as volatile, meaning their state could be changed by tests and therefore
+/// should not be optimized out of the flow
+pub fn set_volatile_flags(flags: Vec<String>, meta: Option<Meta>) -> Result<()> {
+    for flag in flags {
+        let n = node!(PGM::Volatile, flag; meta.clone());
+        FLOW.push(n)?;
+    }
+    Ok(())
 }
 
 /// [IGXL only] Set the given wait flags on the given test instance
@@ -219,6 +250,11 @@ pub fn set_flag(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
 
 pub fn set_default_flag_state(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::SetDefaultFlagState, name, state; meta);
+    FLOW.push(n)
+}
+
+pub fn set_namespace(namespace: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::Namespace, namespace; meta);
     FLOW.push(n)
 }
 

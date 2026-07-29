@@ -20,6 +20,7 @@ pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std
             Ok(Box::new(DummyRendererWithInterceptors::default()))
         }
         SupportedTester::V93KSMT7 => Ok(Box::new(smt::V93K_SMT7::default())),
+        SupportedTester::V93KSMT8 => Ok(Box::new(smt::V93K_SMT8::default())),
         SupportedTester::SIMULATOR => Ok(Box::new(simulator::Renderer::default())),
         SupportedTester::ULTRAFLEX => Ok(Box::new(igxl::UltraFlex::default())),
         SupportedTester::J750 => Ok(Box::new(igxl::j750::J750::default())),

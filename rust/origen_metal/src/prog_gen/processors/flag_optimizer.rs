@@ -27,6 +27,7 @@ pub struct FlagOptimizer {
 }
 
 pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Node<PGM>> {
+    //node.to_file("pre_flag_optimization.txt")?;
     let optimize_when_continue = match optimize_when_continue {
         Some(x) => x,
         None => true,
@@ -44,7 +45,7 @@ pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Nod
     let ast = ast.process(&mut p)?.unwrap();
     p.pass = 1;
     let ast = ast.process(&mut p)?.unwrap();
-
+    //node.to_file("post_flag_optimization.txt")?;
     Ok(ast)
 }
 
@@ -111,12 +112,9 @@ impl Processor<PGM> for FlagOptimizer {
                 let children = node.process_and_box_children(self)?;
                 Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
             }
-            PGM::Condition(cond) => match cond {
-                FlowCondition::IfFlag(_) | FlowCondition::UnlessFlag(_) => {
-                    let children = node.process_and_box_children(self)?;
-                    Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
-                }
-                _ => Return::ProcessChildren,
+            PGM::Condition(_) => {
+                let children = node.process_and_box_children(self)?;
+                Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
             },
             PGM::OnFailed(_) | PGM::OnPassed(_) => {
                 let mut flag = None;
@@ -527,6 +525,35 @@ mod tests {
             node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
                 node!(PGM::Test, 2, FlowID::from_int(2))
             ),
+        );
+
+        assert_eq!(output, run(&input, Some(false))?);
+        Ok(())
+    }
+
+    #[test]
+    fn eliminates_flags_within_a_condition() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["BLAH".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::SetFlag, "T1_FAILED".to_string(), true, true),
+                    ),
+                ),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["T1_FAILED".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2))
+                ),
+            )
+        );
+
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["BLAH".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::Test, 2, FlowID::from_int(2))
+                    ),
+                ),
+            )
         );
 
         assert_eq!(output, run(&input, Some(false))?);

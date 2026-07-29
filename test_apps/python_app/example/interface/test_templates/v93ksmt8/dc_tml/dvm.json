@@ -1,0 +1,33 @@
+{
+    "class_name": "dc_tml.DcTest.DVM",
+    
+    "parameters": {
+        "pinlist": {
+            "type": "string",
+            "aliases": [],
+            "value": "@"
+        },
+        "settlingTime": {
+            "type": "time",
+            "aliases": [],
+            "value": 0
+        },
+        "measureMode": {
+            "type": "string",
+            "aliases": [],
+            "value": "PPMUpar",
+            "accepted_values": ["PPMUpar", "ProgLoad"]
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "passVoltageLimit_mV"
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        }
+    }
+}

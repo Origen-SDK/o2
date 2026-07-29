@@ -1,0 +1,37 @@
+{
+    "class_name": "dc_tml.DcTest.HighZ",
+
+    "parameters": {
+        "pinlist": {
+            "type": "string",
+            "aliases": [],
+            "value": "@"
+        },
+        "forceValue": {
+            "type": "voltage",
+            "aliases": [],
+            "value": 2500e-3
+        },
+        "settlingTime": {
+            "type": "time",
+            "value": 0
+        },
+        "relaySwitchMode": {
+            "type": "string",
+            "aliases": [],
+            "value": "DEFAULT(BBM)",
+            "accepted_values": ["DEFAULT(BBM)", "BBM", "MBB", "PARALLEL"]
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "passCurrent_uA"
+        }
+    }
+}

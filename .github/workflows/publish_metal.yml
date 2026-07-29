@@ -5,7 +5,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2022]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -23,7 +23,7 @@ jobs:
           rust-toolchain: 1.54.0
 
       - name: Build the Python Package (Windows)
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows-')
         uses: messense/maturin-action@v1
         with: 
           maturin-version: v0.11.3-beta.6

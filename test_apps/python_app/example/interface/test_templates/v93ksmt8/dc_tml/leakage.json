@@ -1,0 +1,95 @@
+{
+    "class_name": "dc_tml.DcTest.Leakage",
+
+    "parameters": {
+        "pinlist": {
+            "type": "string",
+            "aliases": [],
+            "value": "@"
+        },
+        "measure": {
+            "type": "string",
+            "aliases": [],
+            "value": "BOTH",
+            "accepted_values": ["BOTH", "LOW", "HIGH"]
+        },
+        "forceVoltageLow": {
+            "type": "voltage",
+            "value": 400e-3
+        },
+        "forceVoltageHigh": {
+            "type": "voltage",
+            "value": 3800e-3
+        },
+        "spmuClampCurrentLow": {
+            "type": "current",
+            "value": 0
+        },
+        "spmuClampCurrentHigh": {
+            "type": "current",
+            "value": 0
+        },
+        "ppmuPreCharge": {
+            "type": "string",
+            "value": "ON",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "prechargeVoltageLow": {
+            "type": "voltage",
+            "value": 0
+        },
+        "prechargeVoltageHigh": {
+            "type": "voltage",
+            "value": 0
+        },
+        "settlingTimeLow": {
+            "type": "time",
+            "value": 0
+        },
+        "settlingTimeHigh": {
+            "type": "time",
+            "value": 0
+        },
+        "preFunction": {
+            "type": "string",
+            "value": "NO",
+            "accepted_values": ["NO", "ALL", "ToStopVEC", "ToStopCYC"]
+        },
+        "controlTestNumOffFunctional": {
+            "type": "string",
+            "value": "NO",
+            "accepted_values": ["NO", "ALL", "ToStopVEC", "ToStopCYC"]
+        },
+        "stopCycVecLow": {
+            "type": "integer",
+            "value": 0
+        },
+        "stopCycVecHigh": {
+            "type": "integer",
+            "value": 0
+        },
+        "measureMode": {
+            "type": "string",
+            "aliases": [],
+            "value": "PPMUpar",
+            "accepted_values": ["PPMUpar", "PPMUser", "SPMUser"]
+        },
+        "relaySwitchMode": {
+            "type": "string",
+            "aliases": [],
+            "value": "DEFAULT(BBM)",
+            "accepted_values": ["DEFAULT(BBM)", "BBM", "MBB", "PARALLEL"]
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "(passCurrentLow_uA,passCurrentHigh_uA)"
+        }
+    }
+}

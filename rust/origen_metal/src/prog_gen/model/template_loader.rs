@@ -2,6 +2,7 @@
 
 use crate::prog_gen::supported_testers::SupportedTester;
 use crate::Result;
+use indexmap::IndexMap;
 use phf::phf_map;
 use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
@@ -31,17 +32,24 @@ lazy_static! {
 /// Test template definitions from json files are read into this structure
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct TestTemplate {
-    pub parameter_list: Option<HashMap<String, String>>,
-    pub aliases: Option<HashMap<String, String>>,
-    pub values: Option<HashMap<String, serde_json::Value>>,
-    pub parameters: Option<HashMap<String, TestTemplateParameter>>,
+    pub parameter_list: Option<IndexMap<String, String>>,
+    pub aliases: Option<IndexMap<String, String>>,
+    pub values: Option<IndexMap<String, serde_json::Value>>,
+    pub parameters: Option<IndexMap<String, TestTemplateParameter>>,
+    pub collections: Option<IndexMap<String, TestTemplateCollection>>,
     pub class_name: Option<String>,
-    pub accepted_values: Option<HashMap<String, Vec<serde_json::Value>>>,
+    pub accepted_values: Option<IndexMap<String, Vec<serde_json::Value>>>,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+pub struct TestTemplateCollection {
+    pub parameters: Option<IndexMap<String, TestTemplateParameter>>,
+    pub collections: Option<IndexMap<String, TestTemplateCollection>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct TestTemplateParameter {
-    #[serde(rename(deserialize = "type"))]
+    #[serde(alias = "type")]
     pub kind: Option<String>,
     pub aliases: Option<Vec<String>>,
     pub value: Option<serde_json::Value>,
@@ -141,5 +149,67 @@ mod unit_tests {
             let _: TestTemplate =
                 serde_json::from_str(content).expect(&format!("Failed to import {}", file));
         }
+    }
+
+    #[test]
+    fn test_kind_alias_and_recursive_collections_import() {
+        let template: TestTemplate = serde_json::from_str(
+            r#"{
+                "parameters": {
+                    "enableSoftset": {
+                        "kind": "boolean",
+                        "value": "false"
+                    }
+                },
+                "collections": {
+                    "tsen": {
+                        "parameters": {
+                            "zDataDeltaLimit": {
+                                "kind": "double",
+                                "value": "0.0"
+                            }
+                        },
+                        "collections": {
+                            "registers": {
+                                "parameters": {
+                                    "zLowLimit": {
+                                        "type": "double",
+                                        "value": "-Infinity"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            template.parameters.as_ref().unwrap()["enableSoftset"]
+                .kind
+                .as_deref(),
+            Some("boolean")
+        );
+        assert!(template.collections.as_ref().unwrap().contains_key("tsen"));
+        assert!(
+            template.collections.as_ref().unwrap()["tsen"]
+                .collections
+                .as_ref()
+                .unwrap()
+                .contains_key("registers")
+        );
+        assert_eq!(
+            template.collections.as_ref().unwrap()["tsen"]
+                .collections
+                .as_ref()
+                .unwrap()["registers"]
+                .parameters
+                .as_ref()
+                .unwrap()["zLowLimit"]
+                .kind
+                .as_deref(),
+            Some("double")
+        );
     }
 }

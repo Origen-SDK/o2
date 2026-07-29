@@ -14,6 +14,7 @@ use pyo3::types::PyDict;
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct TestInvocation {
+    #[pyo3(get)]
     pub name: String,
     pub tester: SupportedTester,
     pub id: usize,
@@ -32,7 +33,6 @@ impl TestInvocation {
         Ok(())
     }
 
-    #[setter]
     pub fn set_lo_limit(&self, value: &PyAny) -> PyResult<()> {
         let value = match to_param_value(value)? {
             None => None,
@@ -52,7 +52,6 @@ impl TestInvocation {
         Ok(())
     }
 
-    #[setter]
     pub fn set_hi_limit(&self, value: &PyAny) -> PyResult<()> {
         let value = match to_param_value(value)? {
             None => None,

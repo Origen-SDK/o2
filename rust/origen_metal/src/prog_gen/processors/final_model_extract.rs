@@ -1,5 +1,5 @@
 use crate::prog_gen::{
-    Bin, BinType, FlowCondition, LimitSelector, Model, VariableOperation, VariableType, PGM,
+    Bin, BinType, FlowCondition, Model, VariableOperation, VariableType, PGM,
 };
 use crate::Result;
 use crate::ast::{Node, Processor, Return};
@@ -9,7 +9,7 @@ use crate::ast::{Node, Processor, Return};
 /// The resultant AST has most of the associated nodes removed but is otherwise unchanged.
 /// The model is not considered finalized until after the flow generator for the specific ATE
 /// target has run, at that point any ATE-specific extraction into the model will be complete,
-/// e.g. to extract pattern refernces made by test objects.
+/// e.g. to extract pattern references made by test objects.
 pub struct ExtractToModel {
     model: Model,
 }
@@ -65,24 +65,6 @@ impl Processor<PGM> for ExtractToModel {
                     VariableOperation::Set,
                 );
                 Return::ProcessChildren
-            }
-            PGM::SetLimit(test_id, inv_id, selector, value) => {
-                let t = {
-                    if let Some(id) = test_id {
-                        self.model.tests.get_mut(id)
-                    } else if let Some(id) = inv_id {
-                        self.model.test_invocations.get_mut(id)
-                    } else {
-                        None
-                    }
-                };
-                if let Some(t) = t {
-                    match selector {
-                        LimitSelector::Hi => t.hi_limit = value.to_owned(),
-                        LimitSelector::Lo => t.lo_limit = value.to_owned(),
-                    }
-                }
-                Return::None
             }
             //PGM::PatternGroup(id, name, _, kind) => Ok(Return::None),
             //PGM::PushPattern(id, name, start_label) => Ok(Return::None),

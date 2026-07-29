@@ -3,6 +3,7 @@ use crate::prog_gen::{
     ResourcesType, UniquenessOption,
 };
 use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum PGM {
@@ -33,6 +34,9 @@ pub enum PGM {
     /// Assign an existing test to an existing invocation
     ///                 InvID  TestID
     AssignTestToInv(usize, usize),
+    /// Define a collection item underneath a test or another collection item
+    ///                       ItemID ParentID CollectionName InstanceID AllowMissing
+    DefTestCollectionItem(usize, usize, String, String, bool),
     /// Set the attribute with the given name within the given test (ID), to the given value
     SetAttr(usize, String, Option<ParamValue>, bool),
     /// Set the limit of the given test or invocation, (test_id, inv_id, hi/lo, value). Note that either test_id
@@ -42,7 +46,8 @@ pub enum PGM {
     Test(usize, FlowID),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
     /// into the flow
-    TestStr(String, FlowID),
+    ///                     Bin            Softbin        Number
+    TestStr(String, FlowID, Option<usize>, Option<usize>, Option<usize>),
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     /// Push a pattern to the given pattern group ID
@@ -91,10 +96,13 @@ pub enum PGM {
     BypassSubFlows,
     FlowDescription(String),
     FlowNameOverride(String),
+    Namespace(String),
     /// Apply the given uniqueness option to all contained test names, etc.
     Uniqueness(UniquenessOption),
 
     IGXLSetWaitFlags(usize, Vec<String>),
+
+    FlowData(FlowData)
 }
 
 impl std::fmt::Display for PGM {
