@@ -1,0 +1,61 @@
+// example8.stil
+// Exercises Issue 1 (top-level Procedures block) and
+// Issue 2 (\c capture and \n noop operators in vec_data).
+
+STIL 1.0;
+
+Signals {
+    TDI  In;
+    TDO  Out;
+    TCK  In;
+    TMS  In;
+}
+
+SignalGroups {
+    AllPins = 'TDI + TDO + TCK + TMS';
+}
+
+Timing {
+    WaveformTable Wavegen {
+        Period '100ns';
+        Waveforms {
+            TDI { 01 { '0ns' D; '50ns' U; } }
+            TDO { X  { '0ns' X; } }
+            TCK { P  { '0ns' D; '50ns' U; '75ns' D; } }
+            TMS { 01 { '0ns' D; '50ns' U; } }
+        }
+    }
+}
+
+// Issue 1: Procedures block at top-level (previously caused a parse error)
+Procedures {
+    load_unload {
+        Shift {
+            V { TDI = \r3 0; TDO = \c3 X; TCK = P; }
+            V { TDI = \n2 0; TDO = X; TCK = P; }
+        }
+    }
+}
+
+MacroDefs {
+    load_unload_macro {
+        Shift {
+            V { TDI = \r3 0; TDO = \c3 X; TCK = P; }
+            V { TDI = \n2 0; TDO = X; TCK = P; }
+        }
+    }
+}
+
+PatternBurst pat_burst {
+    PatList { pat1; }
+}
+
+PatternExec {
+    PatternBurst pat_burst;
+}
+
+Pattern pat1 {
+    W Wavegen;
+    Call load_unload;
+    V { TDI = 0; TDO = X; TCK = P; TMS = 0; }
+}
