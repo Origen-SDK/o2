@@ -147,6 +147,9 @@ pub enum STIL {
     IDDQ,
     StopStatement,
     Comment(String),
+    UserKeywords,
+    UserFunctions,
+    Udb,
 }
 
 impl std::fmt::Display for STIL {
