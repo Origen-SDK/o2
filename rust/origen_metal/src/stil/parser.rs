@@ -922,7 +922,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 ids.push(ast.push_and_open(node!(STIL::TimeUnit)));
                 pairs.push(pair.into_inner());
             }
-            Rule::vector | Rule::vector_with_comment => {
+            Rule::vector => {
                 ids.push(ast.push_and_open(node!(STIL::Vector)));
                 pairs.push(pair.into_inner());
             }
@@ -1019,7 +1019,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 );
                 pairs.push(p);
             }
-            Rule::loop_statement | Rule::loop_statement_with_comment => {
+            Rule::loop_statement => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
                     STIL::Loop,

@@ -144,9 +144,8 @@ signal_group = {
 //# 16. PatternExec Block
 //############################################################################
 
-pattern_exec_block = {
-    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ dcapfilter* ~ dcapsetup* ~ "}"
-}
+pattern_exec_block = { "PatternExec" ~ name? ~ "{" ~ pat_exec_item* ~ "}" }
+pat_exec_item = _{ category | selector | timing | pattern_burst | dcapfilter | dcapsetup | annotation | include }
 category = { "Category" ~ name ~ EOS }
 selector = { "Selector" ~ name ~ EOS }
 timing = { "Timing" ~ name ~ EOS }
@@ -231,13 +230,17 @@ name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
 event = { label? ~ time_expr? ~ event_list? ~ EOS }
 event_list = { event_char ~ ("/" ~ event_char)* }
 event_char = {
+    // Unambiguous single chars — no keyword starts with these, try first
+    "D" | "U" | "Z" | "P" | "H" | "X" | "x" | "T" | "V" |
+    "l" | "h" | "t" | "v" | "R" | "G" | "Q" | "N" | "A" | "B" | "?" |
+    // Long-form keyword alternatives (must come before F, L, M single chars)
     "ForceDown" | "ForceUp" | "ForceOff" | "ForcePrior" | "ForceUnknown" |
     "CompareLowWindow" | "CompareHighWindow" | "CompareOffWindow" | "CompareValidWindow" |
     "CompareLow" | "CompareHigh" | "CompareUnknown" | "CompareOff" | "CompareValid" |
     "LogicLow" | "LogicHigh" | "LogicZUnknown" |
     "ExpectHigh" | "ExpectLow" | "ExpectOff" | "Marker" |
-    "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
-    "Q" | "M" | "N" | "A" | "B" | "F" | "?"
+    // Single chars that share a prefix with keywords above
+    "F" | "L" | "M"
 }
 
 //############################################################################
@@ -282,11 +285,10 @@ scan_inversion_val = { ("0" | "1") }
 pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
 label = { (string | name) ~ ":" }
 time_unit = { "TimeUnit" ~ time_expr ~ EOS }
-pattern_statement = !{ label | vector_with_comment | vector | waveform_statement | condition | fixed_statement | call | macro_statement |loop_statement_with_comment | 
+pattern_statement = !{ label | vector | waveform_statement | condition | fixed_statement | call | macro_statement |
                       loop_statement | match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation | udb_stmt }
 
-vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
-vector_with_comment = ${ "V" ~ "ector"? ~ (space | N)* ~ "{" ~ ((space | N)* ~ (cyclized_data | non_cyclized_data))* ~ (space | N)* ~ "}" ~ vector_comment }
+vector = ${ "V" ~ "ector"? ~ (space | N)* ~ "{" ~ ((space | N)* ~ (cyclized_data | non_cyclized_data))* ~ (space | N)* ~ "}" ~ vector_comment? }
 vector_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
 vec_data = { repeat | capture | noop | waveform_format | hex_format | dec_format | data_string | wfc_data_string }
@@ -313,8 +315,7 @@ call = { ("Call" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("
 
 macro_statement = { ("Macro" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Macro" ~ name ~ EOS) }
 
-loop_statement = { "Loop" ~ integer ~ "{" ~ pattern_statement* ~ "}" }
-loop_statement_with_comment = ${ "Loop" ~ (space | N)* ~ integer ~ (space | N)* ~ "{" ~ ((space | N)* ~ pattern_statement)* ~ (space | N)* ~ "}" ~ loop_comment }
+loop_statement = ${ "Loop" ~ (space | N)* ~ integer ~ (space | N)* ~ "{" ~ ((space | N)* ~ pattern_statement)* ~ (space | N)* ~ "}" ~ loop_comment? }
 loop_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 
 match_loop = { "MatchLoop" ~ (integer | infinite) ~ "{" ~ pattern_statement+ ~ "}" }
@@ -363,7 +364,7 @@ string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 name = @{ ((name_segment ~ ".")+ ~ name_segment) | name_segment }
 signal_name = @{ ((signal_name_segment ~ ".")+ ~ signal_name_segment) | signal_name_segment }
 name_segment = { simple_identifier | escaped_identifier }
-signal_name_segment = { signal_identifier | signal_escaped_range | signal_escaped_single | simple_identifier | escaped_identifier }
+signal_name_segment = { signal_identifier | signal_escaped_range | signal_escaped_single | escaped_identifier }
 signal_escaped_range  = @{ escaped_identifier ~ "[" ~ digit+ ~ ".." ~ digit+ ~ "]" }
 signal_escaped_single = @{ escaped_identifier ~ "[" ~ digit+ ~ "]" }
 simple_identifier = @{ (letter | underline) ~ simple_character* }
