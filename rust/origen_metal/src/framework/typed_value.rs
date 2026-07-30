@@ -570,7 +570,7 @@ impl Map {
         self.typed_values.get(key)
     }
 
-    pub fn keys(&self) -> indexmap::map::Keys<String, TypedValue> {
+    pub fn keys(&self) -> indexmap::map::Keys<'_, String, TypedValue> {
         self.typed_values.keys()
     }
 
@@ -578,7 +578,7 @@ impl Map {
         self.typed_values.len()
     }
 
-    pub fn iter(&self) -> indexmap::map::Iter<String, TypedValue> {
+    pub fn iter(&self) -> indexmap::map::Iter<'_, String, TypedValue> {
         self.typed_values.iter()
     }
 }

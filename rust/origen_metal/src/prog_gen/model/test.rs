@@ -322,7 +322,7 @@ impl Test {
         t
     }
 
-    pub fn sorted_params(&self) -> SortedParams {
+    pub fn sorted_params(&self) -> SortedParams<'_> {
         SortedParams::new(&self)
     }
 
