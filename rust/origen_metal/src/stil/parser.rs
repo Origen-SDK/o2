@@ -1008,7 +1008,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             Rule::call => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STIL::Call, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Call, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
@@ -1343,5 +1343,66 @@ mod tests {
             Ok(_) => {}
             Err(e) => { println!("{}", e); assert_eq!(1, 0); }
         }
+    }
+
+    #[test]
+    fn test_example17_can_parse() {
+        let txt = read("example17");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+        }
+    }
+
+    /// Verifies that a trailing same-line `// comment` after a Vector block's closing `}`
+    /// is captured as a direct child Comment node of the Vector AST node, not as a sibling.
+    #[test]
+    fn test_vector_inline_comment_is_child_of_vector() {
+        let stil = "STIL 1.0;\nPattern p1 {\n    V { sig1 = 0; } // inline vector comment\n}\n";
+        let root = parse_str(stil, None).expect("Should parse STIL with trailing vector comment");
+
+        fn find_vector_with_comment_child(node: &Node<STIL>) -> bool {
+            if matches!(node.attrs, STIL::Vector) {
+                return node.children.iter().any(|c| matches!(c.attrs, STIL::Comment(_)));
+            }
+            node.children.iter().any(|c| find_vector_with_comment_child(c))
+        }
+
+        assert!(
+            find_vector_with_comment_child(&root),
+            "Trailing inline comment should be a direct child of the Vector AST node"
+        );
+    }
+
+    /// Verifies that a Vector block containing internal `//` and `/* */` comments
+    /// between cyclized_data entries parses correctly, and that a trailing comment
+    /// is still captured as a child of the Vector node.
+    #[test]
+    fn test_vector_with_internal_comments_parses() {
+        let stil = concat!(
+            "STIL 1.0;\n",
+            "Pattern p1 {\n",
+            "    V {\n",
+            "        // internal line comment\n",
+            "        sig1 = 0;\n",
+            "        /* block comment */\n",
+            "        sig2 = 1;\n",
+            "    } // trailing comment\n",
+            "}\n"
+        );
+        let root = parse_str(stil, None)
+            .expect("Should parse vector with internal line and block comments");
+
+        fn find_vector_with_comment_child(node: &Node<STIL>) -> bool {
+            if matches!(node.attrs, STIL::Vector) {
+                return node.children.iter().any(|c| matches!(c.attrs, STIL::Comment(_)));
+            }
+            node.children.iter().any(|c| find_vector_with_comment_child(c))
+        }
+
+        assert!(
+            find_vector_with_comment_child(&root),
+            "Trailing comment should be a Vector child even when internal comments are present"
+        );
     }
 }

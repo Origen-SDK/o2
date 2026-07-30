@@ -1,0 +1,34 @@
+// example17.stil
+// Tests for vector inline (trailing) comments and internal comments inside vector blocks
+
+STIL 1.0;
+
+Signals {
+    clk In;
+    data In;
+    out Out;
+}
+
+Pattern p1 {
+    // Vector with a trailing same-line comment — comment must be a child of the Vector node
+    V { clk = 0; data = 1; out = X; } // trailing inline comment
+
+    // Vector with internal line comments between cyclized_data entries
+    V {
+        // internal line comment before first entry
+        clk = 1;
+        // internal line comment between entries
+        data = 0;
+        out = 1;
+    } // trailing comment after vector with internal comments
+
+    // Vector with an internal block comment
+    V {
+        clk = 0; /* block comment between signals */
+        data = 1;
+        out = 0;
+    }
+
+    // Plain vector with no trailing comment — baseline, must still parse correctly
+    V { clk = 1; data = 1; out = X; }
+}
