@@ -103,7 +103,7 @@ pub struct Inner {
 }
 
 impl Logger {
-    pub fn data(&self) -> RwLockReadGuard<Inner> {
+    pub fn data(&self) -> RwLockReadGuard<'_, Inner> {
         self.inner.read().unwrap()
     }
 
