@@ -57,7 +57,7 @@ pub fn parse_str(stil: &str, source_file: Option<&str>) -> Result<Node<STIL>> {
     }
 }
 
-fn inner_strs(pair: Pair<Rule>) -> Vec<&str> {
+fn inner_strs(pair: Pair<'_, Rule>) -> Vec<&str> {
     pair.into_inner().map(|v| v.as_str()).collect()
 }
 

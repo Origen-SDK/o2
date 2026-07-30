@@ -497,7 +497,7 @@ impl User {
         Ok(())
     }
 
-    pub fn write_data(&self, key: Option<&str>) -> Result<RwLockWriteGuard<Data>> {
+    pub fn write_data(&self, key: Option<&str>) -> Result<RwLockWriteGuard<'_, Data>> {
         let k;
         if let Some(tmp) = key {
             k = tmp;
@@ -511,7 +511,7 @@ impl User {
         }
     }
 
-    fn read_data(&self, key: Option<&str>) -> Result<RwLockReadGuard<Data>> {
+    fn read_data(&self, key: Option<&str>) -> Result<RwLockReadGuard<'_, Data>> {
         let k;
         if let Some(tmp) = key {
             k = tmp;
@@ -1206,11 +1206,11 @@ impl User {
         Data::populate(&self, name, repopulate, continue_on_error, stop_on_failure)
     }
 
-    pub fn session_config(&self) -> RwLockReadGuard<SessionConfig> {
+    pub fn session_config(&self) -> RwLockReadGuard<'_, SessionConfig> {
         self.session_config.read().unwrap()
     }
 
-    pub fn session_config_mut(&self) -> Result<RwLockWriteGuard<SessionConfig>> {
+    pub fn session_config_mut(&self) -> Result<RwLockWriteGuard<'_, SessionConfig>> {
         let sessions = crate::sessions();
         if sessions
             .groups()
@@ -1256,11 +1256,11 @@ impl User {
         ))
     }
 
-    fn roles_mut(&self) -> Result<RwLockWriteGuard<HashSet<String>>> {
+    fn roles_mut(&self) -> Result<RwLockWriteGuard<'_, HashSet<String>>> {
         Ok(self.roles.write()?)
     }
 
-    pub fn roles(&self) -> Result<RwLockReadGuard<HashSet<String>>> {
+    pub fn roles(&self) -> Result<RwLockReadGuard<'_, HashSet<String>>> {
         Ok(self.roles.read()?)
     }
 

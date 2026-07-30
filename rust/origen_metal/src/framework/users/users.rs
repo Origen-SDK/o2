@@ -204,7 +204,7 @@ impl PopulateUsersReturn {
         &self.failed_datasets
     }
 
-    pub fn failed_outcomes(&self) -> ErrorFailedOutcomeReturn {
+    pub fn failed_outcomes(&self) -> ErrorFailedOutcomeReturn<'_> {
         self.failed_datasets
             .iter()
             .map(|(uid, _)| {
@@ -226,7 +226,7 @@ impl PopulateUsersReturn {
         &self.errored_datasets
     }
 
-    pub fn errored_outcomes(&self) -> ErrorFailedOutcomeReturn {
+    pub fn errored_outcomes(&self) -> ErrorFailedOutcomeReturn<'_> {
         self.errored_datasets
             .iter()
             .map(|(uid, _)| {

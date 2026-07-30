@@ -662,7 +662,7 @@ impl Git {
 
     // Returns a signature (to attribute commits etc.) for the current user, falling
     // back to a default Origen signature if necessary
-    fn signature(repo: &Repository) -> Result<git2::Signature> {
+    fn signature(repo: &Repository) -> Result<git2::Signature<'_>> {
         Ok(repo
             .signature()
             .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?))
