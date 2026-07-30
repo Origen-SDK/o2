@@ -1008,7 +1008,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             Rule::call => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STIL::Call, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Call, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
