@@ -18,6 +18,25 @@ pub enum SupportedTester {
     J750,
     ULTRAFLEX,
     SIMULATOR,
+    /// Opaque extension slot for proprietary tester implementations in downstream crates.
+    ///
+    /// The `u32` tag is chosen by the downstream crate and is never interpreted by
+    /// `origen_metal` itself.  `Extension` variants are intentionally excluded from
+    /// [`SupportedTester::all_names()`] and [`std::str::FromStr`] — they are not
+    /// user-facing tester names.
+    ///
+    /// # Example (downstream crate)
+    ///
+    /// ```rust,ignore
+    /// use origen_metal::prog_gen::SupportedTester;
+    ///
+    /// // Pick any u32 tag that is meaningful to your crate.
+    /// const MY_TESTER: SupportedTester = SupportedTester::Extension(0x4D595452); // "MYTR"
+    ///
+    /// // Use it anywhere SupportedTester is required:
+    /// let model = origen_metal::prog_gen::Model::new(MY_TESTER);
+    /// ```
+    Extension(u32),
 }
 
 impl SupportedTester {
@@ -128,5 +147,48 @@ mod tests {
         h.insert(t1.clone(), 1);
 
         assert_eq!(h[&t1], 1);
+    }
+
+    #[test]
+    fn extension_works_as_hash_key_and_is_copy() {
+        const MY_TESTER: SupportedTester = SupportedTester::Extension(0x1234_5678);
+
+        let mut h: HashMap<SupportedTester, &str> = HashMap::new();
+        h.insert(MY_TESTER, "my proprietary tester");
+
+        // Copy semantics preserved
+        assert_eq!(h[&MY_TESTER], "my proprietary tester");
+
+        // Two tags with different values are not equal
+        assert_ne!(MY_TESTER, SupportedTester::Extension(0x9999_9999));
+
+        // Same tag is equal
+        assert_eq!(MY_TESTER, SupportedTester::Extension(0x1234_5678));
+    }
+
+    #[test]
+    fn extension_is_not_parseable_from_string() {
+        // Extension variants are intentionally excluded from FromStr —
+        // they are not user-facing names.
+        assert!(SupportedTester::from_str("Extension").is_err());
+        assert!(SupportedTester::from_str("EXTENSION").is_err());
+        assert!(SupportedTester::from_str("ext").is_err());
+    }
+
+    #[test]
+    fn extension_is_not_a_derivative_of_standard_testers() {
+        let ext = SupportedTester::Extension(0xABCD);
+        assert!(!ext.is_a_derivative_of(&SupportedTester::ALL));
+        assert!(!ext.is_a_derivative_of(&SupportedTester::IGXL));
+        assert!(!ext.is_a_derivative_of(&SupportedTester::V93K));
+    }
+
+    #[test]
+    fn extension_is_not_in_all_names() {
+        let names = SupportedTester::all_names();
+        assert!(
+            !names.iter().any(|n| n.to_uppercase().contains("EXTENSION")),
+            "Extension should not appear in all_names()"
+        );
     }
 }
