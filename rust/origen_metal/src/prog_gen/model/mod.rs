@@ -81,7 +81,7 @@ pub enum FlowCondition {
     IfAllSitesFlag(Vec<String>),
     /// A raw tester-specific expression that doesn't map to any of the structured condition
     /// variants above. Processors that don't understand the expression should pass it through
-    /// unchanged. Used for conditions like TestStand expression strings.
+    /// unchanged. Used for raw tester-specific expression strings.
     IfExpr(String),
     /// The negated form of `IfExpr`. Passes when the expression evaluates to false.
     /// Processors that don't understand the expression should pass it through unchanged.

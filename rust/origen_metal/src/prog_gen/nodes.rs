@@ -106,7 +106,7 @@ pub enum PGM {
 
     /// A typed data variable declaration: (name, type_name, initial_value).
     /// Used for declaring local or global variables in any tester format that supports them
-    /// (e.g. NI TestStand <Locals>, PGF variable blocks, V93K SMT8 variable sheets). Not to be
+    /// (e.g. PGF variable blocks, V93K SMT8 variable sheets). Not to be
     /// confused with the flow-control flag variables tracked in the Model.
     Variable(String, String, Option<String>),
 
@@ -135,23 +135,21 @@ pub enum PGM {
     /// Flow input/output parameter declaration: (name, type_name, default_value).
     /// Distinct from Variable (local variable). Represents a named, typed parameter
     /// of a SubFlow — analogous to a function argument. Used in formats such as
-    /// TestStand Parameters, PGF flow I/O parameters, and SMT7 parameters.
+    /// PGF flow I/O parameters and SMT7 parameters.
     Parameter(String, String, Option<String>),
 
     /// Multi-site synchronization barrier. Processors targeting testers that support
     /// multi-site execution should emit the appropriate sync primitive (e.g. V93K
-    /// synchronization, TestStand Wait for All Sites). Processors that don't
-    /// understand this node should pass it through unchanged.
+    /// synchronization). Processors that don't understand this node should pass it
+    /// through unchanged.
     Synchronize,
 
-    /// A labeled jump target. Formats that support labeled flow control
-    /// (e.g. TestStand Label step) use this to mark a named jump destination.
-    /// Complemented by Goto.
+    /// A labeled jump target. Formats that support labeled flow control use this to mark
+    /// a named jump destination. Complemented by Goto.
     Label(String),
 
-    /// Jump to a labeled target. Formats that support labeled flow control
-    /// (e.g. TestStand Goto step) use this to redirect execution to the named
-    /// label. Complemented by Label.
+    /// Jump to a labeled target. Formats that support labeled flow control use this to
+    /// redirect execution to the named label. Complemented by Label.
     Goto(String),
 
     /// Events to run if the test or group with the given ID produced a runtime error
@@ -162,7 +160,7 @@ pub enum PGM {
     /// An external procedure/subroutine call with positional arguments: (procedure_name, args).
     /// Distinct from SubFlow (which is flow-graph-aware and tracked by the Model).
     /// Used for calling external procedures, library routines, or user-defined subroutines
-    /// that are not part of the flow graph (e.g. TestStand "Call Executable", PGF procedure calls).
+    /// that are not part of the flow graph (e.g. PGF procedure calls).
     /// Processors that don't handle this should pass it through unchanged.
     Call(String, Vec<String>),
 
@@ -170,13 +168,13 @@ pub enum PGM {
     /// `iteration_count` is None for condition-driven or infinite loops.
     /// `counter_variable_name` is None if the loop counter is not exposed as a variable.
     /// Child nodes form the loop body. Fills the gap left by the payload-less Whenever* placeholders
-    /// for formats with explicit loop constructs (TestStand For Loop, PGF loop steps, SMT7 loops).
+    /// for formats with explicit loop constructs (e.g. PGF loop steps, SMT7 loops).
     Loop(Option<u32>, Option<String>),
 
     /// A structured result report entry: (category, message).
     /// Distinct from Log (runtime stdout) and Comment (source annotation).
     /// Produces structured output that becomes part of the test result record.
-    /// Used by formats like TestStand Report steps and SMT8 result annotation steps.
+    /// Used by formats like SMT8 result annotation steps.
     Report(String, String),
 
     /// A runtime assertion: (expression, failure_message).
@@ -186,8 +184,8 @@ pub enum PGM {
     Assertion(String, String),
 
     /// A named hook or callback invocation with positional arguments: (callback_name, args).
-    /// Used for formats where callbacks are first-class flow steps (e.g. TestStand PreTest/PostTest
-    /// callbacks, PGF hooks). Processors that don't handle this should pass it through unchanged.
+    /// Used for formats where callbacks are first-class flow steps (e.g. PGF hooks).
+    /// Processors that don't handle this should pass it through unchanged.
     Callback(String, Vec<String>),
 }
 
