@@ -106,8 +106,8 @@ pub enum PGM {
 
     /// A typed data variable declaration: (name, type_name, initial_value).
     /// Used for declaring local or global variables in any tester format that supports them
-    /// (e.g. PGF variable blocks, V93K SMT8 variable sheets). Not to be
-    /// confused with the flow-control flag variables tracked in the Model.
+    /// (e.g. V93K SMT8 variable sheets), not to be confused with the flow-control flag
+    /// variables tracked in the Model.
     Variable(String, String, Option<String>),
 
     /// A step or node whose type is not specifically recognized by the current processor.
@@ -134,8 +134,8 @@ pub enum PGM {
 
     /// Flow input/output parameter declaration: (name, type_name, default_value).
     /// Distinct from Variable (local variable). Represents a named, typed parameter
-    /// of a SubFlow — analogous to a function argument. Used in formats such as
-    /// PGF flow I/O parameters and SMT7 parameters.
+    /// of a SubFlow — analogous to a function argument. Used in formats with named
+    /// parameter declarations such as SMT7.
     Parameter(String, String, Option<String>),
 
     /// Multi-site synchronization barrier. Processors targeting testers that support
@@ -160,15 +160,15 @@ pub enum PGM {
     /// An external procedure/subroutine call with positional arguments: (procedure_name, args).
     /// Distinct from SubFlow (which is flow-graph-aware and tracked by the Model).
     /// Used for calling external procedures, library routines, or user-defined subroutines
-    /// that are not part of the flow graph (e.g. PGF procedure calls).
-    /// Processors that don't handle this should pass it through unchanged.
+    /// that are not part of the flow graph. Processors that don't handle this should pass
+    /// it through unchanged.
     Call(String, Vec<String>),
 
     /// A bounded iteration loop: (iteration_count, counter_variable_name).
     /// `iteration_count` is None for condition-driven or infinite loops.
     /// `counter_variable_name` is None if the loop counter is not exposed as a variable.
     /// Child nodes form the loop body. Fills the gap left by the payload-less Whenever* placeholders
-    /// for formats with explicit loop constructs (e.g. PGF loop steps, SMT7 loops).
+    /// for formats with explicit loop constructs (e.g. SMT7 loops).
     Loop(Option<u32>, Option<String>),
 
     /// A structured result report entry: (category, message).
@@ -184,8 +184,8 @@ pub enum PGM {
     Assertion(String, String),
 
     /// A named hook or callback invocation with positional arguments: (callback_name, args).
-    /// Used for formats where callbacks are first-class flow steps (e.g. PGF hooks).
-    /// Processors that don't handle this should pass it through unchanged.
+    /// Used for formats where callbacks are first-class flow steps. Processors that don't
+    /// handle this should pass it through unchanged.
     Callback(String, Vec<String>),
 }
 
