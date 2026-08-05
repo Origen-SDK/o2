@@ -2,6 +2,7 @@
 
 use super::super::nodes::STIL;
 use super::super::parser;
+use super::super::ParseOptions;
 use crate::ast::Node;
 use crate::ast::{Processor, Return};
 use crate::Result;
@@ -13,6 +14,7 @@ use std::path::PathBuf;
 pub struct Includer {
     load_path: Vec<PathBuf>,
     rename: HashMap<String, String>,
+    parse_options: ParseOptions,
 }
 
 impl Includer {
@@ -22,6 +24,15 @@ impl Includer {
         load_path: Vec<PathBuf>,
         rename: HashMap<String, String>,
     ) -> Result<Node<STIL>> {
+        Self::run_with_options(node, load_path, rename, ParseOptions::default())
+    }
+
+    pub(crate) fn run_with_options(
+        node: &Node<STIL>,
+        load_path: Vec<PathBuf>,
+        rename: HashMap<String, String>,
+        parse_options: ParseOptions,
+    ) -> Result<Node<STIL>> {
         let mut full_load_path = vec![env::current_dir()?];
         for p in load_path {
             full_load_path.push(p.to_path_buf());
@@ -29,6 +40,7 @@ impl Includer {
         let mut p = Includer {
             load_path: full_load_path,
             rename: rename,
+            parse_options,
         };
         Ok(node.process(&mut p)?.unwrap())
     }
@@ -57,11 +69,12 @@ impl Processor<STIL> for Includer {
                     // path with the given one
                     path.push(&expanded);
                     if path.exists() {
-                        let ast = parser::parse_file(&path)?;
-                        return Ok(Return::Replace(Includer::run(
+                        let ast = parser::parse_file_with_options(&path, self.parse_options)?;
+                        return Ok(Return::Replace(Includer::run_with_options(
                             &ast,
                             self.load_path.clone(),
                             self.rename.clone(),
+                            self.parse_options,
                         )?));
                     }
                 }
