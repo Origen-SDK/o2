@@ -908,10 +908,11 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             PGM::Render(text) => {
-                self.flow_stack
-                    .last_mut()
-                    .unwrap()
-                    .execute_line(text.to_owned());
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                // Use split to preserve empty and trailing lines in the rendered text.
+                for line in text.split('\n') {
+                    current_flow.execute_line(line.to_owned());
+                }
                 Return::None
             }
             PGM::Resources => {
@@ -989,6 +990,42 @@ mod tests {
 
         assert!(flow.contains("        initialize();\n        test1.execute();"));
         assert!(flow.contains("if (TEST1_FAILED == 1) {\n            stop();\n        }"));
+        Ok(())
+    }
+
+    #[test]
+    fn multiline_render_is_indented() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "multiline_render".to_string() =>
+            node!(PGM::Volatile, "render_enabled".to_string()),
+            node!(PGM::Render, "initialize();\nconfigure();".to_string()),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["render_enabled".to_string()]) =>
+                node!(PGM::Render, "stop();\ncleanup();".to_string())
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| {
+                path.file_name().and_then(|name| name.to_str())
+                    == Some("MULTILINE_RENDER.flow")
+            })
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(flow.contains("        initialize();\n        configure();"));
+        assert!(flow.contains(
+            "if (RENDER_ENABLED == 1) {\n            stop();\n            cleanup();\n        }"
+        ));
         Ok(())
     }
 

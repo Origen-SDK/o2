@@ -822,7 +822,10 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             PGM::Render(text) => {
-                self.push_body(&format!(r#"{}"#, text));
+                // Use split to preserve empty and trailing lines in the rendered text.
+                for line in text.split('\n') {
+                    self.push_body(line);
+                }
                 Return::None
             }
             PGM::Resources => {
@@ -835,5 +838,46 @@ impl Processor<PGM> for FlowGenerator {
             _ => Return::ProcessChildren,
         };
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run;
+    use crate::prog_gen::{process_flow, FlowCondition, Model, PGM, SupportedTester};
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn multiline_render_is_indented() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "multiline_render".to_string() =>
+            node!(PGM::Volatile, "render_enabled".to_string()),
+            node!(PGM::Render, "initialize();\nconfigure();".to_string()),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["render_enabled".to_string()]) =>
+                node!(PGM::Render, "stop();\ncleanup();".to_string())
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT7),
+            SupportedTester::V93KSMT7,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| {
+                path.file_name().and_then(|name| name.to_str()) == Some("multiline_render.tf")
+            })
+            .expect("expected generated SMT7 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(flow.contains("    initialize();\n    configure();"));
+        assert!(flow.contains("       stop();\n       cleanup();"));
+        Ok(())
     }
 }
