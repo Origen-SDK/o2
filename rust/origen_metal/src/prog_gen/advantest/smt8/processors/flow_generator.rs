@@ -907,10 +907,13 @@ impl Processor<PGM> for FlowGenerator {
                 };
                 Return::None
             }
-            //PGM::Render(text) => {
-            //    self.push_body(&format!(r#"{}"#, text));
-            //    Return::None
-            //}
+            PGM::Render(text) => {
+                self.flow_stack
+                    .last_mut()
+                    .unwrap()
+                    .execute_line(text.to_owned());
+                Return::None
+            }
             PGM::Resources => {
                 let orig = self.resources_block;
                 self.resources_block = true;
@@ -953,6 +956,40 @@ mod tests {
     fn alpha_sort_is_case_insensitive() {
         assert_eq!(FlowGenerator::alpha_cmp("testName", "testerState"), Ordering::Greater);
         assert_eq!(FlowGenerator::alpha_cmp("Y1Variable", "zDataDeltaLimit"), Ordering::Less);
+    }
+
+    #[test]
+    fn conditional_render_is_emitted() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "conditional_render".to_string() =>
+            node!(PGM::Render, "initialize();".to_string()),
+            node!(PGM::TestStr, "test1".to_string(), FlowID::from_str("test1"), None, None, None),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_str("test1")]) =>
+                node!(PGM::Render, "stop();".to_string())
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| {
+                path.file_name().and_then(|name| name.to_str())
+                    == Some("CONDITIONAL_RENDER.flow")
+            })
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(flow.contains("        initialize();\n        test1.execute();"));
+        assert!(flow.contains("if (TEST1_FAILED == 1) {\n            stop();\n        }"));
+        Ok(())
     }
 
     #[test]
