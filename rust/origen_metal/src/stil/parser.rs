@@ -1,19 +1,20 @@
 use super::nodes::STIL;
+use super::ParseOptions;
 use crate::ast::Node;
 use crate::ast::AST;
 use crate::{Error, Result};
+use flate2::read::GzDecoder;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
-use flate2::read::GzDecoder;
 
 #[derive(Parser)]
 #[grammar = "stil/stil.pest"]
 pub struct STILParser;
 
-pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
+pub(crate) fn parse_file_with_options(path: &Path, options: ParseOptions) -> Result<Node<STIL>> {
     if path.exists() {
         let gzip = match path.extension() {
             Some(ext) => ext == "gz",
@@ -31,10 +32,7 @@ pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
         let mut contents = String::new();
         reader.read_to_string(&mut contents)?;
 
-        match parse_str(
-            &contents,
-            Some(&path.display().to_string()),
-        ) {
+        match parse_str_with_options(&contents, Some(&path.display().to_string()), options) {
             Ok(n) => Ok(n),
             Err(e) => Err(Error::new(&format!(
                 "Error parsing file {}:\n{}",
@@ -50,10 +48,21 @@ pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
     }
 }
 
+#[cfg(test)]
 pub fn parse_str(stil: &str, source_file: Option<&str>) -> Result<Node<STIL>> {
+    parse_str_with_options(stil, source_file, ParseOptions::default())
+}
+
+pub(crate) fn parse_str_with_options(
+    stil: &str,
+    source_file: Option<&str>,
+    options: ParseOptions,
+) -> Result<Node<STIL>> {
     match STILParser::parse(Rule::stil_source, stil) {
         Err(e) => Err(Error::new(&format!("{}", e))),
-        Ok(mut stil) => Ok(to_ast(stil.next().unwrap(), source_file)?.unwrap()),
+        Ok(mut stil) => {
+            Ok(to_ast_with_options(stil.next().unwrap(), source_file, options)?.unwrap())
+        }
     }
 }
 
@@ -77,17 +86,18 @@ fn unwrap_tag(text: &str) -> String {
     text[1..text.len() - 1].to_string()
 }
 
-fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
+fn build_expression(pair: Pair<Rule>, options: ParseOptions) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
     let p2 = pairs.next().unwrap();
-    let mut term = to_ast(p2, None)?.unwrap();
+    let mut term = to_ast_with_options(p2, None, options)?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
             match next.as_rule() {
                 Rule::add => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
+                    let next_term =
+                        to_ast_with_options(pairs.next().unwrap(), None, options)?.unwrap();
                     let mut n = node!(STIL::Add);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -95,7 +105,8 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
                 }
                 Rule::subtract => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
+                    let next_term =
+                        to_ast_with_options(pairs.next().unwrap(), None, options)?.unwrap();
                     let mut n = node!(STIL::Subtract);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -110,16 +121,17 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
     Ok(term)
 }
 
-fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
+fn build_term(pair: Pair<Rule>, options: ParseOptions) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
-    let mut term = to_ast(pairs.next().unwrap(), None)?.unwrap();
+    let mut term = to_ast_with_options(pairs.next().unwrap(), None, options)?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
             match next.as_rule() {
                 Rule::multiply => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
+                    let next_term =
+                        to_ast_with_options(pairs.next().unwrap(), None, options)?.unwrap();
                     let mut n = node!(STIL::Multiply);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -127,7 +139,8 @@ fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
                 }
                 Rule::divide => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
+                    let next_term =
+                        to_ast_with_options(pairs.next().unwrap(), None, options)?.unwrap();
                     let mut n = node!(STIL::Divide);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -143,7 +156,16 @@ fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
 }
 
 // This is the main function responsible for transforming the parsed strings into an AST
-pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STIL>> {
+#[cfg(test)]
+pub fn to_ast(pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STIL>> {
+    to_ast_with_options(pair, source_file, ParseOptions::default())
+}
+
+pub(crate) fn to_ast_with_options(
+    mut pair: Pair<Rule>,
+    source_file: Option<&str>,
+    options: ParseOptions,
+) -> Result<AST<STIL>> {
     let mut ast = AST::new();
     let mut ids: Vec<usize> = vec![];
     let mut pairs: Vec<Pairs<Rule>> = vec![];
@@ -483,7 +505,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             Rule::name => ast.push(node!(STIL::String, unquote(pair.as_str()))),
             Rule::signal_name => ast.push(node!(STIL::String, pair.as_str().to_string())),
             Rule::expression | Rule::expression_ => {
-                ast.push(build_expression(pair)?);
+                ast.push(build_expression(pair, options)?);
             }
             Rule::time_expr => {
                 ids.push(ast.push_and_open(node!(STIL::TimeExpr)));
@@ -698,6 +720,16 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 pairs.push(p);
             }
             Rule::event => {
+                ids.push(ast.push_and_open(node!(STIL::Event)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::event_with_no_semicolon => {
+                if !options.allow_missing_final_waveform_event_semicolon {
+                    return Err(Error::new(
+                        "A waveform event is missing its final semicolon; enable it with \
+                         stil::Parser::allow_missing_final_waveform_event_semicolon()",
+                    ));
+                }
                 ids.push(ast.push_and_open(node!(STIL::Event)));
                 pairs.push(pair.into_inner());
             }
@@ -1054,7 +1086,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
             Rule::iddq => ast.push(node!(STIL::IDDQ)),
             Rule::stop_statement => ast.push(node!(STIL::StopStatement)),
             Rule::term => {
-                ast.push(build_term(pair)?);
+                ast.push(build_term(pair, options)?);
             }
             Rule::factor | Rule::factor_ => {
                 ids.push(0);
@@ -1100,7 +1132,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
 
 #[cfg(test)]
 mod tests {
-    use super::super::from_file;
+    use super::super::{from_file, from_str, Parser as ConfigurableParser};
     use super::*;
     use std::fs;
     use std::path::Path;
@@ -1111,6 +1143,98 @@ mod tests {
             example
         ))
         .expect("cannot read file")
+    }
+
+    fn timing_block(waveform_definitions: &str) -> String {
+        format!(
+            "Timing {{\n  WaveformTable wft {{\n    Waveforms {{\n      pin {{\n{}\n      }}\n    }}\n  }}\n}}\n",
+            waveform_definitions
+        )
+    }
+
+    fn timing_source(waveform_definitions: &str) -> String {
+        format!("STIL 1.0;\n{}", timing_block(waveform_definitions))
+    }
+
+    fn event_count(node: &Node<STIL>) -> usize {
+        usize::from(matches!(node.attrs, STIL::Event))
+            + node
+                .children
+                .iter()
+                .map(|child| event_count(child))
+                .sum::<usize>()
+    }
+
+    #[test]
+    fn standard_parser_rejects_missing_final_waveform_event_semicolon() {
+        let stil = timing_source("        0 { '0ns' D }");
+
+        assert!(from_str(&stil, None).is_err());
+    }
+
+    #[test]
+    fn configured_parser_accepts_missing_final_waveform_event_semicolon() {
+        let stil = timing_source(concat!(
+            "        0 { TMARK: '0ns' D }\n",
+            "        <tag1> 1 { '0ns' U }\n",
+            "        2 { '0ns' D; '5ns' U }\n",
+            "        <tag2> 3 { '0ns' D; '5ns' U }",
+        ));
+
+        let ast = ConfigurableParser::new()
+            .allow_missing_final_waveform_event_semicolon()
+            .from_str(&stil, None)
+            .expect("legacy waveform events should parse when explicitly enabled");
+
+        assert_eq!(event_count(&ast), 6);
+    }
+
+    #[test]
+    fn standard_and_extended_events_produce_the_same_ast() {
+        let standard = timing_source("        0 { TMARK: '0ns' D; }");
+        let extended = timing_source("        0 { TMARK: '0ns' D }");
+
+        let standard_ast = from_str(&standard, None).unwrap();
+        let extended_ast = ConfigurableParser::new()
+            .allow_missing_final_waveform_event_semicolon()
+            .from_str(&extended, None)
+            .unwrap();
+
+        assert_eq!(standard_ast, extended_ast);
+    }
+
+    #[test]
+    fn extension_does_not_allow_missing_non_final_waveform_event_semicolon() {
+        let timing = timing_block("        0 { '0ns' D '5ns' U; }");
+
+        assert!(STILParser::parse(Rule::timing_block, &timing).is_err());
+    }
+
+    #[test]
+    fn standard_parser_accepts_tagged_waveform_definitions() {
+        let stil = timing_source("        <tag1> 0 { '0ns' D; }\n        <tag2> 1 { '0ns' U; }");
+
+        let ast = from_str(&stil, None).expect("tagged waveform definitions should parse");
+
+        assert_eq!(event_count(&ast), 2);
+    }
+
+    #[test]
+    fn configured_parser_options_apply_to_included_files() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join("legacy.stil"),
+            timing_source("        0 { '0ns' D }"),
+        )
+        .unwrap();
+        let root = "STIL 1.0;\nInclude \"legacy.stil\";\n";
+        let root_dir = dir.path().to_str().unwrap();
+
+        assert!(from_str(root, Some(root_dir)).is_err());
+        ConfigurableParser::new()
+            .allow_missing_final_waveform_event_semicolon()
+            .from_str(root, Some(root_dir))
+            .expect("parser options should propagate to included files");
     }
 
     #[test]
