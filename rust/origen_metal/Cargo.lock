@@ -2020,7 +2020,7 @@ dependencies = [
 
 [[package]]
 name = "origen_metal"
-version = "0.5.0"
+version = "1.4.0"
 dependencies = [
  "aes-gcm",
  "anyhow",

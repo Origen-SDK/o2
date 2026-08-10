@@ -1,6 +1,11 @@
 #!/bin/bash
 
-export GITHUB_WORKFLOW='Publish Packages'
+export ORIGEN_PUBLISH_STEP=1
+
+if [[ "${PACKAGE_TO_BUILD}" != "origen" && "${PACKAGE_TO_BUILD}" != "origen_metal" ]]; then
+    echo "PACKAGE_TO_BUILD must be either 'origen' or 'origen_metal'"
+    exit 1
+fi
 
 echo -e "\nInstall Rust"
 echo "========================================"
@@ -115,6 +120,7 @@ pip install setuptools
 pip install auditwheel
 auditwheel --version
 
+if [[ "${PACKAGE_TO_BUILD}" == "origen_metal" ]]; then
 echo -e "\nBuild Origen Metal Python Package"
 echo "========================================"
 cd ${GIT_DIR}/python/origen_metal
@@ -146,6 +152,7 @@ echo "========================================"
 cd ${GIT_DIR}/python/origen_metal
 poetry version -s > $OM_VER_FILE
 
+elif [[ "${PACKAGE_TO_BUILD}" == "origen" ]]; then
 echo -e "\nBuild Origen Python Package"
 echo "========================================"
 cd ${GIT_DIR}/python/origen
@@ -179,3 +186,4 @@ echo -e "\nGet Origen Python Package Version"
 echo "========================================"
 cd ${GIT_DIR}/python/origen
 poetry version -s > $ORIGEN_VER_FILE
+fi

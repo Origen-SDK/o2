@@ -2,9 +2,9 @@ import platform, subprocess, sys, os
 
 windows = platform.system() == 'Windows'
 origen_publish_step_env = os.getenv("ORIGEN_PUBLISH_STEP", None)
-if origen_publish_step_env == 0:
+if origen_publish_step_env == "0":
     publish_step = False
-elif origen_publish_step_env == 1 :
+elif origen_publish_step_env == "1":
     publish_step = True
 else:
     publish_step = \

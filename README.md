@@ -28,3 +28,48 @@ virtual environment.
 If using another venv manager than Poetry, you might need to uncomment the `[project]` section
 in `pyproject.toml`.
 
+
+### Publishing Origen Metal
+
+Origen Metal's Python package and Rust crate are published with the
+[`Publish Origen Metal`](https://github.com/Origen-SDK/o2/actions/workflows/publish_metal.yml)
+GitHub Actions workflow. The workflow publishes directly to the production PyPI and crates.io
+registries; it does not publish test or prerelease packages.
+
+Before starting a release:
+
+1. Update and commit the Origen Metal version in the Python and Rust manifests, including the
+   Python-binding crate:
+   - `python/origen_metal/pyproject.toml`
+   - `rust/origen_metal/Cargo.toml`
+   - `rust/pyapi_metal/Cargo.toml`
+2. Regenerate and commit the corresponding Cargo lockfiles. In particular,
+   `rust/origen_metal/Cargo.lock` must record the same `origen_metal` version as
+   `rust/origen_metal/Cargo.toml`; the Rust publish validation uses `--locked` and will fail if
+   they differ.
+3. Ensure the version has not already been published to the selected registry. Published
+   versions cannot be overwritten.
+4. Push the release commit to the Git ref that will be selected when dispatching the workflow.
+
+To publish:
+
+1. Open **Actions > Publish Origen Metal > Run workflow**.
+2. Select the release branch or ref.
+3. Select `publish_python`, `publish_rust`, or both, then run the workflow. Selecting neither
+   intentionally fails the precheck.
+
+When Python is selected, the workflow builds and merges the supported Linux and Windows wheels
+before publishing them to PyPI. When Rust is selected, it runs
+`cargo publish --dry-run --locked` before publishing the crate to crates.io. When both are
+selected, their manifest versions must match, all builds and validation must pass, and Python is
+published before Rust.
+
+If Python publication fails during a combined release, Rust is not published. If Python succeeds
+but Rust publication fails, correct the Rust issue and rerun the workflow with only
+`publish_rust` selected.
+
+The workflow uses these repository settings:
+
+- `PYTHON_VERSIONS_FOR_RELEASE`, `PYTHON_VERSIONS`, and `RUST_VERSION` variables
+- `PYPI_OM_API_TOKEN` for PyPI authentication
+- `CARGO_ORIGEN_METAL` for crates.io authentication
