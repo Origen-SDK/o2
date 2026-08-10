@@ -79,6 +79,41 @@ pub enum FlowCondition {
     UnlessFlag(Vec<String>),
     IfAnySitesFlag(Vec<String>),
     IfAllSitesFlag(Vec<String>),
+    /// A raw tester-specific expression that doesn't map to any of the structured condition
+    /// variants above. Processors that don't understand the expression should pass it through
+    /// unchanged. Used for raw tester-specific expression strings.
+    IfExpr(String),
+    /// The negated form of `IfExpr`. Passes when the expression evaluates to false.
+    /// Processors that don't understand the expression should pass it through unchanged.
+    UnlessExpr(String),
+
+    /// Condition that passes when the named variable satisfies the given comparison:
+    /// (variable_name, operator, value_expression). The operator is a format-agnostic
+    /// string (e.g. "==", "!=", "<", ">", ">=", "<="). Processors that don't handle
+    /// this explicitly should pass it through via their `_` match arm.
+    IfVar(String, String, String),
+
+    /// Condition that passes when the named variable does NOT satisfy the given comparison:
+    /// (variable_name, operator, value_expression). Symmetric with IfVar.
+    UnlessVar(String, String, String),
+
+    /// Condition that passes when the current execution site number is in the given list.
+    /// Enables per-site flow customization in multi-site test programs. Processors that
+    /// don't support site-number conditions should pass the containing node through unchanged.
+    IfSite(Vec<usize>),
+
+    /// Condition that passes when the current execution site number is NOT in the given list.
+    /// Symmetric with IfSite.
+    UnlessSite(Vec<usize>),
+
+    /// Condition that passes when the DUT under test was placed into the given bin:
+    /// (bin_number, bin_type). Enables bin-based conditional branching in formats that
+    /// support it. Processors that don't handle this should pass it through unchanged.
+    IfBin(usize, BinType),
+
+    /// Condition that passes when the DUT was NOT placed into the given bin.
+    /// Symmetric with IfBin.
+    UnlessBin(usize, BinType),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

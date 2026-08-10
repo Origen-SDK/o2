@@ -34,6 +34,11 @@ pub struct Model {
     pub flows: IndexMap<String, Flow>,
     pub pattern_collections: IndexMap<String, Vec<usize>>,
     pub variable_collections: IndexMap<String, Vec<usize>>,
+    /// Generic key-value metadata for use by importers and exporters.
+    /// Provides a place to store format-level data (version strings, schema tags, etc.)
+    /// that does not fit the structured model fields.
+    /// Processors ignore this field; it is for import/export tooling only.
+    pub custom_data: IndexMap<String, String>,
     /// Templates which have been loaded into Test objects, organized by:
     ///   * Library Name
     ///     * Test Name
@@ -62,9 +67,20 @@ impl Model {
             flows: IndexMap::new(),
             pattern_collections: IndexMap::new(),
             variable_collections: IndexMap::new(),
+            custom_data: IndexMap::new(),
         }
     }
+}
 
+impl Default for Model {
+    /// Creates a model not tied to a specific tester.
+    /// Useful for import pipelines and unit tests.
+    fn default() -> Self {
+        Self::new(SupportedTester::ALL)
+    }
+}
+
+impl Model {
     pub fn set_resources_filename(&mut self, name: String, kind: &ResourcesType) {
         match kind {
             ResourcesType::All => {

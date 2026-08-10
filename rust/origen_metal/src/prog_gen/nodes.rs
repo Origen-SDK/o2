@@ -102,7 +102,91 @@ pub enum PGM {
 
     IGXLSetWaitFlags(usize, Vec<String>),
 
-    FlowData(FlowData)
+    FlowData(FlowData),
+
+    /// A typed data variable declaration: (name, type_name, initial_value).
+    /// Used for declaring local or global variables in any tester format that supports them
+    /// (e.g. V93K SMT8 variable sheets), not to be confused with the flow-control flag
+    /// variables tracked in the Model.
+    Variable(String, String, Option<String>),
+
+    /// A step or node whose type is not specifically recognized by the current processor.
+    /// Carries the original type name and raw identifying data so it can be passed through
+    /// losslessly and reconstructed by an importer. (step_type_name, raw_data)
+    Unknown(String, String),
+
+    /// A source-level documentation comment. Does not execute at runtime.
+    /// Distinct from Log (which is a runtime output statement). Used to annotate
+    /// the generated flow source in formats that support inline comments/descriptions.
+    Comment(String),
+
+    /// A timed delay/wait step. Duration is a format-agnostic string
+    /// (e.g. "1s", "500ms", "1.5e-3"). Processors targeting testers with
+    /// timing support should emit the appropriate wait primitive; others should
+    /// pass it through unchanged.
+    Wait(String),
+
+    /// Variable assignment: (variable_name, value_expression).
+    /// Complements Variable (declaration) — assigns a new value to an existing
+    /// variable. The value_expression may be a literal or a tester-specific
+    /// expression string.
+    SetVariable(String, String),
+
+    /// Flow input/output parameter declaration: (name, type_name, default_value).
+    /// Distinct from Variable (local variable). Represents a named, typed parameter
+    /// of a SubFlow — analogous to a function argument. Used in formats with named
+    /// parameter declarations such as SMT7.
+    Parameter(String, String, Option<String>),
+
+    /// Multi-site synchronization barrier. Processors targeting testers that support
+    /// multi-site execution should emit the appropriate sync primitive (e.g. V93K
+    /// synchronization). Processors that don't understand this node should pass it
+    /// through unchanged.
+    Synchronize,
+
+    /// A labeled jump target. Formats that support labeled flow control use this to mark
+    /// a named jump destination. Complemented by Goto.
+    Label(String),
+
+    /// Jump to a labeled target. Formats that support labeled flow control use this to
+    /// redirect execution to the named label. Complemented by Label.
+    Goto(String),
+
+    /// Events to run if the test or group with the given ID produced a runtime error
+    /// or abort (not a test failure). Completes the result-handler triad alongside
+    /// OnPassed and OnFailed. Processors that don't handle this should pass it through.
+    OnError(FlowID),
+
+    /// An external procedure/subroutine call with positional arguments: (procedure_name, args).
+    /// Distinct from SubFlow (which is flow-graph-aware and tracked by the Model).
+    /// Used for calling external procedures, library routines, or user-defined subroutines
+    /// that are not part of the flow graph. Processors that don't handle this should pass
+    /// it through unchanged.
+    Call(String, Vec<String>),
+
+    /// A bounded iteration loop: (iteration_count, counter_variable_name).
+    /// `iteration_count` is None for condition-driven or infinite loops.
+    /// `counter_variable_name` is None if the loop counter is not exposed as a variable.
+    /// Child nodes form the loop body. Fills the gap left by the payload-less Whenever* placeholders
+    /// for formats with explicit loop constructs (e.g. SMT7 loops).
+    Loop(Option<u32>, Option<String>),
+
+    /// A structured result report entry: (category, message).
+    /// Distinct from Log (runtime stdout) and Comment (source annotation).
+    /// Produces structured output that becomes part of the test result record.
+    /// Used by formats like SMT8 result annotation steps.
+    Report(String, String),
+
+    /// A runtime assertion: (expression, failure_message).
+    /// If the expression evaluates to false at runtime, execution halts with an error
+    /// (not a test failure). Distinct from Test (which measures a DUT) and Condition
+    /// (which branches). Used for program-correctness checks and defensive assertions.
+    Assertion(String, String),
+
+    /// A named hook or callback invocation with positional arguments: (callback_name, args).
+    /// Used for formats where callbacks are first-class flow steps. Processors that don't
+    /// handle this should pass it through unchanged.
+    Callback(String, Vec<String>),
 }
 
 impl std::fmt::Display for PGM {
