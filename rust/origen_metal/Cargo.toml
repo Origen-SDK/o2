@@ -1,6 +1,6 @@
 [package]
 name = "origen_metal"
-version = "1.3.2"
+version = "1.4.0"
 authors = ["Origen-SDK"]
 license = "MIT"
 # edition = "2018"
