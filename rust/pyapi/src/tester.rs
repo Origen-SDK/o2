@@ -304,11 +304,11 @@ impl PyTester {
     pub fn generate_pattern_header(&self, header_comments: &PyDict) -> PyResult<()> {
         let tester = origen::tester();
         Ok(tester.generate_pattern_header(
-            match header_comments.get_item("app") {
+            match header_comments.get_item("app")? {
                 Some(comments) => Some(comments.extract::<Vec<String>>()?),
                 None => None,
             },
-            match header_comments.get_item("pattern") {
+            match header_comments.get_item("pattern")? {
                 Some(comments) => Some(comments.extract::<Vec<String>>()?),
                 None => None,
             },
@@ -370,7 +370,7 @@ impl PyTester {
             let mut tester = origen::tester();
             let mut repeat = None;
             if let Some(_kwargs) = kwargs {
-                if let Some(_kwarg) = _kwargs.get_item("repeat") {
+                if let Some(_kwarg) = _kwargs.get_item("repeat")? {
                     repeat = Some(_kwarg.extract::<usize>()?);
                 }
             }

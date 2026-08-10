@@ -79,6 +79,7 @@ pub(crate) fn reset(_py: Python) -> PyResult<()> {
     with_frontend_mod(|py, m| m.setattr(PY_FRONTEND, py.None()))
 }
 
+#[cfg(debug_assertions)]
 use super::framework::outcomes::Outcome as PyOutcome;
 #[cfg(debug_assertions)]
 use pyo3::types::{PyDict, PyList};

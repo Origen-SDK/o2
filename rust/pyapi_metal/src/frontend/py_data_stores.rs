@@ -1,6 +1,5 @@
 use super::_frontend::DataStoreCategoryFrontend;
 use crate::_helpers::{indexmap_to_pydict, new_py_obj, pytype_from_pyany};
-use crate::{key_error, runtime_error, type_error};
 use indexmap::IndexMap;
 use origen_metal::Result as OMResult;
 use pyo3::prelude::*;
@@ -204,7 +203,7 @@ impl PyDataStoreCategory {
             let mut name_idx: Option<usize> = None;
             let mut category_idx: Option<usize> = None;
             if let Some(fa) = func_kwargs {
-                if let Some(pn) = fa.get_item("provide_name") {
+                if let Some(pn) = fa.get_item("provide_name")? {
                     if pn.is_instance_of::<PyBool>() {
                         provide_name = pn.extract::<bool>()?;
                     } else {
@@ -218,7 +217,7 @@ impl PyDataStoreCategory {
                         }
                     }
                 }
-                if let Some(pc) = fa.get_item("provide_category") {
+                if let Some(pc) = fa.get_item("provide_category")? {
                     if pc.is_instance_of::<PyBool>() {
                         provide_category = pc.extract::<bool>()?;
                     } else {

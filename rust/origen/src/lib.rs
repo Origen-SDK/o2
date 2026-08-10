@@ -295,27 +295,3 @@ pub fn trace_error<T: Attrs>(node: &Node<T>, error: Error) -> Result<()> {
         bail!("{}", error)
     }
 }
-
-// TODO change name?
-#[cfg(all(test, not(origen_skip_frontend_tests)))]
-mod tests {
-    pub fn run_python(code: &str) -> crate::Result<()> {
-        let mut c = std::process::Command::new("origen");
-        c.arg("exec");
-        c.arg("python");
-        c.arg("-c");
-        c.arg(&format!("import origen; {}", code));
-        // Assume we're in the root of the Origen rust package
-        let mut f = std::env::current_dir().unwrap();
-        f.pop();
-        f.pop();
-        f.push("test_apps/python_app");
-        c.current_dir(f);
-        let res = c.output().unwrap();
-        println!("status: {}", res.status);
-        println!("{:?}", std::str::from_utf8(&res.stdout).unwrap());
-        println!("{:?}", std::str::from_utf8(&res.stderr).unwrap());
-        assert_eq!(res.status.success(), true);
-        Ok(())
-    }
-}

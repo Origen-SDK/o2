@@ -68,7 +68,7 @@ impl PyDUT {
                 return type_error!("Could not convert 'period' argument to String or NoneType!");
             },
             match kwargs {
-                Some(args) => match args.get_item("default_period") {
+                Some(args) => match args.get_item("default_period")? {
                     Some(arg) => Some(arg.extract::<f64>()?),
                     None => Option::None,
                 },

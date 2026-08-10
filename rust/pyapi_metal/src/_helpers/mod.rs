@@ -12,7 +12,7 @@ pub mod errors;
 #[macro_use]
 pub mod macros;
 
-use crate::{pypath, runtime_error};
+use crate::pypath;
 use indexmap::IndexMap;
 use pyo3::conversion::ToPyObject;
 use pyo3::prelude::*;
@@ -33,7 +33,7 @@ pub fn pytype_from_pyany<'p>(py: Python<'p>, t: &'p PyAny) -> PyResult<&'p PyTyp
     }
 }
 
-pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&PyType> {
+pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&'p PyType> {
     let t = get_qualified_attr(&class.to_string())?;
     t.into_ref(py).extract::<&PyType>()
 }

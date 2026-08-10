@@ -503,7 +503,7 @@ impl WaveGroup {
         }
         let mut derived_from = Option::None;
         if let Some(args) = _kwargs {
-            if let Some(_derived_from) = args.get_item("derived_from") {
+            if let Some(_derived_from) = args.get_item("derived_from")? {
                 if let Ok(_waves) = _derived_from.extract::<String>() {
                     derived_from = Some(vec![_waves]);
                 } else if let Ok(_waves) = _derived_from.extract::<Vec<String>>() {
@@ -605,9 +605,9 @@ impl Wave {
         }
 
         let (at, unit, action) = (
-            event.unwrap().get_item("at"),
-            event.unwrap().get_item("unit"),
-            event.unwrap().get_item("action"),
+            event.unwrap().get_item("at")?,
+            event.unwrap().get_item("unit")?,
+            event.unwrap().get_item("action")?,
         );
         {
             // Resolve the 'action' keyword first because rust is a pain in the butt.

@@ -16,7 +16,7 @@ use std::process::Command;
 
 // Cargo sets an env var to point to the executable for testing.
 fn ogn_cmd() -> String {
-    option_env!("CARGO_BIN_EXE_ORIGEN")
+    option_env!("CARGO_BIN_EXE_origen")
         .unwrap_or("origen")
         .to_string()
 }

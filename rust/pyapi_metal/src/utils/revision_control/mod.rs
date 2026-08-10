@@ -2,6 +2,7 @@ pub mod _frontend;
 pub mod status;
 pub mod supported;
 
+#[cfg(debug_assertions)]
 use crate::framework::Outcome;
 
 use pyo3::prelude::*;
@@ -49,7 +50,7 @@ pub(crate) fn rc_init_from_metal(_py: Python) -> PyResult<Outcome> {
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn python_git_mod_path(_py: Python) -> PyResult<&str> {
+pub(crate) fn python_git_mod_path(_py: Python<'_>) -> PyResult<&str> {
     Ok(supported::git::PY_GIT_MOD_PATH)
 }
 

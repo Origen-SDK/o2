@@ -42,7 +42,7 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let mut ack = Acknowledgements::Ok;
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
         }
@@ -62,10 +62,10 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let (mut ack, mut parity) = (Acknowledgements::Ok, None);
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
-            if let Some(_parity) = args.get_item("parity") {
+            if let Some(_parity) = args.get_item("parity")? {
                 parity = Some(_parity.extract::<u32>()? != 0);
             }
         }
@@ -85,7 +85,7 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let mut ack = Acknowledgements::Ok;
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
         }
@@ -105,10 +105,10 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let (mut ack, mut parity) = (Acknowledgements::Ok, None);
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
-            if let Some(_parity) = args.get_item("parity") {
+            if let Some(_parity) = args.get_item("parity")? {
                 parity = Some(_parity.extract::<u32>()? != 0);
             }
         }

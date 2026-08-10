@@ -59,7 +59,8 @@ To publish:
    intentionally fails the precheck.
 
 When Python is selected, the workflow builds and merges the supported Linux and Windows wheels
-before publishing them to PyPI. When Rust is selected, it runs
+before publishing them to PyPI. When Rust is selected, the workflow installs the current stable
+Rust toolchain and runs
 `cargo publish --dry-run --locked` before publishing the crate to crates.io. When both are
 selected, their manifest versions must match, all builds and validation must pass, and Python is
 published before Rust.
@@ -68,8 +69,11 @@ If Python publication fails during a combined release, Rust is not published. If
 but Rust publication fails, correct the Rust issue and rerun the workflow with only
 `publish_rust` selected.
 
-The workflow uses these repository settings:
+The Python builds use these repository settings:
 
 - `PYTHON_VERSIONS_FOR_RELEASE`, `PYTHON_VERSIONS`, and `RUST_VERSION` variables
+
+Publishing uses these repository secrets:
+
 - `PYPI_OM_API_TOKEN` for PyPI authentication
 - `CARGO_ORIGEN_METAL` for crates.io authentication

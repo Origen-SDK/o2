@@ -41,7 +41,7 @@ impl ParamStr {
     }
 
     #[getter]
-    pub fn parsed<'py>(&'py self, py: Python<'py>) -> PyResult<Option<&PyDict>> {
+    pub fn parsed<'py>(&'py self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
         if let Some(parsed) = self.om.parsed() {
             let pyd = PyDict::new(py);
             for (k, v) in parsed {

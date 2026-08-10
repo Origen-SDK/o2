@@ -143,7 +143,7 @@ where
 }
 
 fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>> {
-    if let Some(v) = kwargs.get_item(name) {
+    if let Some(v) = kwargs.get_item(name)? {
         if let Ok(v) = v.extract::<String>() {
             Ok(Some(vec![v]))
         } else if let Ok(v) = v.extract::<Vec<String>>() {
@@ -164,7 +164,7 @@ fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>>
 /// a generated ID.
 pub fn get_flow_id(kwargs: Option<&PyDict>) -> Result<FlowID> {
     if let Some(kwargs) = kwargs {
-        if let Some(id) = kwargs.get_item("id") {
+        if let Some(id) = kwargs.get_item("id")? {
             if let Ok(v) = id.extract::<String>() {
                 return Ok(FlowID::from_str(&v));
             } else if let Ok(v) = id.extract::<usize>() {
@@ -182,7 +182,7 @@ pub fn get_flow_id(kwargs: Option<&PyDict>) -> Result<FlowID> {
 
 pub fn get_bin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
     if let Some(kwargs) = kwargs {
-        if let Some(bin) = kwargs.get_item("bin") {
+        if let Some(bin) = kwargs.get_item("bin")? {
             if let Ok(v) = bin.extract::<usize>() {
                 return Ok(Some(v));
             } else {
@@ -195,7 +195,7 @@ pub fn get_bin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
 
 pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
     if let Some(kwargs) = kwargs {
-        if let Some(bin) = kwargs.get_item("softbin") {
+        if let Some(bin) = kwargs.get_item("softbin")? {
             if let Ok(v) = bin.extract::<usize>() {
                 return Ok(Some(v));
             } else {
@@ -205,7 +205,7 @@ pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
                 );
             }
         }
-        if let Some(bin) = kwargs.get_item("soft_bin") {
+        if let Some(bin) = kwargs.get_item("soft_bin")? {
             if let Ok(v) = bin.extract::<usize>() {
                 return Ok(Some(v));
             } else {
@@ -221,7 +221,7 @@ pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
 
 pub fn get_number(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
     if let Some(kwargs) = kwargs {
-        if let Some(n) = kwargs.get_item("number") {
+        if let Some(n) = kwargs.get_item("number")? {
             if let Ok(v) = n.extract::<usize>() {
                 return Ok(Some(v));
             } else {
@@ -238,8 +238,8 @@ pub fn get_number(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
 pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
     if let Some(kwargs) = kwargs {
         let cont =
-            kwargs.get_item("continue").is_some() || kwargs.get_item("continue_on_fail").is_some();
-        if let Some(on_fail) = kwargs.get_item("on_fail") {
+            kwargs.get_item("continue")?.is_some() || kwargs.get_item("continue_on_fail")?.is_some();
+        if let Some(on_fail) = kwargs.get_item("on_fail")? {
             let ref_id = flow_api::start_on_failed(fid.to_owned(), None)?;
             if cont {
                 flow_api::continue_on_fail(None)?;
@@ -287,7 +287,7 @@ pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
 
 pub fn on_pass(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
     if let Some(kwargs) = kwargs {
-        if let Some(on_pass) = kwargs.get_item("on_pass") {
+        if let Some(on_pass) = kwargs.get_item("on_pass")? {
             let ref_id = flow_api::start_on_failed(fid.to_owned(), None)?;
             if let Ok(on_pass) = on_pass.downcast::<PyDict>() {
                 for (k, v) in on_pass {

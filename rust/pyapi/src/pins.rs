@@ -181,16 +181,16 @@ impl PyDUT {
         ) = (Option::None, Option::None, Option::None, Option::None);
         match kwargs {
             Some(args) => {
-                if let Some(arg) = args.get_item("reset_action") {
+                if let Some(arg) = args.get_item("reset_action")? {
                     reset_action = Some(extract_pinactions!(arg)?);
                 }
-                if let Some(arg) = args.get_item("width") {
+                if let Some(arg) = args.get_item("width")? {
                     width = Option::Some(arg.extract::<u32>()?);
                 }
-                if let Some(arg) = args.get_item("offset") {
+                if let Some(arg) = args.get_item("offset")? {
                     offset = Option::Some(arg.extract::<u32>()?);
                 }
-                if let Some(arg) = args.get_item("little_endian") {
+                if let Some(arg) = args.get_item("little_endian")? {
                     if arg.extract::<bool>()? {
                         endianness = Option::Some(Endianness::LittleEndian);
                     } else {
@@ -258,7 +258,7 @@ impl PyDUT {
         let mut endianness = Option::None;
         match options {
             Some(opts) => {
-                if let Some(opt) = opts.get_item("little_endian") {
+                if let Some(opt) = opts.get_item("little_endian")? {
                     if opt.extract::<bool>()? {
                         endianness = Option::Some(Endianness::LittleEndian);
                     } else {

@@ -31,7 +31,6 @@ path-clean = "0.1.0"
 time = "0.1.42"
 indexmap = { version = "1.6.0", features = ["serde-1"] }
 eval = "0.4.3"
-cargo-expand = "0.4.17"
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
 num = "0.3.0"
@@ -44,7 +43,7 @@ shellexpand = "1.1.1"
 num-bigint = {version = "0.4.0", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
 # in origen to enable conversion of an Origen error to a PyErr.
-pyo3 = {version = "0.19.1", features = ["extension-module", "auto-initialize"]}
+pyo3 = {version = "0.21.2", features = ["extension-module", "auto-initialize", "gil-refs"]}
 chrono = "0.4.11"
 origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
 whoami = "0.8" # TODO

@@ -18,11 +18,11 @@ impl CmdHelps {
         }
     }
 
-    pub fn core_cmd(&self, cmd: &str) -> Command {
+    pub fn core_cmd(&self, cmd: &str) -> Command<'_> {
         self.apply_core_cmd_helps(cmd, Command::new(cmd))
     }
 
-    pub fn core_subc(&self, cmd_path: &[&str]) -> Command {
+    pub fn core_subc(&self, cmd_path: &[&str]) -> Command<'_> {
         self.apply_core_subc_helps(cmd_path, Command::new(*cmd_path.last().unwrap()))
     }
 

@@ -5,7 +5,6 @@ authors = ["Origen-SDK"]
 license = "MIT"
 # edition = "2018"
 edition = "2021"
-rust-version = "1.71"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/metal"
 repository = "https://github.com/Origen-SDK/o2"
@@ -26,7 +25,7 @@ time = "0.1"
 termcolor = "1"
 regex = "1"
 tempfile = "3"
-pyo3 = {version = "0.19.1", features = ["extension-module", "generate-import-lib"], optional = true}
+pyo3 = {version = "0.21.2", features = ["extension-module", "generate-import-lib", "gil-refs"], optional = true}
 serde = {version = "1.0", features = ["derive"]}
 toml = "0.5"
 toml_edit = "0.21.0"

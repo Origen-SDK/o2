@@ -71,7 +71,7 @@ pub struct RegisterFieldIterator<'a> {
 }
 
 impl<'a> RegisterFieldIterator<'a> {
-    fn new(reg: &Register, include_spacers: bool) -> RegisterFieldIterator {
+    fn new(reg: &Register, include_spacers: bool) -> RegisterFieldIterator<'_> {
         // Derive the order of iteration when this iterator is created, then
         // store the names of the fields locally in the order that is required.
         // This can no doubt be done more elegantly, but for now the borrow checker
@@ -317,7 +317,7 @@ impl Register {
 
     /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
     /// The caller can elect whether or not spacer fields should be inserted to represent un-implemented bits.
-    pub fn fields(&self, include_spacers: bool) -> RegisterFieldIterator {
+    pub fn fields(&self, include_spacers: bool) -> RegisterFieldIterator<'_> {
         RegisterFieldIterator::new(&self, include_spacers)
     }
 

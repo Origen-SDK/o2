@@ -154,7 +154,7 @@ impl ArmDebug {
             slf.arm_debug_id = Some(arm_debug_id);
         }
         if let Some(opts) = block_options {
-            if let Some(mem_aps) = opts.get_item("mem_aps") {
+            if let Some(mem_aps) = opts.get_item("mem_aps")? {
                 let aps = mem_aps.downcast::<PyDict>()?;
                 for (ap_name, ap_opts) in aps.iter() {
                     let ap_opts_dict = ap_opts.downcast::<PyDict>()?;
@@ -163,14 +163,14 @@ impl ArmDebug {
                         py,
                         &ap_name.extract::<String>()?,
                         {
-                            if let Some(ap_addr) = ap_opts_dict.get_item("ap") {
+                            if let Some(ap_addr) = ap_opts_dict.get_item("ap")? {
                                 Some(ap_addr.extract::<u32>()?)
                             } else {
                                 None
                             }
                         },
                         {
-                            if let Some(csw_reset) = ap_opts_dict.get_item("csw_reset") {
+                            if let Some(csw_reset) = ap_opts_dict.get_item("csw_reset")? {
                                 Some(csw_reset.extract::<u32>()?)
                             } else {
                                 None
@@ -249,7 +249,7 @@ impl DP {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
-            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+            if let Some(ad_id) = opts.get_item("arm_debug_id")? {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
@@ -350,7 +350,7 @@ impl JtagDP {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
-            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+            if let Some(ad_id) = opts.get_item("arm_debug_id")? {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
@@ -383,7 +383,7 @@ impl JtagDP {
                 arm_debug_id,
                 {
                     if let Some(opts) = block_options {
-                        if let Some(default_ir_size) = opts.get_item("default_ir_size") {
+                        if let Some(default_ir_size) = opts.get_item("default_ir_size")? {
                             if let Ok(_default_ir_size) = default_ir_size.extract::<usize>() {
                                 Some(_default_ir_size)
                             } else {
@@ -400,7 +400,7 @@ impl JtagDP {
                 },
                 {
                     if let Some(opts) = block_options {
-                        if let Some(default_idcode) = opts.get_item("default_idcode") {
+                        if let Some(default_idcode) = opts.get_item("default_idcode")? {
                             if let Ok(_default_idcode) = default_idcode.extract::<u32>() {
                                 Some(_default_idcode)
                             } else {
@@ -417,7 +417,7 @@ impl JtagDP {
                 },
                 {
                     if let Some(opts) = block_options {
-                        if let Some(dpacc_select) = opts.get_item("dpacc_select") {
+                        if let Some(dpacc_select) = opts.get_item("dpacc_select")? {
                             if let Ok(_dpacc_select) = dpacc_select.extract::<u32>() {
                                 Some(_dpacc_select)
                             } else {
@@ -434,7 +434,7 @@ impl JtagDP {
                 },
                 {
                     if let Some(opts) = block_options {
-                        if let Some(apacc_select) = opts.get_item("apacc_select") {
+                        if let Some(apacc_select) = opts.get_item("apacc_select")? {
                             if let Ok(_apacc_select) = apacc_select.extract::<u32>() {
                                 Some(_apacc_select)
                             } else {
@@ -506,7 +506,7 @@ impl MemAP {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
-            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+            if let Some(ad_id) = opts.get_item("arm_debug_id")? {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
@@ -528,7 +528,7 @@ impl MemAP {
         let addr;
         //let csw_reset;
         if let Some(ap_opts_dict) = block_options {
-            if let Some(ap_addr) = ap_opts_dict.get_item("ap") {
+            if let Some(ap_addr) = ap_opts_dict.get_item("ap")? {
                 addr = ap_addr.extract::<usize>()?;
             } else {
                 addr = 0;

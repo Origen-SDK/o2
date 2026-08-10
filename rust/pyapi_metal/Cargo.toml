@@ -9,6 +9,7 @@ authors = ["Origen-SDK"]
 [lib]
 name = "origen_metal"
 crate-type = ["cdylib", "lib"]
+doctest = false
 
 [dependencies]
 origen_metal = { path = "../origen_metal", features = ["python"] }
@@ -23,8 +24,8 @@ curl-sys = { version = "0.4.34", features = ["static-curl"] }
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
-version = "0.19.1"
-features = ["extension-module", "num-bigint"]
+version = "0.21.2"
+features = ["extension-module", "num-bigint", "gil-refs"]
 
 [build-dependencies]
 built = "0.5.2"

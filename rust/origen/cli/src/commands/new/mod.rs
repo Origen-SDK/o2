@@ -176,11 +176,6 @@ pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
                 }
             },
             APP_CMD => {
-                app_gen = true;
-                pl_gen = false;
-                ws_gen = false;
-                path_base = "app";
-
                 todo!()
             }, // TODO origen enw - support new app
             _ => unreachable_invalid_subc!(n)

@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PyModule};
+use pyo3::types::PyDict;
+#[cfg(debug_assertions)]
+use pyo3::types::{PyList, PyModule};
 use crate::{runtime_error, cfg_if};
 
 pub fn wrap_function(py: Python, fn_name: &str, args: Option<Vec<&str>>, scope: Option<&str>, locals: Option<&PyDict>, define_scope: Option<&str>) -> PyResult<PyObject> {
@@ -107,7 +109,7 @@ if "{scope}" == "cls.":
         None,
         Some(locals_),
     )?;
-    match locals_.get_item(fn_name) {
+    match locals_.get_item(fn_name)? {
         Some(f) => Ok(f.to_object(py)),
         None => runtime_error!(format!("Unable to find wrapped context manager for {}", fn_name))
     }

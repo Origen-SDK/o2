@@ -1,6 +1,6 @@
 use crate::_helpers::{map_to_pydict, typed_value, with_new_pydict};
 use crate::framework::PyOutcome;
-use crate::{key_error, pypath, runtime_error, type_error};
+use crate::pypath;
 use origen_metal as om;
 use pyo3::class::basic::CompareOp;
 use pyo3::prelude::*;
@@ -1005,19 +1005,19 @@ impl UserDatasetConfig {
         Ok(if let Some(c) = config {
             if let Ok(c_dict) = c.extract::<&PyDict>() {
                 OMDatasetConfig::new(
-                    match c_dict.get_item("category") {
+                    match c_dict.get_item("category")? {
                         Some(v) => Some(v.extract::<String>()?),
                         None => None,
                     },
-                    match c_dict.get_item("data_store") {
+                    match c_dict.get_item("data_store")? {
                         Some(v) => Some(v.extract::<String>()?),
                         None => None,
                     },
-                    match c_dict.get_item("auto_populate") {
+                    match c_dict.get_item("auto_populate")? {
                         Some(v) => Some(v.extract::<bool>()?),
                         None => None,
                     },
-                    match c_dict.get_item("should_validate_password") {
+                    match c_dict.get_item("should_validate_password")? {
                         Some(v) => Some(v.extract::<bool>()?),
                         None => None,
                     },
@@ -1476,8 +1476,7 @@ impl User {
             // So, need to check if the key exists, instead of a "if let Some(...)" as
             // we can't distinguish between a key that wasn't given, e.g. Option::None, and a key that
             // was given but was set to None, e.g. Option::Some(None)
-            if opts.contains("default")? {
-                let d = opts.get_item("default").unwrap();
+            if let Some(d) = opts.get_item("default")? {
                 if d.is_none() {
                     default = Some(None);
                 } else {

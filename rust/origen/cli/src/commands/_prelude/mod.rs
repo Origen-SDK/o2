@@ -6,11 +6,11 @@ pub use indexmap::IndexMap;
 pub use super::launch_as;
 pub use crate::framework::{
     Extensions, Plugins, add_verbosity_opts,
-    CmdHelps, CmdHelp, CmdSrc,
+    CmdHelps, CmdSrc,
 };
 pub use crate::framework::core_cmds::SubCmd;
 pub use crate::{output_dir_opt, ref_dir_opt};
-pub use crate::{req_sv_arg, sv_opt, sf_opt};
+pub use crate::{req_sv_arg, sv_opt};
 pub use crate::origen_fe_available;
 
 // TODO clap4.0 remove after update to next clap version

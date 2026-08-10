@@ -109,7 +109,8 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
+          toolchain: stable
+          rust-src-dir: rust/origen_metal
           rustflags:
 
       - name: Override project Rust version
@@ -209,7 +210,8 @@ jobs:
         if: ${{ inputs.publish_rust }}
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
+          toolchain: stable
+          rust-src-dir: rust/origen_metal
           rustflags:
 
       - name: Publish origen_metal to crates.io

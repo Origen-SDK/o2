@@ -49,16 +49,16 @@ impl PyApplication {
         let mut rt: Option<Option<&str>> = None;
         let mut ver: Option<OVersion> = None;
         if let Some(kw) = kwargs {
-            if let Some(d) = kw.get_item("dry-run") {
+            if let Some(d) = kw.get_item("dry-run")? {
                 dry_run = d.extract::<bool>()?;
             }
-            if let Some(r) = kw.get_item("release-note") {
+            if let Some(r) = kw.get_item("release-note")? {
                 rn = Some(r.extract::<&str>()?);
             }
-            if let Some(r) = kw.get_item("release-title") {
+            if let Some(r) = kw.get_item("release-title")? {
                 rt = Some(Some(r.extract::<&str>()?));
             }
-            if let Some(_r) = kw.get_item("no-release-title") {
+            if let Some(_r) = kw.get_item("no-release-title")? {
                 if rt.is_some() {
                     return runtime_error!(
                         "A release title cannot be given along with option 'no-release-title'"
@@ -67,7 +67,7 @@ impl PyApplication {
                     rt = Some(None);
                 }
             }
-            if let Some(v) = kw.get_item("version") {
+            if let Some(v) = kw.get_item("version")? {
                 ver = Some(OVersion::new_pep440(&v.extract::<String>()?)?);
             }
         }
