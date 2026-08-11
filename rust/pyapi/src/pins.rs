@@ -128,7 +128,7 @@ pub fn pins_to_backend_lookup_fields(
             // item is a String (or extract-able as a String)
             // Model ID is 0.
             retn.push((0, s.clone()));
-        } else if p.get_type().name()? == "Pin" || p.get_type().name()? == "PinGroup" {
+        } else if p.get_type().qualname()? == "Pin" || p.get_type().qualname()? == "PinGroup" {
             let obj = p.to_object(py);
             let model_id = obj
                 .getattr(py, "__origen__model_id__")?
@@ -139,7 +139,7 @@ pub fn pins_to_backend_lookup_fields(
             return Err(PyErr::from(origen::Error::new(&format!(
                 "Could not resolve object at index {} as String, Pin, or Pin Group. Got: {}",
                 i,
-                p.get_type().name()?
+                p.get_type().qualname()?
             ))));
         }
     }

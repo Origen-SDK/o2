@@ -275,6 +275,20 @@ jobs:
         working-directory: rust/origen
         run: cargo test --workspace
 
+      - name: Run Rust Tests - PyAPI
+        if: matrix.python-version == 3.8
+        working-directory: rust/pyapi
+        run: cargo test --no-default-features
+        env:
+          RUSTFLAGS: -D warnings
+
+      - name: Run Rust Tests - Metal PyAPI
+        if: matrix.python-version == 3.8
+        working-directory: rust/pyapi_metal
+        run: cargo test --no-default-features
+        env:
+          RUSTFLAGS: -D warnings
+
       - name: Build PyAPI - Metal
         run: origen origen build --metal
 

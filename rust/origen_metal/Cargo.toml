@@ -17,6 +17,7 @@ categories = ["embedded", "science"]
 # Enables the Python API, when not enabled (the default) origen_metal is a pure Rust library that
 # can only be used from Rust
 python = ["dep:pyo3"]
+extension-module = ["python", "pyo3/extension-module"]
 origen_skip_frontend_tests = []
 
 [dependencies]
@@ -25,7 +26,7 @@ time = "0.1"
 termcolor = "1"
 regex = "1"
 tempfile = "3"
-pyo3 = {version = "0.21.2", features = ["extension-module", "generate-import-lib", "gil-refs"], optional = true}
+pyo3 = {version = "0.21.2", features = ["generate-import-lib", "gil-refs"], optional = true}
 serde = {version = "1.0", features = ["derive"]}
 toml = "0.5"
 toml_edit = "0.21.0"

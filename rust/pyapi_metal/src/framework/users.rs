@@ -92,7 +92,7 @@ impl Users {
         } else {
             return type_error!(format!(
                 "Cannot resolve user from type '{}'",
-                u.get_type().name()?
+                u.get_type().qualname()?
             ));
         })
     }
@@ -989,7 +989,7 @@ impl UserDataset {
         } else {
             type_error!(&format!(
                 "Cannot extract a dataset name from type {}",
-                any.get_type().name()?
+                any.get_type().qualname()?
             ))
         }
     }
@@ -1027,7 +1027,7 @@ impl UserDatasetConfig {
             } else {
                 return type_error!(format!(
                     "'config' must be either a dict or UserDatasetConfig. Received: '{}'",
-                    c.get_type().name()?
+                    c.get_type().qualname()?
                 ));
             }
         } else {

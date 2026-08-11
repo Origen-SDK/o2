@@ -9,15 +9,13 @@ name = "_origen"
 #proc-macro = true
 #cdylib = true
 crate-type = ["cdylib"]
-test = false
-doctest = false
 
 ## See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-origen = { path = "../origen" }
-origen_metal = { path = "../origen_metal", features = ["python"] }
-pyapi_metal = { path = "../pyapi_metal", package = "origen-metal" }
+origen = { path = "../origen", default-features = false }
+origen_metal = { path = "../origen_metal", features = ["python"], default-features = false }
+pyapi_metal = { path = "../pyapi_metal", package = "origen-metal", default-features = false }
 num-bigint = "0.4.0"
 num-traits = "0.2.0"
 num = "0.2.0"
@@ -35,7 +33,16 @@ openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
 version = "0.21.2"
-features = ["extension-module", "num-bigint", "multiple-pymethods", "auto-initialize", "gil-refs"]
+features = ["num-bigint", "multiple-pymethods", "auto-initialize", "gil-refs"]
+
+[features]
+default = ["extension-module"]
+extension-module = [
+    "pyo3/extension-module",
+    "origen/extension-module",
+    "origen_metal/extension-module",
+    "pyapi_metal/extension-module",
+]
 
 [build-dependencies]
 built = "0.5.2"

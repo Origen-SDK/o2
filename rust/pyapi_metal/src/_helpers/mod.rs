@@ -69,15 +69,15 @@ pub fn to_py_paths<T: std::fmt::Display>(py: Python, paths: &Vec<T>) -> PyResult
 pub fn pypath_as_string(path: &PyAny) -> PyResult<String> {
     if let Ok(p) = path.extract::<String>() {
         Ok(p)
-    } else if path.get_type().name()?.to_string() == "Path"
-        || path.get_type().name()?.to_string() == "WindowsPath"
-        || path.get_type().name()?.to_string() == "PosixPath"
+    } else if path.get_type().qualname()? == "Path"
+        || path.get_type().qualname()? == "WindowsPath"
+        || path.get_type().qualname()? == "PosixPath"
     {
         Ok(path.call_method0("__str__")?.extract::<String>()?)
     } else {
         crate::type_error!(&format!(
             "Cannot extract input as either a str or pathlib.Path object. Received {}",
-            path.get_type().name()?.to_string()
+            path.get_type().qualname()?
         ))
     }
 }

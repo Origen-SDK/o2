@@ -914,3 +914,28 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     }
     Ok(users)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initializes_module_and_interoperates_with_pin_actions() -> PyResult<()> {
+        Python::with_gil(|py| {
+            let module = PyModule::new(py, "_origen")?;
+            _origen(py, module)?;
+
+            let pin_actions = module
+                .getattr("dut")?
+                .getattr("pins")?
+                .getattr("PinActions")?;
+            let created = pin_actions.call1(("1",))?;
+            let class_method = pin_actions.call_method0("DriveHigh")?;
+
+            assert!(created.eq(class_method)?);
+            let combined = pin_actions.call1((class_method,))?;
+            assert!(combined.eq(created)?);
+            Ok(())
+        })
+    }
+}

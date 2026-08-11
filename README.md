@@ -22,6 +22,13 @@ See here for how to setup an Origen 2 development environment - https://origen-s
 Repeat step 3 after making any changes to `rust/origen_metal` (the Rust library) or
 `rust/pyapi_metal` (the Python bindings for it).
 
+Run the Rust tests for the Python bindings without PyO3's extension-module linking mode:
+
+```text
+cargo test --manifest-path rust/pyapi/Cargo.toml --no-default-features
+cargo test --manifest-path rust/pyapi_metal/Cargo.toml --no-default-features
+```
+
 To test out any updates in your application add `python/origen_metal` to your application's
 virtual environment.
 

@@ -41,9 +41,10 @@ shellexpand = "1.1.1"
 # Need to be careful with this version, couldn't build on RHEL6 with versions greater
 # than this. Can probably drop this constraint once NXP transitions to RHEL7.
 num-bigint = {version = "0.4.0", features = ["serde"]}
-# Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
+# The default extension-module feature stops the CLI from depending on libpython. Disable it
+# when building Rust test executables that must link libpython. PyO3 is otherwise only included
 # in origen to enable conversion of an Origen error to a PyErr.
-pyo3 = {version = "0.21.2", features = ["extension-module", "auto-initialize", "gil-refs"]}
+pyo3 = {version = "0.21.2", features = ["auto-initialize", "gil-refs"]}
 chrono = "0.4.11"
 origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
 whoami = "0.8" # TODO
@@ -71,4 +72,5 @@ walkdir = "2"
 openssl = { version = "0.10", features = ["vendored"] }
 
 [features]
-default = []
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
