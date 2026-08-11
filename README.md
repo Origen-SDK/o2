@@ -78,7 +78,7 @@ but Rust publication fails, correct the Rust issue and rerun the workflow with o
 
 The Python builds use these repository settings:
 
-- `PYTHON_VERSIONS_FOR_RELEASE`, `PYTHON_VERSIONS`, and `RUST_VERSION` variables
+- `PYTHON_VERSIONS_FOR_RELEASE` and `PYTHON_VERSIONS` variables
 
 Publishing uses these repository secrets:
 

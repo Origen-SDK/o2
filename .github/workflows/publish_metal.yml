@@ -80,7 +80,6 @@ jobs:
             --env GIT_DIR=/tmp/o2
             --env OM_VER_FILE=${{ env.om_ver_file }}
             --env PACKAGE_TO_BUILD=origen_metal
-            --env RUST_VERSION=${{ fromJSON(vars.RUST_VERSION) }}
             --env PYTHON_VERSION=${{ matrix.python-version }}
           run: |
             source /tmp/o2/.github/workflows/build_manylinux.sh
@@ -112,9 +111,6 @@ jobs:
           toolchain: stable
           rust-src-dir: rust/origen_metal
           rustflags:
-
-      - name: Override project Rust version
-        run: rustup override set ${{ fromJSON(vars.RUST_VERSION) }}
 
       - name: Check Rust version
         run: |
@@ -164,7 +160,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
+          toolchain: stable
           rustflags:
 
       - name: Validate origen_metal package
