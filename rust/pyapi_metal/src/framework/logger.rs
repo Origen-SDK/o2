@@ -144,7 +144,7 @@ fn add_custom_prefix(name: &str, prefix: Option<String>, level: Option<u8>) -> P
 }
 
 #[pyfunction]
-fn get_custom_prefixes(py: Python) -> PyResult<&PyDict> {
+fn get_custom_prefixes(py: Python<'_>) -> PyResult<&PyDict> {
     let retn = PyDict::new(py);
     LOGGER.with_custom_prefixes( |prefixes| {
         for (n, p) in prefixes {

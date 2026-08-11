@@ -69,7 +69,7 @@ for to_load in [{}]:
         None,
         Some(l)
     )?;
-    Ok(l.get_item("plugin_paths").ok_or_else( || key_exception!("Error finding plugin roots: expected 'plugin_paths' key."))?.extract()?)
+    Ok(l.get_item("plugin_paths")?.ok_or_else( || key_exception!("Error finding plugin roots: expected 'plugin_paths' key."))?.extract()?)
 }
 
 #[pyfunction]
@@ -98,5 +98,5 @@ for dist in importlib_metadata.distributions():
         None,
         Some(l)
     )?;
-    Ok(l.get_item("plugin_paths").ok_or_else( || key_exception!("Error collecting plugin roots: expected 'plugin_paths' key."))?.extract()?)
+    Ok(l.get_item("plugin_paths")?.ok_or_else( || key_exception!("Error collecting plugin roots: expected 'plugin_paths' key."))?.extract()?)
 }

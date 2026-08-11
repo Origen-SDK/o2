@@ -7,7 +7,7 @@ use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 
 //TODO is this needed/used?
 #[allow(dead_code)]
-pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
+pub fn get_pydut(py: Python<'_>) -> PyResult<&PyAny> {
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     Ok(py.eval("origen.dut", Some(locals), None)?)

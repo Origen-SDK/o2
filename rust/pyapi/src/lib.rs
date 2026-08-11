@@ -40,7 +40,6 @@ use origen::{Dut, Error, Operation, Result, Value, ORIGEN_CONFIG, STATUS, TEST, 
 use origen_metal::FLOW;
 use origen_metal as om;
 use pyapi_metal::{runtime_error, pypath};
-use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::wrap_pyfunction;
@@ -135,19 +134,19 @@ fn unpack_transaction_options(
     kwargs: Option<&PyDict>,
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
-        if let Some(address) = opts.get_item("address") {
+        if let Some(address) = opts.get_item("address")? {
             trans.address = Some(address.extract::<BigUint>()?);
         }
-        if let Some(w) = opts.get_item("address_width") {
+        if let Some(w) = opts.get_item("address_width")? {
             trans.address_width = Some(w.extract::<usize>()?);
         }
-        if let Some(_mask) = opts.get_item("mask") {
+        if let Some(_mask) = opts.get_item("mask")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay) = opts.get_item("overlay") {
+        if let Some(_overlay) = opts.get_item("overlay")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+        if let Some(_overlay_str) = opts.get_item("overlay_str")? {
             panic!("option not supported yet!");
         }
     }
@@ -162,20 +161,20 @@ fn unpack_capture_kwargs(
     cycles_allowed: bool,
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
-        if let Some(sym) = opts.get_item("symbol") {
+        if let Some(sym) = opts.get_item("symbol")? {
             cap_trans.symbol = Some(sym.extract::<String>()?);
         }
-        if let Some(enables) = opts.get_item("mask") {
+        if let Some(enables) = opts.get_item("mask")? {
             cap_trans.enables = Some(enables.extract::<BigUint>()?);
         }
-        if let Some(cycles) = opts.get_item("cycles") {
+        if let Some(cycles) = opts.get_item("cycles")? {
             if cycles_allowed {
                 cap_trans.cycles = Some(cycles.extract::<usize>()?);
             } else {
                 return runtime_error!("'cycles' capture option is not valid in this context");
             }
         }
-        if let Some(pins) = opts.get_item("pins") {
+        if let Some(pins) = opts.get_item("pins")? {
             if pins_allowed {
                 let pins_vec = pins.extract::<Vec<&PyAny>>()?;
                 cap_trans.pin_ids = Some(pins::vec_to_ppin_ids(&dut, pins_vec)?);
@@ -190,18 +189,18 @@ fn unpack_capture_kwargs(
 /// Unpacks/extracts common transaction options, updating the transaction directly
 /// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
 fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -> PyResult<()> {
-    if let Some(mask) = kwargs.get_item("mask") {
+    if let Some(mask) = kwargs.get_item("mask")? {
         if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
             trans.bit_enable = big_mask;
         } else {
             return crate::type_error!("Could not extract kwarg 'mask' as an integer");
         }
     }
-    if let Some(overlay) = kwargs.get_item("overlay") {
+    if let Some(overlay) = kwargs.get_item("overlay")? {
         let overlay_mask;
         let overlay_symbol;
         let overlay_cycles;
-        if let Some(mask) = kwargs.get_item("overlay_mask") {
+        if let Some(mask) = kwargs.get_item("overlay_mask")? {
             if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
                 overlay_mask = Some(big_mask);
             } else {
@@ -214,7 +213,7 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
                 overlay_mask = None;
             }
         }
-        if let Some(s) = kwargs.get_item("overlay_symbol") {
+        if let Some(s) = kwargs.get_item("overlay_symbol")? {
             if let Ok(sym) = s.extract::<String>() {
                 overlay_symbol = Some(sym);
             } else {
@@ -227,7 +226,7 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
                 overlay_symbol = None;
             }
         }
-        if let Some(c) = kwargs.get_item("overlay_cycles") {
+        if let Some(c) = kwargs.get_item("overlay_cycles")? {
             if let Ok(i) = c.extract::<usize>() {
                 overlay_cycles = Some(i);
             } else {
@@ -273,7 +272,7 @@ fn resolve_transaction(
 ) -> PyResult<origen::Transaction> {
     let mut width = 32;
     if let Some(opts) = kwargs {
-        if let Some(w) = opts.get_item("width") {
+        if let Some(w) = opts.get_item("width")? {
             width = w.extract::<u32>()?;
         }
     }
@@ -307,21 +306,21 @@ fn resolve_transaction(
     }
 
     if let Some(opts) = kwargs {
-        if let Some(address) = opts.get_item("address") {
+        if let Some(address) = opts.get_item("address")? {
             if !address.is_none() {
                 trans.address = Some(address.extract::<BigUint>()?);
             }
         }
-        if let Some(w) = opts.get_item("address_width") {
+        if let Some(w) = opts.get_item("address_width")? {
             trans.address_width = Some(w.extract::<usize>()?);
         }
-        if let Some(_mask) = opts.get_item("mask") {
+        if let Some(_mask) = opts.get_item("mask")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay) = opts.get_item("overlay") {
+        if let Some(_overlay) = opts.get_item("overlay")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+        if let Some(_overlay_str) = opts.get_item("overlay_str")? {
             panic!("option not supported yet!");
         }
     }
@@ -654,7 +653,7 @@ fn start_new_test(name: Option<String>) -> PyResult<()> {
     Ok(())
 }
 
-pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
+pub fn pickle(py: Python, object: &PyAny) -> PyResult<Vec<u8>> {
     let pickle = PyModule::import(py, "pickle")?;
     pickle
         .getattr("dumps")?
@@ -914,4 +913,29 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         log_trace!("Bypassing current user initialization.");
     }
     Ok(users)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initializes_module_and_interoperates_with_pin_actions() -> PyResult<()> {
+        Python::with_gil(|py| {
+            let module = PyModule::new(py, "_origen")?;
+            _origen(py, module)?;
+
+            let pin_actions = module
+                .getattr("dut")?
+                .getattr("pins")?
+                .getattr("PinActions")?;
+            let created = pin_actions.call1(("1",))?;
+            let class_method = pin_actions.call_method0("DriveHigh")?;
+
+            assert!(created.eq(class_method)?);
+            let combined = pin_actions.call1((class_method,))?;
+            assert!(combined.eq(created)?);
+            Ok(())
+        })
+    }
 }

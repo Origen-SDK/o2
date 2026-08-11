@@ -14,8 +14,8 @@ source ${HOME}/.cargo/env
 
 echo -e "\nSet Rust Version"
 echo "========================================"
-rustup install ${RUST_VERSION}
-rustup default ${RUST_VERSION}
+rustup install stable
+rustup default stable
 
 echo -e "\nCheck Rust Version"
 echo "========================================"

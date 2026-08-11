@@ -451,7 +451,7 @@ impl Status {
         *fe_pkg_loc = loc;
     }
 
-    pub fn fe_pkg_loc(&self) -> RwLockReadGuard<Option<PathBuf>> {
+    pub fn fe_pkg_loc(&self) -> RwLockReadGuard<'_, Option<PathBuf>> {
         self.fe_pkg_loc.read().unwrap()
     }
 
@@ -460,7 +460,7 @@ impl Status {
         *fe_exe_loc = loc;
     }
 
-    pub fn fe_exe_loc(&self) -> RwLockReadGuard<Option<PathBuf>> {
+    pub fn fe_exe_loc(&self) -> RwLockReadGuard<'_, Option<PathBuf>> {
         self.fe_exe_loc.read().unwrap()
     }
 
@@ -502,7 +502,7 @@ impl Status {
         *dependency_src = src;
     }
 
-    pub fn dependency_src(&self) -> RwLockReadGuard<Option<DependencySrc>> {
+    pub fn dependency_src(&self) -> RwLockReadGuard<'_, Option<DependencySrc>> {
         self.dependency_src.read().unwrap()
     }
 

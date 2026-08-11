@@ -43,8 +43,6 @@ lazy_static! {
 pub struct Config {
     pub available: bool,
     pub command: String,
-    pub version: Version,
-    pub error: String,
 }
 
 pub fn resolve_pyproject() -> Result<DependencySrc> {
@@ -204,7 +202,6 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Config {
-        let mut available = false;
         match resolve_pyproject() {
             Ok(deps) => {
                 STATUS.set_dependency_src(Some(deps))
@@ -215,29 +212,20 @@ impl Default for Config {
             log_trace!("Searching for installed python at '{}'", cmd);
             match get_version(cmd) {
                 Some(version) => {
-                    available = true;
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         log_trace!("Found python version '{}'", cmd);
                         return Config {
                             available: true,
                             command: cmd.to_string(),
-                            version: version,
-                            error: "".to_string(),
                         };
                     }
                 }
                 None => {}
             }
         }
-        let mut msg = format!("Your environment does not have Python installed/available");
-        if available {
-            msg = format!("Your environment has Python available but it is too old, Origen needs a minimum of Python {}", MIN_PYTHON_VERSION);
-        }
         Config {
             available: false,
             command: String::from("python"),
-            version: Version::parse("0.0.0").unwrap(),
-            error: msg,
         }
     }
 }

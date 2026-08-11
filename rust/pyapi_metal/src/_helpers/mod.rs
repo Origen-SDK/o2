@@ -12,7 +12,7 @@ pub mod errors;
 #[macro_use]
 pub mod macros;
 
-use crate::{pypath, runtime_error};
+use crate::pypath;
 use indexmap::IndexMap;
 use pyo3::conversion::ToPyObject;
 use pyo3::prelude::*;
@@ -33,7 +33,7 @@ pub fn pytype_from_pyany<'p>(py: Python<'p>, t: &'p PyAny) -> PyResult<&'p PyTyp
     }
 }
 
-pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&PyType> {
+pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&'p PyType> {
     let t = get_qualified_attr(&class.to_string())?;
     t.into_ref(py).extract::<&PyType>()
 }
@@ -69,15 +69,15 @@ pub fn to_py_paths<T: std::fmt::Display>(py: Python, paths: &Vec<T>) -> PyResult
 pub fn pypath_as_string(path: &PyAny) -> PyResult<String> {
     if let Ok(p) = path.extract::<String>() {
         Ok(p)
-    } else if path.get_type().name()?.to_string() == "Path"
-        || path.get_type().name()?.to_string() == "WindowsPath"
-        || path.get_type().name()?.to_string() == "PosixPath"
+    } else if path.get_type().qualname()? == "Path"
+        || path.get_type().qualname()? == "WindowsPath"
+        || path.get_type().qualname()? == "PosixPath"
     {
         Ok(path.call_method0("__str__")?.extract::<String>()?)
     } else {
         crate::type_error!(&format!(
             "Cannot extract input as either a str or pathlib.Path object. Received {}",
-            path.get_type().name()?.to_string()
+            path.get_type().qualname()?
         ))
     }
 }

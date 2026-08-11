@@ -1,7 +1,7 @@
 use super::super::{Base, Status};
 use crate::framework::users::{User, UserDataset};
 use crate::framework::Outcome as PyOutcome;
-use crate::{bail_with_runtime_error, OMResult};
+use crate::OMResult;
 use origen_metal::utils::revision_control::supported::Git as OrigenGit;
 use origen_metal::utils::revision_control::{RevisionControl, RevisionControlAPI};
 use origen_metal::with_user;
@@ -88,7 +88,7 @@ impl Git {
         Ok(self.rc()?.tag(
             tagname,
             if let Some(kws) = kwargs {
-                if let Some(f) = kws.get_item("force") {
+                if let Some(f) = kws.get_item("force")? {
                     f.extract::<bool>()?
                 } else {
                     false
@@ -97,7 +97,7 @@ impl Git {
                 false
             },
             if let Some(kws) = kwargs {
-                if let Some(m) = kws.get_item("msg") {
+                if let Some(m) = kws.get_item("msg")? {
                     msg = m.extract::<Option<&str>>()?;
                     msg
                 } else {
@@ -122,7 +122,7 @@ impl Git {
         let msg;
         let dry_run;
         if let Some(kw) = kwargs {
-            match kw.get_item("msg") {
+            match kw.get_item("msg")? {
                 Some(m) => {
                     msg = m.extract::<String>()?;
                 }
@@ -130,7 +130,7 @@ impl Git {
                     return bail_with_runtime_error!("A 'msg' is required for checkin operations")
                 }
             }
-            match kw.get_item("dry-run") {
+            match kw.get_item("dry-run")? {
                 Some(d) => dry_run = d.extract::<bool>()?,
                 None => dry_run = false,
             }

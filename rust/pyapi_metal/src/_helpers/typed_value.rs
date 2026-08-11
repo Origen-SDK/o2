@@ -89,7 +89,7 @@ pub fn extract_as_typed_value(value: &PyAny) -> PyResult<TypedValue> {
             tv_vec.push(extract_as_typed_value(any)?);
         }
         data = TypedValue::Vec(tv_vec);
-    } else if value.get_type().name()?.to_string() == "bool" {
+    } else if value.get_type().qualname()? == "bool" {
         data = TypedValue::Bool(value.extract::<bool>()?);
     } else if let Ok(bigint) = value.extract::<num_bigint::BigInt>() {
         data = TypedValue::BigInt(bigint);
@@ -104,7 +104,7 @@ pub fn extract_as_typed_value(value: &PyAny) -> PyResult<TypedValue> {
                 pickle(py, value)
             })?,
             Some("Python-Pickle".to_string()),
-            Some(value.get_type().name()?.to_string()),
+            Some(value.get_type().qualname()?),
         )
     }
     Ok(data)

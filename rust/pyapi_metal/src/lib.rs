@@ -7,7 +7,7 @@ pub mod utils;
 pub mod prog_gen;
 
 #[macro_use]
-pub extern crate origen_metal;
+pub extern crate origen_metal_backend as origen_metal;
 
 use origen_metal::lazy_static::lazy_static;
 use origen_metal::cfg_if::cfg_if;
@@ -90,8 +90,30 @@ macro_rules! pypath {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use origen_metal::TypedValue;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn initializes_module_and_converts_python_values() -> PyResult<()> {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let module = PyModule::new(py, "_origen_metal")?;
+            _origen_metal(py, module)?;
+            assert!(module.hasattr("framework")?);
+
+            let pathlib = PyModule::import(py, "pathlib")?;
+            let path = pathlib.getattr("Path")?.call1(("some/path",))?;
+            assert_eq!(
+                _helpers::pypath_as_pathbuf(path)?,
+                std::path::PathBuf::from("some/path")
+            );
+
+            let value = true.to_object(py);
+            assert!(matches!(
+                _helpers::typed_value::extract_as_typed_value(value.as_ref(py))?,
+                TypedValue::Bool(true)
+            ));
+            Ok(())
+        })
     }
 }

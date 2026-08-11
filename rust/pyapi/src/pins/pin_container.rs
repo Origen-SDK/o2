@@ -40,7 +40,7 @@ impl PinContainer {
         let mut endianness = Option::None;
         match options {
             Some(options) => {
-                if let Some(opt) = options.get_item("little_endian") {
+                if let Some(opt) = options.get_item("little_endian")? {
                     if opt.extract::<bool>()? {
                         endianness = Option::Some(Endianness::LittleEndian);
                     } else {

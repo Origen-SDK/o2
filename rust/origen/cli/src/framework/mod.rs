@@ -13,7 +13,7 @@ pub use extensions::{Extensions, ExtensionTOML, Extension};
 pub use plugins::Plugins;
 pub use aux_cmds::AuxCmds;
 pub use app_cmds::AppCmds;
-pub use helps::{CmdHelps, CmdHelp, CmdSrc};
+pub use helps::{CmdHelps, CmdSrc};
 use std::env;
 
 use clap::App;

@@ -22,6 +22,13 @@ See here for how to setup an Origen 2 development environment - https://origen-s
 Repeat step 3 after making any changes to `rust/origen_metal` (the Rust library) or
 `rust/pyapi_metal` (the Python bindings for it).
 
+Run the Rust tests for the Python bindings without PyO3's extension-module linking mode:
+
+```text
+cargo test --manifest-path rust/pyapi/Cargo.toml --no-default-features
+cargo test --manifest-path rust/pyapi_metal/Cargo.toml --no-default-features
+```
+
 To test out any updates in your application add `python/origen_metal` to your application's
 virtual environment.
 
@@ -59,7 +66,8 @@ To publish:
    intentionally fails the precheck.
 
 When Python is selected, the workflow builds and merges the supported Linux and Windows wheels
-before publishing them to PyPI. When Rust is selected, it runs
+before publishing them to PyPI. When Rust is selected, the workflow installs the current stable
+Rust toolchain and runs
 `cargo publish --dry-run --locked` before publishing the crate to crates.io. When both are
 selected, their manifest versions must match, all builds and validation must pass, and Python is
 published before Rust.
@@ -68,8 +76,11 @@ If Python publication fails during a combined release, Rust is not published. If
 but Rust publication fails, correct the Rust issue and rerun the workflow with only
 `publish_rust` selected.
 
-The workflow uses these repository settings:
+The Python builds use these repository settings:
 
-- `PYTHON_VERSIONS_FOR_RELEASE`, `PYTHON_VERSIONS`, and `RUST_VERSION` variables
+- `PYTHON_VERSIONS_FOR_RELEASE` and `PYTHON_VERSIONS` variables
+
+Publishing uses these repository secrets:
+
 - `PYPI_OM_API_TOKEN` for PyPI authentication
 - `CARGO_ORIGEN_METAL` for crates.io authentication

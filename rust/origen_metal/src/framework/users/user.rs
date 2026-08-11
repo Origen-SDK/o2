@@ -2,7 +2,6 @@ use super::data::{Data, DatasetConfig};
 use super::password_cache_options::PasswordCacheOptions;
 use crate::_utility::{unsorted_dedup, validate_input_list};
 use crate::frontend::FeatureReturn;
-use crate::log_error;
 use crate::prelude::session_store::*;
 use crate::utils::file::FilePermissions;
 use crate::{Outcome, OutcomeState, Result};

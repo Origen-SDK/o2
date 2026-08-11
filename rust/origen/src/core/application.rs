@@ -99,7 +99,7 @@ impl Application {
         func(&mut cfg)
     }
 
-    pub fn config(&self) -> std::sync::RwLockReadGuard<Config> {
+    pub fn config(&self) -> std::sync::RwLockReadGuard<'_, Config> {
         self.config.read().unwrap()
     }
 

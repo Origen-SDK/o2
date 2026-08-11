@@ -62,13 +62,13 @@ impl PyDUT {
                 Some(Box::new(p))
             } else if let Ok(p) = period.extract::<f64>() {
                 Some(Box::new(p))
-            } else if period.get_type().name()? == "NoneType" {
+            } else if period.get_type().qualname()? == "NoneType" {
                 Option::None
             } else {
                 return type_error!("Could not convert 'period' argument to String or NoneType!");
             },
             match kwargs {
-                Some(args) => match args.get_item("default_period") {
+                Some(args) => match args.get_item("default_period")? {
                     Some(arg) => Some(arg.extract::<f64>()?),
                     None => Option::None,
                 },

@@ -10,13 +10,13 @@ macro_rules! extract_pinactions {
             let mut acts = origen::core::model::pins::pin::PinAction::from_action_str(&s)?;
             acts.reverse();
             Ok(acts)
-        } else if $actions.get_type().name()? == "PinActions" {
+        } else if $actions.get_type().qualname()? == "PinActions" {
             let acts = $actions.extract::<PyRef<crate::pins::pin_actions::PinActions>>()?;
             Ok(acts.actions.clone())
         } else {
             Err(pyo3::exceptions::PyTypeError::new_err(format!(
                 "Cannot extract _origen.pin.PinActions from type {}",
-                $actions.get_type().name()?
+                $actions.get_type().qualname()?
             )))
         }
     }};
@@ -150,7 +150,7 @@ impl PinActions {
         for a in actions.iter() {
             if let Ok(s) = a.extract::<String>() {
                 temp.extend(OrigenPinAction::from_action_str(&s)?);
-            } else if a.get_type().name()? == "PinActions" {
+            } else if a.get_type().qualname()? == "PinActions" {
                 let s = a.extract::<PyRef<Self>>().unwrap();
                 let mut s_ = s.actions.clone();
                 s_.reverse();
@@ -158,7 +158,7 @@ impl PinActions {
             } else {
                 return super::super::type_error!(&format!(
                     "Cannot cast type {} to a valid PinAction",
-                    a.get_type().name()?
+                    a.get_type().qualname()?
                 ));
             }
             // }
@@ -187,7 +187,7 @@ impl PinActions {
         let other_string;
         if let Ok(s) = other.extract::<String>() {
             other_string = s;
-        } else if other.get_type().name()? == "PinActions" {
+        } else if other.get_type().qualname()? == "PinActions" {
             let other_actions = other.extract::<PyRef<Self>>()?;
             other_string = OrigenPinAction::to_action_string(&other_actions.actions)?;
         } else {

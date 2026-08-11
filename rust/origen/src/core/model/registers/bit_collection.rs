@@ -230,7 +230,7 @@ impl<'a> BitCollection<'a> {
         symbol: Option<String>,
         mask: Option<BigUint>,
         persistent: bool,
-    ) -> &BitCollection {
+    ) -> &BitCollection<'_> {
         match mask {
             Some(m) => {
                 let mut bytes = m.to_bytes_be();
@@ -257,14 +257,14 @@ impl<'a> BitCollection<'a> {
         self
     }
 
-    pub fn clear_nonpersistent_overlay(&self) -> &BitCollection {
+    pub fn clear_nonpersistent_overlay(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.clear_nonpersistent_overlay();
         }
         self
     }
 
-    pub fn clear_persistent_overlay(&self) -> &BitCollection {
+    pub fn clear_persistent_overlay(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.clear_persistent_overlay();
         }
@@ -297,7 +297,7 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Clears the verify flag on all bits in the collection
-    pub fn clear_verify_flag(&self) -> &BitCollection {
+    pub fn clear_verify_flag(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.clear_verify_flag();
         }
@@ -338,35 +338,35 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Set the collection's device_state field to be the same as its current data state
-    pub fn update_device_state(&self) -> Result<&BitCollection> {
+    pub fn update_device_state(&self) -> Result<&BitCollection<'_>> {
         for &bit in self.bits.iter() {
             bit.update_device_state()?;
         }
         Ok(self)
     }
 
-    pub fn clear_flags(&self) -> &BitCollection {
+    pub fn clear_flags(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.clear_flags();
         }
         self
     }
 
-    pub fn capture(&self) -> &BitCollection {
+    pub fn capture(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.capture();
         }
         self
     }
 
-    pub fn clear_capture(&self) -> &BitCollection {
+    pub fn clear_capture(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.clear_capture();
         }
         self
     }
 
-    pub fn set_undefined(&self) -> &BitCollection {
+    pub fn set_undefined(&self) -> &BitCollection<'_> {
         for &bit in self.bits.iter() {
             bit.set_undefined();
         }
@@ -375,7 +375,7 @@ impl<'a> BitCollection<'a> {
 
     /// Resets the bits if the collection is for a whole bit field or register, otherwise
     /// an error will be raised
-    pub fn reset(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {
+    pub fn reset(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection<'_>> {
         if self.whole_reg || self.whole_field {
             if self.whole_reg {
                 self.reg(dut)?.reset(name, dut);
@@ -440,7 +440,7 @@ impl<'a> BitCollection<'a> {
 
     /// Take a snapshot of the current state of all bits, the state can be rolled
     /// back in future by supplying the same name to the rollback method
-    pub fn snapshot(&self, name: &str) -> Result<&BitCollection> {
+    pub fn snapshot(&self, name: &str) -> Result<&BitCollection<'_>> {
         for &bit in self.bits.iter() {
             bit.snapshot(name);
         }
@@ -460,7 +460,7 @@ impl<'a> BitCollection<'a> {
 
     /// Rollback the state of all bits to the given snapshot.
     /// An error will be raised if no snapshot with the given name is found.
-    pub fn rollback(&self, name: &str) -> Result<&BitCollection> {
+    pub fn rollback(&self, name: &str) -> Result<&BitCollection<'_>> {
         for &bit in self.bits.iter() {
             bit.rollback(name)?;
         }
@@ -530,7 +530,7 @@ impl<'a> BitCollection<'a> {
     /// Equivalent to calling verify() but without invoking a register transaction at the end,
     /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
     /// deciding what bit flags to set.
-    pub fn set_verify_flag(&self, enable: Option<BigUint>) -> Result<&BitCollection> {
+    pub fn set_verify_flag(&self, enable: Option<BigUint>) -> Result<&BitCollection<'_>> {
         if enable.is_some() {
             let enable = enable.unwrap();
             let mut bytes = enable.to_bytes_be();
@@ -657,7 +657,7 @@ impl<'a> BitCollection<'a> {
         Ok(v1)
     }
 
-    pub fn shift_out_left(&self) -> BitCollection {
+    pub fn shift_out_left(&self) -> BitCollection<'_> {
         let mut bc = self.clone();
         bc.i = 0;
         bc.shift_left = true;
@@ -665,7 +665,7 @@ impl<'a> BitCollection<'a> {
         bc
     }
 
-    pub fn shift_out_right(&self) -> BitCollection {
+    pub fn shift_out_right(&self) -> BitCollection<'_> {
         let mut bc = self.clone();
         bc.i = 0;
         bc.shift_left = false;

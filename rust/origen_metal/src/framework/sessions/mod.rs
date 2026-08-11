@@ -208,7 +208,6 @@ impl Sessions {
 
 #[cfg(test)]
 mod tests {
-    use crate::current_func;
     use crate::framework::sessions::{SessionStore, Sessions};
     use num_bigint::BigInt;
     use std::path::PathBuf;

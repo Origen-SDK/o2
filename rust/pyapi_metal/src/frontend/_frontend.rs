@@ -5,7 +5,6 @@ use crate::framework::outcomes::Outcome as PyOutcome;
 use origen_metal::prelude::frontend::*;
 use origen_metal::{Outcome, TypedValue, TypedValueMap, TypedValueVec};
 
-use crate::runtime_error;
 use indexmap::IndexMap;
 use origen_metal::log_trace;
 use origen_metal::Result as OMResult;
@@ -219,7 +218,7 @@ impl DataStoreCategoryFrontendAPI for DataStoreCategoryFrontend {
     ) -> OMResult<Box<dyn DataStoreFrontendAPI>> {
         self.as_py( |py, py_cat| {
             let params = typed_value::into_pydict(py, parameters.typed_values())?;
-            let cls = match params.get_item("class") {
+            let cls = match params.get_item("class")? {
                 Some(c) => c,
                 None => return runtime_error!(format!(
                     "Missing parameter 'class' when adding data store '{}' to category '{}'. A 'class' must be provided!",
@@ -229,7 +228,7 @@ impl DataStoreCategoryFrontendAPI for DataStoreCategoryFrontend {
             };
             params.del_item("class")?;
 
-            let list_args = match params.get_item("list_args") {
+            let list_args = match params.get_item("list_args")? {
                 Some(args) => {
                     params.del_item("list_args")?;
                     Some(args.extract::<&PyList>()?)

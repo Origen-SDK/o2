@@ -441,10 +441,10 @@ impl Wavetable {
             wt.set_period(Some(Box::new(p)))?;
         } else if let Ok(p) = period.extract::<f64>() {
             wt.set_period(Some(Box::new(p)))?;
-        } else if period.get_type().name()? == "NoneType" {
+        } else if period.get_type().qualname()? == "NoneType" {
             wt.set_period(Option::None)?;
         } else {
-            return super::super::type_error!(format!("Could not interpret 'period' argument as Numeric, String, or NoneType! (class '{}')", period.get_type().name()?));
+            return super::super::type_error!(format!("Could not interpret 'period' argument as Numeric, String, or NoneType! (class '{}')", period.get_type().qualname()?));
         };
         Ok(())
     }
@@ -503,7 +503,7 @@ impl WaveGroup {
         }
         let mut derived_from = Option::None;
         if let Some(args) = _kwargs {
-            if let Some(_derived_from) = args.get_item("derived_from") {
+            if let Some(_derived_from) = args.get_item("derived_from")? {
                 if let Ok(_waves) = _derived_from.extract::<String>() {
                     derived_from = Some(vec![_waves]);
                 } else if let Ok(_waves) = _derived_from.extract::<Vec<String>>() {
@@ -605,9 +605,9 @@ impl Wave {
         }
 
         let (at, unit, action) = (
-            event.unwrap().get_item("at"),
-            event.unwrap().get_item("unit"),
-            event.unwrap().get_item("action"),
+            event.unwrap().get_item("at")?,
+            event.unwrap().get_item("unit")?,
+            event.unwrap().get_item("action")?,
         );
         {
             // Resolve the 'action' keyword first because rust is a pain in the butt.
@@ -888,7 +888,7 @@ fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin:
                 let t;
                 if let Ok(a) = action.extract::<String>() {
                     t = a.clone();
-                } else if action.get_type().name()? == "PinActions" {
+                } else if action.get_type().qualname()? == "PinActions" {
                     let pin_actions = action
                         .extract::<PyRef<super::super::pins::pin_actions::PinActions>>()
                         .unwrap();
@@ -902,7 +902,7 @@ fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin:
                 } else {
                     return super::super::type_error!(&format!(
                         "Cannot cast type {} to a valid PinAction",
-                        action.get_type().name()?
+                        action.get_type().qualname()?
                     ));
                 }
                 t

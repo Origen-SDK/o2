@@ -172,21 +172,21 @@ impl PyTester {
             model_id = 0;
             timeset_name = _timeset;
         } else {
-            if timeset.get_type().name()?.to_string() == "NoneType" {
+            if timeset.get_type().qualname()? == "NoneType" {
                 {
                     let mut tester = origen::TESTER.lock().unwrap();
                     tester.clear_timeset()?;
                 }
                 self.issue_callbacks(py, "clear_timeset")?;
                 return Ok(());
-            } else if timeset.get_type().name()?.to_string() == "Timeset" {
+            } else if timeset.get_type().qualname()? == "Timeset" {
                 let obj = timeset.to_object(py);
                 model_id = obj
                     .getattr(py, "__origen__model_id__")?
                     .extract::<usize>(py)?;
                 timeset_name = obj.getattr(py, "name")?.extract::<String>(py)?;
             } else {
-                return type_error!(format!("Could not interpret 'timeset' argument as String or _origen.dut.timesets.Timeset object! (class '{}')", timeset.get_type().name()?));
+                return type_error!(format!("Could not interpret 'timeset' argument as String or _origen.dut.timesets.Timeset object! (class '{}')", timeset.get_type().qualname()?));
             }
         }
 
@@ -245,21 +245,21 @@ impl PyTester {
     fn pin_header(&self, py: Python, pin_header: &PyAny) -> PyResult<()> {
         let (model_id, pin_header_name);
 
-        if pin_header.get_type().name()?.to_string() == "NoneType" {
+        if pin_header.get_type().qualname()? == "NoneType" {
             {
                 let mut tester = origen::TESTER.lock().unwrap();
                 tester.clear_pin_header()?;
             }
             self.issue_callbacks(py, "clear_pin_header")?;
             return Ok(());
-        } else if pin_header.get_type().name()?.to_string() == "PinHeader" {
+        } else if pin_header.get_type().qualname()? == "PinHeader" {
             let obj = pin_header.to_object(py);
             model_id = obj
                 .getattr(py, "__origen__model_id__")?
                 .extract::<usize>(py)?;
             pin_header_name = obj.getattr(py, "name")?.extract::<String>(py)?;
         } else {
-            return type_error!(format!("Could not interpret 'pin_header' argument as _origen.dut.Pins.PinHeader object! (class '{}')", pin_header.get_type().name()?));
+            return type_error!(format!("Could not interpret 'pin_header' argument as _origen.dut.Pins.PinHeader object! (class '{}')", pin_header.get_type().qualname()?));
         }
 
         {
@@ -304,11 +304,11 @@ impl PyTester {
     pub fn generate_pattern_header(&self, header_comments: &PyDict) -> PyResult<()> {
         let tester = origen::tester();
         Ok(tester.generate_pattern_header(
-            match header_comments.get_item("app") {
+            match header_comments.get_item("app")? {
                 Some(comments) => Some(comments.extract::<Vec<String>>()?),
                 None => None,
             },
-            match header_comments.get_item("pattern") {
+            match header_comments.get_item("pattern")? {
                 Some(comments) => Some(comments.extract::<Vec<String>>()?),
                 None => None,
             },
@@ -370,7 +370,7 @@ impl PyTester {
             let mut tester = origen::tester();
             let mut repeat = None;
             if let Some(_kwargs) = kwargs {
-                if let Some(_kwarg) = _kwargs.get_item("repeat") {
+                if let Some(_kwarg) = _kwargs.get_item("repeat")? {
                     repeat = Some(_kwarg.extract::<usize>()?);
                 }
             }
