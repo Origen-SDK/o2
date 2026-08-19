@@ -263,6 +263,13 @@ impl FlowGenerator {
             ParamValue::String(v) | ParamValue::Any(v) => {
                 writeln!(f, "{}{} = \"{}\";", indent, name, v)?;
             }
+            ParamValue::Class(v) => {
+                writeln!(f, "{}{} = {};", indent, name, v)?;
+            }
+            ParamValue::List(values) => {
+                let values = values.iter().map(Self::format_list_item).collect::<Result<Vec<String>>>()?.join(", ");
+                writeln!(f, "{}{} = #[{}];", indent, name, values)?;
+            }
             ParamValue::Int(v) => {
                 writeln!(f, "{}{} = {};", indent, name, v)?;
             }
@@ -289,6 +296,22 @@ impl FlowGenerator {
             }
         }
         Ok(())
+    }
+
+    fn format_list_item(value: &ParamValue) -> Result<String> {
+        Ok(match value {
+            ParamValue::String(v) | ParamValue::Any(v) => format!("\"{}\"", v),
+            ParamValue::Class(v) => v.clone(),
+            ParamValue::Int(v) => v.to_string(),
+            ParamValue::UInt(v) => v.to_string(),
+            ParamValue::Float(v) => Self::format_plain_float(*v),
+            ParamValue::Current(v) => format!("\"{}[A]\"", Self::format_number(*v)),
+            ParamValue::Voltage(v) => format!("\"{}[V]\"", Self::format_number(*v)),
+            ParamValue::Time(v) => format!("\"{}[s]\"", Self::format_number(*v)),
+            ParamValue::Frequency(v) => format!("\"{}[Hz]\"", Self::format_number(*v)),
+            ParamValue::Bool(v) => if *v { "true" } else { "false" }.to_string(),
+            ParamValue::List(_) => bail!("Nested parameter lists cannot be rendered"),
+        })
     }
 
     fn render_sorted_contents(
@@ -941,7 +964,7 @@ impl Processor<PGM> for FlowGenerator {
 #[cfg(test)]
 mod tests {
     use super::{run, FlowGenerator};
-    use crate::prog_gen::{process_flow, FlowCondition, FlowID, Model, PGM, SupportedTester};
+    use crate::prog_gen::{process_flow, FlowCondition, FlowID, Model, ParamValue, PGM, SupportedTester};
     use std::cmp::Ordering;
     use std::fs;
     use tempfile::tempdir;
@@ -951,6 +974,45 @@ mod tests {
         let mut ids = vec!["param10", "param2", "param1", "param11", "param3"];
         ids.sort_by(|a, b| FlowGenerator::natural_cmp(a, b));
         assert_eq!(ids, vec!["param1", "param2", "param3", "param10", "param11"]);
+    }
+
+    #[test]
+    fn formats_smt8_list_items_by_scalar_type() {
+        let values = vec![
+            ParamValue::String("SLC, SDA".to_string()),
+            ParamValue::Class("DEFECT_SCREEN".to_string()),
+            ParamValue::Bool(true),
+            ParamValue::Int(3),
+        ];
+        assert_eq!(values.iter().map(FlowGenerator::format_list_item).collect::<crate::Result<Vec<String>>>().unwrap(), vec!["\"SLC, SDA\"", "DEFECT_SCREEN", "true", "3"]);
+    }
+
+    #[test]
+    fn writes_class_and_list_values_with_smt8_syntax() -> crate::Result<()> {
+        let output_dir = tempdir()?;
+        let path = output_dir.path().join("params.txt");
+        let mut file = std::fs::File::create(&path)?;
+        FlowGenerator::write_param_value(&mut file, 0, "decodingType", &ParamValue::Class("SMU14".to_string()))?;
+        FlowGenerator::write_param_value(&mut file, 0, "categories", &ParamValue::List(vec![ParamValue::Class("DEFECT_SCREEN".to_string())]))?;
+        drop(file);
+        assert_eq!(fs::read_to_string(path)?, "decodingType = SMU14;\ncategories = #[DEFECT_SCREEN];\n");
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_nested_lists_instead_of_panicking() -> crate::Result<()> {
+        let output_dir = tempdir()?;
+        let path = output_dir.path().join("params.txt");
+        let mut file = std::fs::File::create(path)?;
+        let error = FlowGenerator::write_param_value(
+            &mut file,
+            0,
+            "nested",
+            &ParamValue::List(vec![ParamValue::List(vec![])]),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("Nested parameter lists"));
+        Ok(())
     }
 
     #[test]

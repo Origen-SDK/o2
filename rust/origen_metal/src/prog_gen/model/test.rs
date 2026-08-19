@@ -616,11 +616,54 @@ fn import_template_parameter(
 fn coerce_param_value(kind: &ParamType, value: ParamValue) -> Result<ParamValue> {
     Ok(match (kind, value) {
         (ParamType::Any, value) => value,
+        (ParamType::Class, ParamValue::String(v)) => ParamValue::Class(v),
+        (ParamType::ListStrings, ParamValue::List(values)) => ParamValue::List(
+            values
+                .into_iter()
+                .map(|value| match value {
+                    ParamValue::String(v) | ParamValue::Class(v) => Ok(ParamValue::String(v)),
+                    ParamValue::Bool(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Int(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::UInt(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Float(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Current(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Voltage(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Time(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Frequency(v) => Ok(ParamValue::String(v.to_string())),
+                    ParamValue::Any(v) => Ok(ParamValue::String(v)),
+                    ParamValue::List(_) => bail!("Nested parameter lists are not supported"),
+                })
+                .collect::<Result<Vec<ParamValue>>>()?,
+        ),
+        (ParamType::ListClasses, ParamValue::List(values)) => ParamValue::List(
+            values
+                .into_iter()
+                .map(|value| match value {
+                    ParamValue::String(v) | ParamValue::Class(v) => Ok(ParamValue::Class(v)),
+                    ParamValue::List(_) => bail!("Nested parameter lists are not supported"),
+                    value => Ok(value),
+                })
+                .collect::<Result<Vec<ParamValue>>>()?,
+        ),
         (ParamType::Int, ParamValue::UInt(v)) => match i64::try_from(v) {
             Ok(v) => ParamValue::Int(v),
             Err(_) => ParamValue::UInt(v),
         },
         (ParamType::UInt, ParamValue::Int(v)) if v >= 0 => ParamValue::UInt(v as u64),
+        (ParamType::Float, ParamValue::Int(v)) => ParamValue::Float(v as f64),
+        (ParamType::Float, ParamValue::UInt(v)) => ParamValue::Float(v as f64),
+        (ParamType::Current, ParamValue::Int(v)) => ParamValue::Current(v as f64),
+        (ParamType::Current, ParamValue::UInt(v)) => ParamValue::Current(v as f64),
+        (ParamType::Current, ParamValue::Float(v)) => ParamValue::Current(v),
+        (ParamType::Voltage, ParamValue::Int(v)) => ParamValue::Voltage(v as f64),
+        (ParamType::Voltage, ParamValue::UInt(v)) => ParamValue::Voltage(v as f64),
+        (ParamType::Voltage, ParamValue::Float(v)) => ParamValue::Voltage(v),
+        (ParamType::Time, ParamValue::Int(v)) => ParamValue::Time(v as f64),
+        (ParamType::Time, ParamValue::UInt(v)) => ParamValue::Time(v as f64),
+        (ParamType::Time, ParamValue::Float(v)) => ParamValue::Time(v),
+        (ParamType::Frequency, ParamValue::Int(v)) => ParamValue::Frequency(v as f64),
+        (ParamType::Frequency, ParamValue::UInt(v)) => ParamValue::Frequency(v as f64),
+        (ParamType::Frequency, ParamValue::Float(v)) => ParamValue::Frequency(v),
         (_, value) => value,
     })
 }
@@ -641,6 +684,65 @@ fn import_value(
                 value
             ),
         },
+        ParamType::Class => match value {
+            serde_json::Value::String(x) => Ok(ParamValue::Class(x.to_owned())),
+            _ => bail!(
+                "Value given for '{}' in test '{}' is not a class/reference string: '{:?}'",
+                name,
+                owner_name,
+                value
+            ),
+        },
+        ParamType::ListStrings | ParamType::ListClasses => {
+            let parsed;
+            let values = match value {
+                serde_json::Value::Array(values) => values,
+                serde_json::Value::String(encoded) => {
+                    parsed = serde_json::from_str::<serde_json::Value>(encoded).map_err(|_| {
+                        crate::Error::new(&format!(
+                            "Value given for '{}' in test '{}' is not a JSON list: '{:?}'",
+                            name, owner_name, value
+                        ))
+                    })?;
+                    parsed.as_array().ok_or_else(|| {
+                        crate::Error::new(&format!(
+                            "Value given for '{}' in test '{}' is not a list: '{:?}'",
+                            name, owner_name, value
+                        ))
+                    })?
+                }
+                _ => bail!(
+                    "Value given for '{}' in test '{}' is not a list: '{:?}'",
+                    name,
+                    owner_name,
+                    value
+                ),
+            };
+            let class_items = kind == &ParamType::ListClasses;
+            let mut result = Vec::with_capacity(values.len());
+            for item in values {
+                let item = match item {
+                    serde_json::Value::String(v) if class_items => ParamValue::Class(v.clone()),
+                    serde_json::Value::String(v) => ParamValue::String(v.clone()),
+                    serde_json::Value::Bool(v) => ParamValue::Bool(*v),
+                    serde_json::Value::Number(v) if v.is_i64() => {
+                        ParamValue::Int(v.as_i64().unwrap())
+                    }
+                    serde_json::Value::Number(v) if v.is_u64() => {
+                        ParamValue::UInt(v.as_u64().unwrap())
+                    }
+                    serde_json::Value::Number(v) => ParamValue::Float(v.as_f64().unwrap()),
+                    _ => bail!(
+                        "Value given for '{}' in test '{}' contains a non-scalar list item: '{:?}'",
+                        name,
+                        owner_name,
+                        item
+                    ),
+                };
+                result.push(item);
+            }
+            Ok(ParamValue::List(result))
+        }
         ParamType::Int => parse_i64(value).map(ParamValue::Int).ok_or_else(|| {
             crate::Error::new(&format!(
                 "Value given for '{}' in test '{}' is not an integer: '{:?}'",
@@ -923,5 +1025,92 @@ mod tests {
             Some(&ParamValue::String("pass/fail".to_string()))
         );
         assert_eq!(test.values.get("bitNumbers"), Some(&ParamValue::Int(0)));
+    }
+
+    #[test]
+    fn imports_class_and_list_values_and_constraints() {
+        let template: TestTemplate = serde_json::from_str(
+            r#"{
+                "parameters": {
+                    "decodingType": {
+                        "kind": "class",
+                        "value": "SMU14",
+                        "accepted_values": ["SMU14", "SMU16"]
+                    },
+                    "pins": {"kind": "list_strings", "value": "[]"},
+                    "categories": {
+                        "kind": "list_classes",
+                        "value": ["DEFECT_SCREEN"]
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        let mut test = Test::new("example", 1, SupportedTester::V93KSMT8);
+        test.import_test_template(&template).unwrap();
+        assert_eq!(test.params.get("decodingType"), Some(&ParamType::Class));
+        assert_eq!(
+            test.values.get("decodingType"),
+            Some(&ParamValue::Class("SMU14".to_string()))
+        );
+        assert_eq!(test.values.get("pins"), Some(&ParamValue::List(Vec::new())));
+        assert_eq!(
+            test.values.get("categories"),
+            Some(&ParamValue::List(vec![ParamValue::Class(
+                "DEFECT_SCREEN".to_string()
+            )]))
+        );
+        test.set(
+            "decodingType",
+            Some(ParamValue::String("SMU16".to_string())),
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            test.values.get("decodingType"),
+            Some(&ParamValue::Class("SMU16".to_string()))
+        );
+    }
+
+    #[test]
+    fn coerces_numeric_values_to_declared_types() {
+        assert_eq!(
+            coerce_param_value(&ParamType::Float, ParamValue::Int(2)).unwrap(),
+            ParamValue::Float(2.0)
+        );
+        assert_eq!(
+            coerce_param_value(&ParamType::Current, ParamValue::UInt(3)).unwrap(),
+            ParamValue::Current(3.0)
+        );
+        assert_eq!(
+            coerce_param_value(&ParamType::Voltage, ParamValue::Float(1.5)).unwrap(),
+            ParamValue::Voltage(1.5)
+        );
+        assert_eq!(
+            coerce_param_value(
+                &ParamType::ListStrings,
+                ParamValue::List(vec![ParamValue::Int(3), ParamValue::Bool(true)])
+            )
+            .unwrap(),
+            ParamValue::List(vec![
+                ParamValue::String("3".to_string()),
+                ParamValue::String("true".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn rejects_nested_parameter_lists_during_coercion() {
+        let nested = ParamValue::List(vec![ParamValue::List(vec![ParamValue::String(
+            "nested".to_string(),
+        )])]);
+        assert!(coerce_param_value(&ParamType::ListStrings, nested.clone())
+            .unwrap_err()
+            .to_string()
+            .contains("Nested parameter lists"));
+        assert!(coerce_param_value(&ParamType::ListClasses, nested)
+            .unwrap_err()
+            .to_string()
+            .contains("Nested parameter lists"));
     }
 }

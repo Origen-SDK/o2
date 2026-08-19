@@ -21,7 +21,7 @@ use condition::Condition;
 use resources::Resources;
 
 use origen_metal::ast::{Meta, Node};
-use pyo3::types::PyAny;
+use pyo3::types::{PyAny, PyDict, PyList, PyTuple};
 use origen_metal::{Result, Error, FLOW};
 use origen_metal::prog_gen::{PGM, ParamType, ParamValue, UniquenessOption};
 use pyo3::prelude::*;
@@ -398,6 +398,29 @@ pub fn to_param_value(value: &PyAny) -> Result<Option<ParamValue>> {
         Some(ParamValue::Float(v))
     } else if let Ok(v) = value.extract::<String>() {
         Some(ParamValue::String(v))
+    } else if value.downcast::<PyList>().is_ok() || value.downcast::<PyTuple>().is_ok() {
+        let mut values: Vec<ParamValue> = vec![];
+        for item in value.iter()? {
+            let item = item?;
+            if item.is_none() {
+                bail!("Illegal list value: None elements are not supported")
+            }
+            if item.downcast::<PyList>().is_ok() || item.downcast::<PyTuple>().is_ok() {
+                bail!("Illegal list value: nested lists and tuples are not supported")
+            }
+            if item.downcast::<PyDict>().is_ok() {
+                bail!("Illegal list value: mapping elements are not supported")
+            }
+            let item = to_param_value(item)?.ok_or_else(|| {
+                Error::new("Illegal list value: None elements are not supported")
+            })?;
+            match item {
+                ParamValue::Bool(_) | ParamValue::UInt(_) | ParamValue::Int(_)
+                | ParamValue::Float(_) | ParamValue::String(_) => values.push(item),
+                _ => bail!("Illegal list value: only scalar elements are supported"),
+            }
+        }
+        Some(ParamValue::List(values))
     } else if let Ok(None) = value.extract::<Option<String>>() {
         None
     } else {
@@ -474,6 +497,26 @@ pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<Para
                 bail!("Illegal value, expected a String, got: '{}'", value)
             }
         }
+        ParamType::Class => {
+            if let Ok(v) = value.extract::<String>() {
+                Ok(ParamValue::Class(v))
+            } else {
+                bail!("Illegal value, expected a Class, got: '{}'", value)
+            }
+        }
+        ParamType::ListStrings | ParamType::ListClasses => match to_param_value(value)? {
+            Some(ParamValue::List(values)) => Ok(ParamValue::List(values.into_iter().map(|item| {
+                match (ptype, item) {
+                    (ParamType::ListClasses, ParamValue::String(v)) => ParamValue::Class(v),
+                    (ParamType::ListStrings, ParamValue::Bool(v)) => ParamValue::String(v.to_string()),
+                    (ParamType::ListStrings, ParamValue::Int(v)) => ParamValue::String(v.to_string()),
+                    (ParamType::ListStrings, ParamValue::UInt(v)) => ParamValue::String(v.to_string()),
+                    (ParamType::ListStrings, ParamValue::Float(v)) => ParamValue::String(v.to_string()),
+                    (_, item) => item,
+                }
+            }).collect())),
+            _ => bail!("Illegal value, expected a List, got: '{}'", value),
+        },
         ParamType::Any => Ok(ParamValue::Any(format!("{}", value.str()?))),
     }
 }
