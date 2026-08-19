@@ -1501,6 +1501,10 @@ fn uflex_spec_expression(value: &str) -> String {
     }
 }
 
+fn normalize_line_endings(value: &str) -> String {
+    value.replace("\r\n", "\n")
+}
+
 fn build_instance_names(model: &Model) -> HashMap<usize, String> {
     let mut variants: indexmap::IndexMap<String, Vec<String>> = indexmap::IndexMap::new();
     let mut test_keys = HashMap::new();
@@ -1773,7 +1777,8 @@ mod tests {
                 let generated = std::fs::read_to_string(generated_path)?;
                 let approved = std::fs::read_to_string(approved_dir.join(name))?;
                 assert_eq!(
-                    generated, approved,
+                    normalize_line_endings(&generated),
+                    normalize_line_endings(&approved),
                     "UltraFLEX golden mismatch for {:?}",
                     name
                 );
@@ -1865,6 +1870,7 @@ mod tests {
         assert_eq!(uflex_expression("", true), "disable");
         assert_eq!(uflex_expression("", false), "");
         assert_eq!(uflex_spec_expression(""), "0");
+        assert_eq!(normalize_line_endings("a\r\nb\r\n"), "a\nb\n");
         let mut model = Model::new(SupportedTester::ULTRAFLEX);
         model.create_flow("control")?;
         let mut generator = FlowGenerator::new(model);
