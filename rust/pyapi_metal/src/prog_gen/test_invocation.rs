@@ -1,4 +1,4 @@
-use super::to_param_value;
+use super::{to_limit_param_value, to_param_value};
 use super::Test;
 use crate::prog_gen::flow_options;
 use super::src_caller_meta;
@@ -34,7 +34,7 @@ impl TestInvocation {
     }
 
     pub fn set_lo_limit(&self, value: &PyAny) -> PyResult<()> {
-        let value = match to_param_value(value)? {
+        let value = match to_limit_param_value(value)? {
             None => None,
             Some(x) => Some(Limit {
                 kind: origen_metal::prog_gen::LimitType::GTE,
@@ -53,7 +53,7 @@ impl TestInvocation {
     }
 
     pub fn set_hi_limit(&self, value: &PyAny) -> PyResult<()> {
-        let value = match to_param_value(value)? {
+        let value = match to_limit_param_value(value)? {
             None => None,
             Some(x) => Some(Limit {
                 kind: origen_metal::prog_gen::LimitType::LTE,

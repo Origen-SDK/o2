@@ -428,6 +428,14 @@ pub fn to_param_value(value: &PyAny) -> Result<Option<ParamValue>> {
     })
 }
 
+pub(crate) fn to_limit_param_value(value: &PyAny) -> Result<Option<ParamValue>> {
+    if value.downcast::<PyList>().is_ok() || value.downcast::<PyTuple>().is_ok() {
+        Ok(Some(ParamValue::Any(format!("{}", value.str()?))))
+    } else {
+        to_param_value(value)
+    }
+}
+
 #[allow(dead_code)] // Could be used in future
 pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<ParamValue> {
     match ptype {

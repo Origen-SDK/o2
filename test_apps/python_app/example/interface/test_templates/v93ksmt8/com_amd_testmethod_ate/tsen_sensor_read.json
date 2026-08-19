@@ -2,7 +2,7 @@
     "class_name": "com.amd.testmethod.ate.TsenSensorRead",
     "parameters": {
         "activateSpec.afterRunActivateSpec": {
-            "kind": "class",
+            "kind": "string",
             "value": null
         },
         "binning.binnable": {
@@ -14,23 +14,23 @@
             "value": "false"
         },
         "registerSetupPinList": {
-            "kind": "class",
+            "kind": "string",
             "value": null
         },
         "testDescription.baseClass": {
-            "kind": "class",
+            "kind": "string",
             "value": null
         },
         "testDescription.componentHash": {
-            "kind": "class",
+            "kind": "string",
             "value": null
         },
         "testDescription.paramRefGroup": {
-            "kind": "class",
+            "kind": "string",
             "value": null
         },
         "testDescription.subClass": {
-            "kind": "class",
+            "kind": "string",
             "value": null
         }
     },
@@ -38,15 +38,15 @@
         "softsetPatternInfo": {
             "parameters": {
                 "patternName": {
-                    "kind": "class",
+                    "kind": "string",
                     "value": null
                 },
                 "pinNames": {
-                    "kind": "class",
+                    "kind": "string",
                     "value": null
                 },
                 "profileName": {
-                    "kind": "class",
+                    "kind": "string",
                     "value": null
                 }
             }
@@ -54,15 +54,15 @@
         "tsen": {
             "parameters": {
                 "sensorAverageVariable": {
-                    "kind": "class",
+                    "kind": "string",
                     "value": null
                 },
                 "Y1Variable": {
-                    "kind": "class",
+                    "kind": "string",
                     "value": null
                 },
                 "tdiodeTemperatureVariable": {
-                    "kind": "class",
+                    "kind": "string",
                     "value": null
                 },
                 "zDataDeltaLimit": {
@@ -74,7 +74,7 @@
                 "registers": {
                     "parameters": {
                         "name": {
-                            "kind": "class",
+                            "kind": "string",
                             "value": null
                         },
                         "zHighLimit": {
