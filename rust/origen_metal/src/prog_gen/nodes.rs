@@ -1,9 +1,9 @@
-use crate::prog_gen::{
-    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, ParamValue, PatternGroupType,
-    ResourcesType, UniquenessOption,
-};
-use crate::prog_gen::supported_testers::SupportedTester;
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
+use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::{
+    BinType, FlowCondition, FlowID, GroupType, IGXLResource, Limit, LimitSelector, ParamValue,
+    PatternGroupType, ResourcesType, UniquenessOption,
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum PGM {
@@ -42,6 +42,9 @@ pub enum PGM {
     /// Set the limit of the given test or invocation, (test_id, inv_id, hi/lo, value). Note that either test_id
     /// or inv_id must be present, but not both.
     SetLimit(Option<usize>, Option<usize>, LimitSelector, Option<Limit>),
+    /// Defines an additional named limit row for an existing test instance.
+    /// Parent test ID, name, optional test number, low limit, high limit.
+    DefSubTest(usize, String, Option<usize>, Option<Limit>, Option<Limit>),
     /// Execute a test (or invocation) from the flow
     Test(usize, FlowID),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
@@ -101,6 +104,10 @@ pub enum PGM {
     Uniqueness(UniquenessOption),
 
     IGXLSetWaitFlags(usize, Vec<String>),
+    /// A row in an IG-XL resource worksheet: (sheet kind, row name, named column values).
+    IGXLResource(IGXLResource),
+    /// Select the output name for one IG-XL worksheet family.
+    IGXLResourcesFilename(crate::prog_gen::IGXLResourceKind, String),
 
     FlowData(FlowData),
 

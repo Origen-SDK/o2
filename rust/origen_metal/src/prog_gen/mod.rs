@@ -19,6 +19,7 @@ pub use model::BinType;
 pub use model::FlowCondition;
 pub use model::FlowID;
 pub use model::GroupType;
+pub use model::{IGXLResource, IGXLResourceKind};
 pub use model::Limit;
 pub use model::LimitSelector;
 pub use model::LimitType;
@@ -120,6 +121,7 @@ pub fn render_program(tester: SupportedTester, output_dir: &Path) -> crate::Resu
     match tester {
         SupportedTester::V93KSMT7 => advantest::smt7::render(output_dir),
         SupportedTester::V93KSMT8 => advantest::smt8::render(output_dir),
+        SupportedTester::ULTRAFLEX => teradyne::ultraflex::render(output_dir),
         _ => Ok((vec![], Model::new(tester))),
     }
 }

@@ -3,10 +3,11 @@ use super::{
     BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType,
     ResourcesType, UniquenessOption,
 };
-use crate::prog_gen::PGM;
-use crate::prog_gen::supported_testers::SupportedTester;
-use crate::{Result, FLOW};
 use crate::ast::Meta;
+use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::PGM;
+use crate::{Result, FLOW};
+use indexmap::IndexMap;
 
 /// Start a sub-flow, the returned reference should be retained and passed to end_block
 pub fn start_sub_flow(name: &str, flow_id: Option<FlowID>, meta: Option<Meta>) -> Result<usize> {
@@ -79,6 +80,17 @@ pub fn set_test_limit(
     Ok(())
 }
 
+pub fn define_sub_test(
+    test_id: usize,
+    name: String,
+    number: Option<usize>,
+    lo_limit: Option<Limit>,
+    hi_limit: Option<Limit>,
+    meta: Option<Meta>,
+) -> Result<()> {
+    FLOW.push(node!(PGM::DefSubTest, test_id, name, number, lo_limit, hi_limit; meta))
+}
+
 pub fn assign_test_to_invocation(
     invocation_id: usize,
     test_id: usize,
@@ -119,7 +131,14 @@ pub fn execute_test(id: usize, flow_id: FlowID, meta: Option<Meta>) -> Result<()
 /// Execute the given test (or invocation) from the current flow, where the test is a string that
 /// will be rendered verbatim to the flow - no linkage to an actual test object will be checked or
 /// inserted by Origen
-pub fn execute_test_str(name: String, flow_id: FlowID, bin: Option<usize>, softbin: Option<usize>, number: Option<usize>, meta: Option<Meta>) -> Result<()> {
+pub fn execute_test_str(
+    name: String,
+    flow_id: FlowID,
+    bin: Option<usize>,
+    softbin: Option<usize>,
+    number: Option<usize>,
+    meta: Option<Meta>,
+) -> Result<()> {
     let n = node!(PGM::TestStr, name, flow_id, bin, softbin, number; meta);
     FLOW.push(n)
 }
@@ -161,6 +180,25 @@ pub fn push_pattern_to_group(
 pub fn render(text: String, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::Render, text; meta);
     FLOW.push(n)
+}
+
+/// Define a row in an IG-XL resource worksheet.
+pub fn define_igxl_resource(
+    kind: String,
+    name: String,
+    values: IndexMap<String, Vec<String>>,
+    meta: Option<Meta>,
+) -> Result<()> {
+    let resource = super::IGXLResource::new(kind, name, values)?;
+    FLOW.push(node!(PGM::IGXLResource, resource; meta))
+}
+
+pub fn set_igxl_resources_filename(
+    kind: super::IGXLResourceKind,
+    name: String,
+    meta: Option<Meta>,
+) -> Result<()> {
+    FLOW.push(node!(PGM::IGXLResourcesFilename, kind, name; meta))
 }
 
 pub fn log(text: String, meta: Option<Meta>) -> Result<()> {

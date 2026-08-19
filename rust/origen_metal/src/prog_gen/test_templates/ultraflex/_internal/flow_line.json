@@ -1,10 +1,20 @@
 {
     "parameter_list": {
+        "label": "Any", "enable": "Any", "job": "Any", "part": "Any", "env": "Any",
+        "opcode": "Any", "parameter": "Any", "tname": "Any",
+        "lolim": "Any", "hilim": "Any", "scale": "Any", "units": "Any", "format": "Any",
+        "bin_pass": "Any", "bin_fail": "Any", "sort_pass": "Any", "sort_fail": "Any",
+        "result": "Any", "flag_pass": "Any", "flag_fail": "Any", "state": "Any",
+        "group_specifier": "Any", "group_sense": "Any", "group_condition": "Any", "group_name": "Any",
+        "device_sense": "Any", "device_condition": "Any", "device_name": "Any",
+        "debug_assume": "Any", "debug_sites": "Any", "comment": "Any"
     },
-
     "aliases": {
+        "name": "tname", "if_enable": "enable", "if_enabled": "enable", "enabled": "enable",
+        "lo_limit": "lolim", "lo": "lolim", "hi_limit": "hilim", "hi": "hilim",
+        "bin": "bin_fail", "softbin": "sort_fail", "soft_bin": "sort_fail", "sbin": "sort_fail"
     },
-
     "values": {
+        "opcode": "Test", "result": "Fail"
     }
 }

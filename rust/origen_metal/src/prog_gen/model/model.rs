@@ -1,7 +1,7 @@
 use super::template_loader::load_test_from_lib;
 use super::{
-    Flow, ParamValue, Pattern, PatternReferenceType, PatternType, ResourcesType, SubTest, Test,
-    TestCollectionItem, Variable, VariableOperation, VariableType,
+    Flow, Limit, ParamValue, Pattern, PatternReferenceType, PatternType, ResourcesType, SubTest,
+    Test, TestCollectionItem, Variable, VariableOperation, VariableType,
 };
 use crate::prog_gen::model::test::TEST_NUMBER_ALIASES;
 use crate::prog_gen::supported_testers::SupportedTester;
@@ -21,6 +21,8 @@ pub struct Model {
     /// Test invocation objects, stored by their internal ID.
     /// These map to test flow lines for IG-XL and test suites for V93K.
     pub test_invocations: IndexMap<usize, Test>,
+    /// IG-XL test-instance group name to member test IDs.
+    pub test_instance_groups: IndexMap<String, Vec<usize>>,
     /// Collection item objects referenced by test methods and nested collection items.
     pub test_collection_items: IndexMap<usize, TestCollectionItem>,
     /// Tests can store a single limit, but if a test has multiple limits then they are represented as sub-tests
@@ -59,6 +61,7 @@ impl Model {
             current_variable_resource: None,
             tests: IndexMap::new(),
             test_invocations: IndexMap::new(),
+            test_instance_groups: IndexMap::new(),
             test_collection_items: IndexMap::new(),
             sub_tests: vec![],
             templates: IndexMap::new(),
@@ -321,6 +324,25 @@ impl Model {
         }
     }
 
+    pub fn add_test_to_instance_group(&mut self, group: &str, test_id: usize) {
+        self.test_instance_groups
+            .entry(group.to_string())
+            .or_insert_with(Vec::new)
+            .push(test_id);
+    }
+
+    pub fn test_instance_group_name(&self, test_id: usize) -> Option<&str> {
+        self.test_instance_groups
+            .iter()
+            .find_map(|(name, members)| {
+                if members.contains(&test_id) {
+                    Some(name.as_str())
+                } else {
+                    None
+                }
+            })
+    }
+
     /// Create a new test invocation within the model from the given tester reference.
     /// An error will be returned if a test invocation alraedy exists with the given ID.
     pub fn add_test_invocation(
@@ -388,6 +410,27 @@ impl Model {
         Ok(())
     }
 
+    pub fn add_sub_test(
+        &mut self,
+        test_id: usize,
+        name: String,
+        number: Option<usize>,
+        lo_limit: Option<Limit>,
+        hi_limit: Option<Limit>,
+    ) -> Result<()> {
+        let test = self.tests.get_mut(&test_id).ok_or_else(|| {
+            crate::Error::new(&format!(
+                "No test with ID '{}' exists for sub-test '{}'",
+                test_id, name
+            ))
+        })?;
+        let id = self.sub_tests.len();
+        self.sub_tests
+            .push(SubTest::new(test_id, name, number, lo_limit, hi_limit));
+        test.sub_tests.push(id);
+        Ok(())
+    }
+
     /// Set the value of the given test attribute.
     /// If the given ID refers to a test invocation then both the invocation and the test will be
     /// checked for a matching attribute.
@@ -400,7 +443,7 @@ impl Model {
         id: usize,
         name: &str,
         value: Option<ParamValue>,
-        allow_missing: bool
+        allow_missing: bool,
     ) -> Result<()> {
         if self.test_invocations.contains_key(&id) {
             let inv = self.test_invocations.get_mut(&id).unwrap();
@@ -410,7 +453,6 @@ impl Model {
                     _ => None,
                 });
             } else if TEST_NUMBER_ALIASES.contains(&name.to_lowercase().as_str()) {
-            
                 // Special case for test number aliases
                 match value {
                     Some(ParamValue::Int(n)) => {
@@ -486,15 +528,15 @@ impl Model {
             let test = self.tests.get_mut(&parent_id).unwrap();
             let schema = test.collection_defs.get(collection_name).cloned();
             let item = match schema {
-                Some(schema) => TestCollectionItem::from_collection(
+                Some(schema) => {
+                    TestCollectionItem::from_collection(item_id, parent_id, instance_id, &schema)
+                }
+                None if allow_missing => TestCollectionItem::unavailable(
                     item_id,
                     parent_id,
+                    collection_name,
                     instance_id,
-                    &schema,
                 ),
-                None if allow_missing => {
-                    TestCollectionItem::unavailable(item_id, parent_id, collection_name, instance_id)
-                }
                 None => {
                     bail!(
                         "Test '{}' does not have a collection named '{}'",
@@ -516,15 +558,15 @@ impl Model {
                 None
             };
             let item = match schema {
-                Some(schema) => TestCollectionItem::from_collection(
+                Some(schema) => {
+                    TestCollectionItem::from_collection(item_id, parent_id, instance_id, &schema)
+                }
+                None if allow_missing || !parent.available => TestCollectionItem::unavailable(
                     item_id,
                     parent_id,
+                    collection_name,
                     instance_id,
-                    &schema,
                 ),
-                None if allow_missing || !parent.available => {
-                    TestCollectionItem::unavailable(item_id, parent_id, collection_name, instance_id)
-                }
                 None => {
                     bail!(
                         "Collection item '{}[{}]' does not have a collection named '{}'",
