@@ -1501,6 +1501,7 @@ fn uflex_spec_expression(value: &str) -> String {
     }
 }
 
+#[cfg(test)]
 fn normalize_line_endings(value: &str) -> String {
     value.replace("\r\n", "\n")
 }
