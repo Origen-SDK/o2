@@ -119,6 +119,10 @@ pub enum FlowCondition {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {
     String(String),
+    /// A tester-language class, enum, or reference expression.
+    Class(String),
+    /// A one-dimensional list of scalar parameter values.
+    List(Vec<ParamValue>),
     Int(i64),
     UInt(u64),
     Float(f64),
@@ -135,6 +139,10 @@ impl ParamValue {
     pub fn is_type(&self, kind: &ParamType) -> bool {
         match self {
             ParamValue::String(_) => kind == &ParamType::String,
+            ParamValue::Class(_) => kind == &ParamType::Class,
+            ParamValue::List(_) => {
+                kind == &ParamType::ListStrings || kind == &ParamType::ListClasses
+            }
             ParamValue::Int(_) => kind == &ParamType::Int,
             ParamValue::UInt(_) => kind == &ParamType::UInt,
             ParamValue::Float(_) => kind == &ParamType::Float,
@@ -161,6 +169,15 @@ impl fmt::Display for ParamValue {
         match self {
             // This can probably go, decided to handle the type specific formatting in the testers instead
             ParamValue::String(v) => write!(f, "{}", v),
+            ParamValue::Class(v) => write!(f, "{}", v),
+            ParamValue::List(v) => write!(
+                f,
+                "[{}]",
+                v.iter()
+                    .map(|item| item.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             ParamValue::Int(v) => write!(f, "{}", v),
             ParamValue::UInt(v) => write!(f, "{}", v),
             ParamValue::Float(v) => write!(f, "{}", v),
@@ -177,6 +194,9 @@ impl fmt::Display for ParamValue {
 #[derive(Debug, PartialEq, Clone, Serialize, Display)]
 pub enum ParamType {
     String,
+    Class,
+    ListStrings,
+    ListClasses,
     Int,
     UInt,
     Float,
@@ -195,7 +215,10 @@ impl FromStr for ParamType {
         // Accept any case and with or without underscores
         let normalized = s.trim().to_ascii_lowercase().replace('_', "");
         match normalized.as_str() {
-            "string" | "class" => Ok(ParamType::String),
+            "string" => Ok(ParamType::String),
+            "class" => Ok(ParamType::Class),
+            "liststrings" => Ok(ParamType::ListStrings),
+            "listclasses" => Ok(ParamType::ListClasses),
             "pinstring" | "specvalue" | "specvariable" | "contextpins" | "optionlist" => {
                 Ok(ParamType::String)
             }
@@ -210,7 +233,7 @@ impl FromStr for ParamType {
             "boolean" | "bool" => Ok(ParamType::Bool),
             "any" => Ok(ParamType::Any),
             _ => Err(format!(
-                "'{}' is not a valid parameter type, the available types are: String, PinString, SpecValue, SpecVariable, ContextPins, OptionList, Int, long, UInt, Number, Current, Voltage, Time, Frequency, Bool, Any",
+                "'{}' is not a valid parameter type, the available types are: String, Class, ListStrings, ListClasses, PinString, SpecValue, SpecVariable, ContextPins, OptionList, Int, long, UInt, Number, Current, Voltage, Time, Frequency, Bool, Any",
                 s.trim()
             )),
         }
@@ -243,6 +266,15 @@ mod tests {
             ParamType::String
         );
         assert_eq!(ParamType::from_str("long").unwrap(), ParamType::Int);
+        assert_eq!(ParamType::from_str("class").unwrap(), ParamType::Class);
+        assert_eq!(
+            ParamType::from_str("list_strings").unwrap(),
+            ParamType::ListStrings
+        );
+        assert_eq!(
+            ParamType::from_str("list_classes").unwrap(),
+            ParamType::ListClasses
+        );
     }
 }
 

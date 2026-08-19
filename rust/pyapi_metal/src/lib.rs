@@ -91,6 +91,7 @@ macro_rules! pypath {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use origen_metal::prog_gen::ParamValue;
     use origen_metal::TypedValue;
 
     #[test]
@@ -113,6 +114,25 @@ mod tests {
                 _helpers::typed_value::extract_as_typed_value(value.as_ref(py))?,
                 TypedValue::Bool(true)
             ));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn preserves_python_list_formatting_for_limits() -> PyResult<()> {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let list = pyo3::types::PyList::new(py, [1e-6, 2e-6, 3e-6]);
+            assert_eq!(
+                crate::prog_gen::to_limit_param_value(list)?,
+                Some(ParamValue::Any("[1e-06, 2e-06, 3e-06]".to_string()))
+            );
+
+            let tuple = pyo3::types::PyTuple::new(py, [4e-6, 5e-6]);
+            assert_eq!(
+                crate::prog_gen::to_limit_param_value(tuple)?,
+                Some(ParamValue::Any("(4e-06, 5e-06)".to_string()))
+            );
             Ok(())
         })
     }
