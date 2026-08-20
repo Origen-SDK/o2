@@ -45,4 +45,4 @@ extension-module = [
 ]
 
 [build-dependencies]
-built = "0.5.2"
+built = "0.7.7"

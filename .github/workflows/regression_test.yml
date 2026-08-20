@@ -15,7 +15,29 @@ on:
     paths-ignore: *regression-test-paths-ignore
   workflow_dispatch:
 jobs:
+  rust-lockfiles:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Validate Rust Lockfiles
+        run: |
+          for manifest in \
+            rust/origen/Cargo.toml \
+            rust/origen_metal/Cargo.toml \
+            rust/pyapi_metal/Cargo.toml \
+            rust/pyapi/Cargo.toml
+          do
+            cargo metadata --locked --format-version 1 --manifest-path "$manifest" > /dev/null
+          done
+
   build:
+    needs: rust-lockfiles
     strategy:
       fail-fast: false
       matrix:
@@ -100,14 +122,23 @@ jobs:
       # Install taken from keyring library:
       #  https://github.com/hwchen/keyring-rs/blob/v0.10.1/.github/workflows/ci.yaml#L80-L84
       - name: install libdbus
+        timeout-minutes: 10
         run: |
-          sudo apt update
-          sudo apt install libdbus-1-dev
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::http::Timeout=30 \
+            -o Acquire::https::Timeout=30 \
+            update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::http::Timeout=30 \
+            -o Acquire::https::Timeout=30 \
+            install -y --no-install-recommends libdbus-1-dev
         if: contains(matrix.os, 'ubuntu')
 
       - name: Build Origen CLI
         working-directory: rust/origen/cli
-        run: cargo build --bins
+        run: cargo build --locked --bins
           
       - name: Add Origen to PATH (Linux)
         if: contains(matrix.os, 'ubuntu')
@@ -270,19 +301,19 @@ jobs:
       - name: Run Rust Tests
         if: matrix.python-version == 3.8
         working-directory: rust/origen
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
 
       - name: Run Rust Tests - PyAPI
         if: matrix.python-version == 3.8
         working-directory: rust/pyapi
-        run: cargo test --no-default-features
+        run: cargo test --locked --no-default-features
         env:
           RUSTFLAGS: -D warnings
 
       - name: Run Rust Tests - Metal PyAPI
         if: matrix.python-version == 3.8
         working-directory: rust/pyapi_metal
-        run: cargo test --no-default-features
+        run: cargo test --locked --no-default-features
         env:
           RUSTFLAGS: -D warnings
 
@@ -299,7 +330,7 @@ jobs:
 
       - name: Run Rust Tests - Metal
         working-directory: rust/origen_metal
-        run: cargo test
+        run: cargo test --locked
 
       # Use a global pytest install for invocation tests
       - name: Install Pytest

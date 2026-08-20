@@ -39,7 +39,7 @@ extension-module = [
 ]
 
 [build-dependencies]
-built = "0.5.2"
+built = "0.7.7"
 
 [package.metadata.maturin]
 name = "origen_metal._origen_metal"

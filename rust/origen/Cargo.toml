@@ -64,7 +64,7 @@ wait-timeout = "0.2.0"
 tokio = {version = "1.29", features = ["full"] }
 
 [build-dependencies]
-built = "0.5.2"
+built = { version = "0.7.7", features = ["cargo-lock"] }
 walkdir = "2"
 
 # Additional items required to build a full self-contained origen CLI binary for Linux
