@@ -1,15 +1,16 @@
 use crate::prog_gen::IGXLResourceKind;
 use crate::Result;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-pub(super) type ResourceRow = (
-    String,
-    IGXLResourceKind,
-    String,
-    IndexMap<String, Vec<String>>,
-);
+#[derive(Clone)]
+pub(super) struct ResourceRow {
+    pub(super) sheet: String,
+    pub(super) kind: IGXLResourceKind,
+    pub(super) name: String,
+    pub(super) values: IndexMap<String, Vec<String>>,
+}
 
 pub(super) struct ResourceGenerator {
     rows: Vec<ResourceRow>,
@@ -22,13 +23,13 @@ impl ResourceGenerator {
 }
 
 #[derive(Default)]
-struct PartFileGuard {
+pub(super) struct PartFileGuard {
     tracked: Vec<PathBuf>,
     created: Vec<PathBuf>,
 }
 
 impl PartFileGuard {
-    fn track(&mut self, path: PathBuf) {
+    pub(super) fn track(&mut self, path: PathBuf) {
         self.tracked.push(path);
     }
 
@@ -36,7 +37,7 @@ impl PartFileGuard {
         self.created.push(path);
     }
 
-    fn keep(&mut self, path: &Path) {
+    pub(super) fn keep(&mut self, path: &Path) {
         self.tracked.retain(|tracked| tracked != path);
     }
 
@@ -62,15 +63,15 @@ impl ResourceGenerator {
         let all_resource_rows = self.rows;
         let mut files = vec![];
         let mut resource_sheets = vec![];
-        for (sheet, _, _, _) in &all_resource_rows {
-            if !resource_sheets.contains(sheet) {
-                resource_sheets.push(sheet.clone());
+        for row in &all_resource_rows {
+            if !resource_sheets.contains(&row.sheet) {
+                resource_sheets.push(row.sheet.clone());
             }
         }
         for (sheet_index, sheet) in resource_sheets.into_iter().enumerate() {
             let rows = all_resource_rows
                 .iter()
-                .filter(|(row_sheet, _, _, _)| row_sheet == &sheet)
+                .filter(|row| row.sheet == sheet)
                 .cloned()
                 .collect::<Vec<_>>();
             let mut parts = PartFileGuard::default();
@@ -144,7 +145,7 @@ impl ResourceGenerator {
     fn write_references(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::References)
+            .filter(|row| row.kind == IGXLResourceKind::References)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
@@ -153,8 +154,13 @@ impl ResourceGenerator {
         writeln!(file, "DTReferencesSheet,version=2.0:platform=Jaguar:toprow=-1:leftcol=-1:rightcol=-1\tReferences")?;
         writeln!(file)?;
         writeln!(file, "\tFile Path\tComment\t")?;
-        for (_, _, name, values) in rows {
-            writeln!(file, "\t{}\t{}", name, resource_value(values, "comment"))?;
+        for row in rows {
+            writeln!(
+                file,
+                "\t{}\t{}",
+                row.name,
+                resource_value(&row.values, "comment")
+            )?;
         }
         Ok(true)
     }
@@ -162,7 +168,7 @@ impl ResourceGenerator {
     fn write_jobs(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::Jobs)
+            .filter(|row| row.kind == IGXLResourceKind::Jobs)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
@@ -194,9 +200,13 @@ impl ResourceGenerator {
             "concurrent_seq",
             "comment",
         ];
-        for (_, _, name, values) in rows {
-            let mut fields = vec![name.clone()];
-            fields.extend(columns.iter().map(|column| resource_value(values, column)));
+        for row in rows {
+            let mut fields = vec![row.name.clone()];
+            fields.extend(
+                columns
+                    .iter()
+                    .map(|column| resource_value(&row.values, column)),
+            );
             writeln!(file, "\t{}", fields.join("\t"))?;
         }
         Ok(true)
@@ -205,7 +215,7 @@ impl ResourceGenerator {
     fn write_global_specs(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::GlobalSpecs)
+            .filter(|row| row.kind == IGXLResourceKind::GlobalSpecs)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
@@ -218,15 +228,15 @@ impl ResourceGenerator {
         writeln!(file, "\tVch_default\t\t6\tDetector clamp voltage high")?;
         writeln!(file, "\tVph_default\t\t5\t")?;
         let mut rows = rows;
-        rows.sort_by(|(_, _, left, _), (_, _, right, _)| left.cmp(right));
-        for (_, _, name, values) in rows {
+        rows.sort_by(|left, right| left.name.cmp(&right.name));
+        for row in rows {
             writeln!(
                 file,
                 "\t{}\t{}\t{}\t{}",
-                name,
-                resource_value(values, "job"),
-                uflex_expression(&resource_value(values, "value"), false),
-                resource_value(values, "comment")
+                row.name,
+                resource_value(&row.values, "job"),
+                uflex_expression(&resource_value(&row.values, "value"), false),
+                resource_value(&row.values, "comment")
             )?;
         }
         Ok(true)
@@ -240,17 +250,14 @@ impl ResourceGenerator {
     ) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, row_kind, _, _)| row_kind == &kind)
+            .filter(|row| row.kind == kind)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
         }
-        let mut specsets = vec![];
-        for (_, _, _, values) in &rows {
-            let name = resource_value(values, "specset");
-            if !specsets.contains(&name) {
-                specsets.push(name);
-            }
+        let mut specsets = IndexSet::new();
+        for row in &rows {
+            specsets.insert(resource_value(&row.values, "specset"));
         }
         let mut file = std::fs::File::create(path)?;
         writeln!(
@@ -270,25 +277,23 @@ impl ResourceGenerator {
             "Typ\tMin\tMax\t".repeat(specsets.len())
         )?;
 
-        let mut keys = vec![];
-        for (_, _, symbol, values) in &rows {
-            let key = (symbol.clone(), resource_value(values, "selector"));
-            if !keys.contains(&key) {
-                keys.push(key);
-            }
+        let mut keys = IndexSet::new();
+        for row in &rows {
+            keys.insert((row.name.clone(), resource_value(&row.values, "selector")));
         }
+        let mut keys = keys.into_iter().collect::<Vec<_>>();
         keys.sort();
         for (symbol, selector) in keys {
             let mut category: Option<(&str, &str)> = None;
             let mut fields = vec![symbol.clone(), String::new(), selector.clone()];
             for specset in &specsets {
-                let matching = rows.iter().find(|(_, _, row_symbol, values)| {
-                    row_symbol == &symbol
-                        && resource_value(values, "selector") == selector
-                        && resource_value(values, "specset") == *specset
+                let matching = rows.iter().find(|row| {
+                    row.name == symbol
+                        && resource_value(&row.values, "selector") == selector
+                        && resource_value(&row.values, "specset") == *specset
                 });
-                if let Some((_, _, _, values)) = matching {
-                    let current_category = spec_category(values);
+                if let Some(row) = matching {
+                    let current_category = spec_category(&row.values);
                     if let Some((previous_category, previous_specset)) = category {
                         if previous_category != current_category {
                             bail!(
@@ -305,9 +310,9 @@ impl ResourceGenerator {
                     } else {
                         category = Some((current_category, specset));
                     }
-                    fields.push(uflex_spec_expression(&resource_value(values, "typ")));
-                    fields.push(uflex_spec_expression(&resource_value(values, "min")));
-                    fields.push(uflex_spec_expression(&resource_value(values, "max")));
+                    fields.push(uflex_spec_expression(&resource_value(&row.values, "typ")));
+                    fields.push(uflex_spec_expression(&resource_value(&row.values, "min")));
+                    fields.push(uflex_spec_expression(&resource_value(&row.values, "max")));
                 } else {
                     fields.extend(["0".to_string(), "0".to_string(), "0".to_string()]);
                 }
@@ -321,10 +326,10 @@ impl ResourceGenerator {
             );
             let comment = rows
                 .iter()
-                .find(|(_, _, row_symbol, values)| {
-                    row_symbol == &symbol && resource_value(values, "selector") == selector
+                .find(|row| {
+                    row.name == symbol && resource_value(&row.values, "selector") == selector
                 })
-                .map(|(_, _, _, values)| resource_value(values, "comment"))
+                .map(|row| resource_value(&row.values, "comment"))
                 .unwrap_or_default();
             fields.push(comment);
             writeln!(file, "\t{}", fields.join("\t"))?;
@@ -335,7 +340,7 @@ impl ResourceGenerator {
     fn write_pinmap(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::Pinmap)
+            .filter(|row| row.kind == IGXLResourceKind::Pinmap)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
@@ -349,12 +354,12 @@ impl ResourceGenerator {
         writeln!(file, "\tGroup Name\tPin Name\tType\tComment")?;
         for wanted_kind in ["power", "utility", "pin", "group"] {
             let mut previous_group = String::new();
-            for (_, _, name, values) in rows
+            for row in rows
                 .iter()
-                .filter(|(_, _, _, values)| resource_value(values, "kind") == wanted_kind)
+                .filter(|row| resource_value(&row.values, "kind") == wanted_kind)
             {
-                let group = resource_value(values, "group");
-                let mut pin_type = resource_value(values, "type");
+                let group = resource_value(&row.values, "group");
+                let mut pin_type = resource_value(&row.values, "type");
                 if wanted_kind == "group" && group == previous_group {
                     pin_type.clear();
                 }
@@ -362,9 +367,9 @@ impl ResourceGenerator {
                     file,
                     "\t{}\t{}\t{}\t{}",
                     group,
-                    name,
+                    row.name,
                     pin_type,
-                    resource_value(values, "comment")
+                    resource_value(&row.values, "comment")
                 )?;
                 previous_group = group;
             }
@@ -375,7 +380,7 @@ impl ResourceGenerator {
     fn write_levels(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::Levels)
+            .filter(|row| row.kind == IGXLResourceKind::Levels)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
@@ -387,14 +392,14 @@ impl ResourceGenerator {
         )?;
         writeln!(file)?;
         writeln!(file, "\tPin/Group\tSeq.\tParameter\tValue\tComment")?;
-        for (_, _, pin, values) in rows {
+        for row in rows {
             writeln!(
                 file,
                 "\t{}\t\t{}\t{}\t{}",
-                pin,
-                resource_value(values, "parameter"),
-                uflex_expression(&resource_value(values, "value"), false),
-                resource_value(values, "comment")
+                row.name,
+                resource_value(&row.values, "parameter"),
+                uflex_expression(&resource_value(&row.values, "value"), false),
+                resource_value(&row.values, "comment")
             )?;
         }
         Ok(true)
@@ -403,13 +408,13 @@ impl ResourceGenerator {
     fn write_edgesets(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::Edgesets)
+            .filter(|row| row.kind == IGXLResourceKind::Edgesets)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
         }
         let mut file = std::fs::File::create(path)?;
-        let timing_mode = resource_value(&rows[0].3, "timing_mode");
+        let timing_mode = resource_value(&rows[0].values, "timing_mode");
         writeln!(file, "DTEdgesetSheet,version=2.3:platform=Jaguar:toprow=-1:leftcol=-1:rightcol=-1\tEdge Sets")?;
         writeln!(file)?;
         writeln!(file, "\tTiming Mode:\t{}", timing_mode)?;
@@ -432,10 +437,10 @@ impl ResourceGenerator {
             "compare_open",
             "compare_close",
         ];
-        for (_, _, pin, values) in rows {
-            let mut fields = vec![pin.clone()];
+        for row in rows {
+            let mut fields = vec![row.name.clone()];
             for name in columns {
-                let value = resource_value(values, name);
+                let value = resource_value(&row.values, name);
                 fields.push(
                     if matches!(
                         name,
@@ -453,8 +458,8 @@ impl ResourceGenerator {
                 );
             }
             fields.push(String::new());
-            fields.push(resource_value(values, "resolution"));
-            fields.push(resource_value(values, "comment"));
+            fields.push(resource_value(&row.values, "resolution"));
+            fields.push(resource_value(&row.values, "comment"));
             writeln!(file, "\t{}", fields.join("\t"))?;
         }
         Ok(true)
@@ -463,13 +468,13 @@ impl ResourceGenerator {
     fn write_timesets(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::Timesets)
+            .filter(|row| row.kind == IGXLResourceKind::Timesets)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
         }
         let mut file = std::fs::File::create(path)?;
-        let timing_mode = resource_value(&rows[0].3, "timing_mode");
+        let timing_mode = resource_value(&rows[0].values, "timing_mode");
         writeln!(file, "DTTimesetSheet,version=2.1:platform=Jaguar:toprow=-1:leftcol=-1:rightcol=-1\tTime Sets")?;
         writeln!(file)?;
         writeln!(
@@ -484,17 +489,17 @@ impl ResourceGenerator {
             file,
             "\tTime Set\tPeriod\tName\tClock Period\tSetup\tEdge Set\tComment"
         )?;
-        for (_, _, name, values) in rows {
+        for row in rows {
             writeln!(
                 file,
                 "\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-                name,
-                uflex_expression(&resource_value(values, "period"), false),
-                resource_value(values, "pin"),
-                uflex_expression(&resource_value(values, "clock_period"), false),
-                resource_value(values, "setup"),
-                resource_value(values, "edgeset"),
-                resource_value(values, "comment")
+                row.name,
+                uflex_expression(&resource_value(&row.values, "period"), false),
+                resource_value(&row.values, "pin"),
+                uflex_expression(&resource_value(&row.values, "clock_period"), false),
+                resource_value(&row.values, "setup"),
+                resource_value(&row.values, "edgeset"),
+                resource_value(&row.values, "comment")
             )?;
         }
         Ok(true)
@@ -503,13 +508,13 @@ impl ResourceGenerator {
     fn write_timesets_basic(resource_rows: &[ResourceRow], path: &Path) -> Result<bool> {
         let rows = resource_rows
             .iter()
-            .filter(|(_, kind, _, _)| kind == &IGXLResourceKind::TimesetsBasic)
+            .filter(|row| row.kind == IGXLResourceKind::TimesetsBasic)
             .collect::<Vec<_>>();
         if rows.is_empty() {
             return Ok(false);
         }
         let mut file = std::fs::File::create(path)?;
-        let timing_mode = resource_value(&rows[0].3, "timing_mode");
+        let timing_mode = resource_value(&rows[0].values, "timing_mode");
         writeln!(file, "DTTimesetBasicSheet,version=2.3:platform=Jaguar:toprow=-1:leftcol=-1:rightcol=-1\tTime Sets (Basic)")?;
         writeln!(file)?;
         writeln!(
@@ -539,10 +544,10 @@ impl ResourceGenerator {
             "compare_open",
             "compare_close",
         ];
-        for (_, _, name, values) in rows {
-            let mut fields = vec![name.clone()];
+        for row in rows {
+            let mut fields = vec![row.name.clone()];
             for column in columns {
-                let value = resource_value(values, column);
+                let value = resource_value(&row.values, column);
                 fields.push(match column {
                     "period" | "clock_period" => uflex_expression(&value, false),
                     "drive_on" | "drive_data" | "drive_return" | "drive_off" | "compare_open"
@@ -551,8 +556,8 @@ impl ResourceGenerator {
                 });
             }
             fields.push(String::new());
-            fields.push(resource_value(values, "resolution"));
-            fields.push(resource_value(values, "comment"));
+            fields.push(resource_value(&row.values, "resolution"));
+            fields.push(resource_value(&row.values, "comment"));
             writeln!(file, "\t{}", fields.join("\t"))?;
         }
         Ok(true)

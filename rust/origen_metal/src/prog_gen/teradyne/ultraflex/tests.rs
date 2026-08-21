@@ -165,6 +165,7 @@ fn renders_flow_conditions_and_core_worksheets() -> Result<()> {
     files.append(&mut ResourceGenerator::new(rows).render(dir.path())?);
     files.push(write_referenced_list(dir.path(), patterns)?.unwrap());
     assert_eq!(files.len(), 7);
+    assert!(!dir.path().join(".origen_uflex_referenced.part").exists());
     let flow = std::fs::read_to_string(dir.path().join("prb1_flow.txt"))?;
     let columns = find_flow_row(&flow, "Test-defer-limits", "func_group_v1");
     assert_eq!(columns.len(), 32);
@@ -252,18 +253,18 @@ fn renders_flow_conditions_and_core_worksheets() -> Result<()> {
 #[test]
 fn aggregates_shared_resources_from_multiple_flows() -> Result<()> {
     let rows = vec![
-        (
-            "shared".to_string(),
-            IGXLResourceKind::References,
-            "flow1.xla".to_string(),
-            IndexMap::from([("comment".to_string(), vec!["flow 1".to_string()])]),
-        ),
-        (
-            "shared".to_string(),
-            IGXLResourceKind::References,
-            "flow2.xla".to_string(),
-            IndexMap::from([("comment".to_string(), vec!["flow 2".to_string()])]),
-        ),
+        ResourceRow {
+            sheet: "shared".to_string(),
+            kind: IGXLResourceKind::References,
+            name: "flow1.xla".to_string(),
+            values: IndexMap::from([("comment".to_string(), vec!["flow 1".to_string()])]),
+        },
+        ResourceRow {
+            sheet: "shared".to_string(),
+            kind: IGXLResourceKind::References,
+            name: "flow2.xla".to_string(),
+            values: IndexMap::from([("comment".to_string(), vec!["flow 2".to_string()])]),
+        },
     ];
     let dir = tempdir()?;
     let files = ResourceGenerator::new(rows).render(dir.path())?;
@@ -397,7 +398,7 @@ fn supports_independent_resource_sheet_names() -> Result<()> {
     );
     let mut generator = FlowGenerator::new(model);
     node.process(&mut generator)?;
-    assert_eq!(generator.resources_rows[0].0, "Refs");
+    assert_eq!(generator.resources_rows[0].sheet, "Refs");
     let dir = tempdir()?;
     let files = ResourceGenerator::new(generator.resources_rows).render(dir.path())?;
     assert_eq!(files, vec![dir.path().join("Refs.txt")]);
@@ -431,36 +432,36 @@ fn rejects_ambiguous_specs_and_limit_units() -> Result<()> {
 
     let mut generator = FlowGenerator::new(Model::new(SupportedTester::ULTRAFLEX));
     generator.resources_rows = vec![
-        (
-            "SpecsAC".to_string(),
-            IGXLResourceKind::References,
-            "library.xla".to_string(),
-            IndexMap::from([("comment".to_string(), vec!["library".to_string()])]),
-        ),
-        (
-            "SpecsAC".to_string(),
-            IGXLResourceKind::ACSpecs,
-            "cycle".to_string(),
-            IndexMap::from([
+        ResourceRow {
+            sheet: "SpecsAC".to_string(),
+            kind: IGXLResourceKind::References,
+            name: "library.xla".to_string(),
+            values: IndexMap::from([("comment".to_string(), vec!["library".to_string()])]),
+        },
+        ResourceRow {
+            sheet: "SpecsAC".to_string(),
+            kind: IGXLResourceKind::ACSpecs,
+            name: "cycle".to_string(),
+            values: IndexMap::from([
                 ("specset".to_string(), vec!["functional".to_string()]),
                 ("selector".to_string(), vec!["nom".to_string()]),
                 ("typ".to_string(), vec!["10*ns".to_string()]),
                 ("min".to_string(), vec![String::new()]),
                 ("max".to_string(), vec![String::new()]),
             ]),
-        ),
-        (
-            "SpecsAC".to_string(),
-            IGXLResourceKind::ACSpecs,
-            "cycle".to_string(),
-            IndexMap::from([
+        },
+        ResourceRow {
+            sheet: "SpecsAC".to_string(),
+            kind: IGXLResourceKind::ACSpecs,
+            name: "cycle".to_string(),
+            values: IndexMap::from([
                 ("specset".to_string(), vec!["scan".to_string()]),
                 ("selector".to_string(), vec!["nom".to_string()]),
                 ("typ".to_string(), vec!["10*ns".to_string()]),
                 ("min".to_string(), vec!["9*ns".to_string()]),
                 ("max".to_string(), vec!["11*ns".to_string()]),
             ]),
-        ),
+        },
     ];
     let dir = tempdir()?;
     let error = ResourceGenerator::write_specs(

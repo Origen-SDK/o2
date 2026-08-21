@@ -140,7 +140,10 @@ impl FlowGenerator {
                     fields[offset + 1] = param(test.get(name)?);
                 }
                 for arg in 0..=129 {
-                    fields[13 + arg] = param(test.get(&format!("arg{}", arg))?);
+                    let key = format!("arg{}", arg);
+                    if test.has_param(&key) {
+                        fields[13 + arg] = param(test.get(&key)?);
+                    }
                 }
                 if let Some(flags) = self.wait_flags.get(&id) {
                     for flag in flags {

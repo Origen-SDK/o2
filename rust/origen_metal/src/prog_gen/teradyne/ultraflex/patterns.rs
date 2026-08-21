@@ -1,3 +1,4 @@
+use super::resources::PartFileGuard;
 use super::{write_sheet, FlowGenerator};
 use crate::prog_gen::PatternGroupType;
 use crate::Result;
@@ -34,11 +35,23 @@ pub(super) fn write_referenced_list(
         return Ok(None);
     }
     let path = output_dir.join("referenced.list");
-    let mut file = std::fs::File::create(&path)?;
+    let part = output_dir.join(".origen_uflex_referenced.part");
+    let mut cleanup = PartFileGuard::default();
+    cleanup.track(part.clone());
+    let mut file = std::fs::File::create(&part)?;
     writeln!(file, "# Main patterns")?;
     for pattern in patterns {
         writeln!(file, "{}", pattern)?;
     }
+    file.flush()?;
+    drop(file);
+
+    cleanup.track(path.clone());
+    let mut input = std::fs::File::open(&part)?;
+    let mut output = std::fs::File::create(&path)?;
+    std::io::copy(&mut input, &mut output)?;
+    std::fs::remove_file(part)?;
+    cleanup.keep(&path);
     Ok(Some(path))
 }
 

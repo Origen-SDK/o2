@@ -417,16 +417,6 @@ impl FlowGenerator {
                 enable: Some(values.join(",")),
                 ..Default::default()
             }),
-            FlowCondition::UnlessEnable(values) => Some(Gate {
-                enable: Some(
-                    values
-                        .iter()
-                        .map(|v| format!("!{}", v))
-                        .collect::<Vec<_>>()
-                        .join(","),
-                ),
-                ..Default::default()
-            }),
             FlowCondition::IfFlag(values) => {
                 if values.len() > 1 {
                     Some(Gate {
@@ -537,6 +527,9 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             PGM::Condition(condition) => {
+                // IG-XL cannot express "unless any of these enable words" as a
+                // single gate. Emit one enabled-word goto per word, then place a
+                // label after the guarded body so any enabled word skips it.
                 if let FlowCondition::UnlessEnable(words) = condition {
                     self.label_counter += 1;
                     let label = format!("ORIGEN_SKIP_{}", self.label_counter);
@@ -648,12 +641,12 @@ impl Processor<PGM> for FlowGenerator {
                     .get(&resource.kind)
                     .cloned()
                     .unwrap_or_else(|| self.resource_filename.clone());
-                self.resources_rows.push((
+                self.resources_rows.push(ResourceRow {
                     sheet,
-                    resource.kind,
-                    resource.name.clone(),
-                    resource.values.clone(),
-                ));
+                    kind: resource.kind,
+                    name: resource.name.clone(),
+                    values: resource.values.clone(),
+                });
                 Return::None
             }
             PGM::Group(_, _, kind, flow_id) => {
