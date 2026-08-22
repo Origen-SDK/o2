@@ -1,18 +1,31 @@
 use super::Limit;
 
 /// SubTests are used to model a test method or IG-XL flow line which has multiple limits.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubTest {
-    #[allow(dead_code)]
-    test_id: usize,
+    pub test_id: usize,
     /// If not present the name will be derived from the parent test
-    #[allow(dead_code)]
-    name: Option<String>,
+    pub name: Option<String>,
     /// Optional test number
-    #[allow(dead_code)]
-    number: Option<usize>,
-    #[allow(dead_code)]
-    lo_limit: Option<Limit>,
-    #[allow(dead_code)]
-    hi_limit: Option<Limit>,
+    pub number: Option<usize>,
+    pub lo_limit: Option<Limit>,
+    pub hi_limit: Option<Limit>,
+}
+
+impl SubTest {
+    pub fn new(
+        test_id: usize,
+        name: String,
+        number: Option<usize>,
+        lo_limit: Option<Limit>,
+        hi_limit: Option<Limit>,
+    ) -> Self {
+        Self {
+            test_id,
+            name: Some(name),
+            number,
+            lo_limit,
+            hi_limit,
+        }
+    }
 }

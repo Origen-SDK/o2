@@ -4,6 +4,7 @@
 mod bin;
 mod flow;
 mod flow_id;
+mod igxl;
 mod limit;
 mod model;
 mod pattern;
@@ -17,6 +18,7 @@ use crate::Result as OrigenResult;
 pub use bin::Bin;
 pub use flow::Flow;
 pub use flow_id::FlowID;
+pub use igxl::{IGXLResource, IGXLResourceKind};
 pub use limit::{Limit, LimitType};
 pub use model::Model;
 pub use pattern::Pattern;
@@ -37,6 +39,7 @@ pub use variable::VariableType;
 pub enum PatternGroupType {
     Patset,
     Patgroup,
+    Patsubr,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

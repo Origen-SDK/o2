@@ -9,4 +9,5 @@ Testers
    testers/timing
    testers/pattern_generation
    testers/program_generation
+   testers/ultraflex
    testers/supported_testers

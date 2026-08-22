@@ -1,8 +1,10 @@
 use super::flow_options;
-use super::{Condition, Group, Resources, Test, TestInvocation};
-use super::tester_apis::IGXL;
 use super::src_caller_meta;
-use origen_metal::prog_gen::{flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType, SupportedTester};
+use super::tester_apis::IGXL;
+use super::{Condition, Group, Resources, Test, TestInvocation};
+use origen_metal::prog_gen::{
+    flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType, SupportedTester,
+};
 use origen_metal::Result;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
@@ -71,7 +73,12 @@ impl PyInterface {
 
     /// Add a test to the flow
     #[pyo3(signature=(test_obj, allow_missing=false, **kwargs))]
-    fn add_test(&self, test_obj: &PyAny, allow_missing: bool, kwargs: Option<&PyDict>) -> PyResult<()> {
+    fn add_test(
+        &self,
+        test_obj: &PyAny,
+        allow_missing: bool,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<()> {
         let id = flow_options::get_flow_id(kwargs)?;
         let bin = flow_options::get_bin(kwargs)?;
         let softbin = flow_options::get_softbin(kwargs)?;
@@ -86,6 +93,13 @@ impl PyInterface {
                         let mut flow_line =
                             IGXL::new(Some(t.tester.to_string()))?.new_flow_line(allow_missing, kwargs)?;
                         flow_line.set_test_obj(t)?;
+                        if let Some(number) = number {
+                            flow_line.set_attr(
+                                "number",
+                                Some(origen_metal::prog_gen::ParamValue::UInt(number as u64)),
+                                false,
+                            )?;
+                        }
                         flow_api::execute_test(flow_line.id, id.clone(), src_caller_meta())?;
                     }
                     SupportedTester::V93K
@@ -305,9 +319,8 @@ impl PyInterface {
     #[pyo3(signature=(tester))]
     /// Returns a list of valid test invocation options for the given tester type.
     fn test_invocation_options(&self, tester: String) -> PyResult<HashSet<String>> {
-        let tester = SupportedTester::from_str(&tester).map_err(|e| {
-            PyTypeError::new_err(format!("Invalid tester type: {}", e))
-        })?;
+        let tester = SupportedTester::from_str(&tester)
+            .map_err(|e| PyTypeError::new_err(format!("Invalid tester type: {}", e)))?;
         let opts = origen_metal::prog_gen::test_invocation_options(tester)?;
         Ok(opts.into_iter().collect())
     }

@@ -1,7 +1,11 @@
 Supported Testers
 =================
 
-Support for the following testers are currently in development!
+Test-program generation is available for:
 
-* Advantest V39K (Smartest 7)
-* Teradyne Ultraflex
+* Advantest V93K Smartest 7
+* Advantest V93K Smartest 8
+* Teradyne UltraFLEX (IG-XL)
+
+See :doc:`ultraflex` for UltraFLEX setup, APIs, generated worksheets, and
+examples.

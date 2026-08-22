@@ -1,0 +1,5 @@
+DTPatternSetSheet,version=2.1:platform=Jaguar:toprow=-1:leftcol=-1:rightcol=-1	Pattern Sets
+
+	Pattern Set	TD Group	Time Domain	File/Group Name	Burst	Start Label	Stop Label	Comment
+
+	func_pset			func.PAT	Yes			

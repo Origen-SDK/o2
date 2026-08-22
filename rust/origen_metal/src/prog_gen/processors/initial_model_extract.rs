@@ -1,7 +1,7 @@
-use crate::prog_gen::{Model, PGM, LimitSelector};
-use crate::prog_gen::supported_testers::SupportedTester;
-use crate::Result;
 use crate::ast::{Node, Processor, Return};
+use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::{LimitSelector, Model, PGM};
+use crate::Result;
 
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
 /// and converts them into a program model which is returned.
@@ -13,6 +13,7 @@ pub struct ExtractToModel {
     model: Model,
     tester: SupportedTester,
     pass: usize,
+    test_instance_groups: Vec<String>,
 }
 
 pub fn run(node: &Node<PGM>, tester: SupportedTester, model: Model) -> Result<(Node<PGM>, Model)> {
@@ -20,6 +21,7 @@ pub fn run(node: &Node<PGM>, tester: SupportedTester, model: Model) -> Result<(N
         model: model,
         tester: tester,
         pass: 0,
+        test_instance_groups: vec![],
     };
     let ast = node.process(&mut p)?.unwrap();
     p.pass = 1;
@@ -33,6 +35,12 @@ impl Processor<PGM> for ExtractToModel {
         // assignments can be checked against both the invocation and its assigned test
         if self.pass == 0 {
             Ok(match &node.attrs {
+                PGM::Group(name, _, crate::prog_gen::GroupType::Test, _) => {
+                    self.test_instance_groups.push(name.clone());
+                    let updated = node.process_and_update_children(self)?;
+                    self.test_instance_groups.pop();
+                    Return::Replace(updated)
+                }
                 PGM::ResourcesFilename(name, kind) => {
                     self.model.set_resources_filename(name.to_owned(), kind);
                     Return::Unmodified
@@ -52,6 +60,9 @@ impl Processor<PGM> for ExtractToModel {
                         ),
                         node
                     );
+                    if let Some(group) = self.test_instance_groups.last() {
+                        self.model.add_test_to_instance_group(group, *id);
+                    }
                     Return::None
                 }
                 PGM::DefTestInv(id, name, _) => {
@@ -66,7 +77,26 @@ impl Processor<PGM> for ExtractToModel {
                     trace!(self.model.assign_test_to_inv(*inv_id, *test_id), node);
                     Return::None
                 }
-                PGM::DefTestCollectionItem(id, parent_id, collection_name, instance_id, allow_missing) => {
+                PGM::DefSubTest(test_id, name, number, lo_limit, hi_limit) => {
+                    trace!(
+                        self.model.add_sub_test(
+                            *test_id,
+                            name.clone(),
+                            *number,
+                            lo_limit.clone(),
+                            hi_limit.clone(),
+                        ),
+                        node
+                    );
+                    Return::None
+                }
+                PGM::DefTestCollectionItem(
+                    id,
+                    parent_id,
+                    collection_name,
+                    instance_id,
+                    allow_missing,
+                ) => {
                     trace!(
                         self.model.add_test_collection_item(
                             *parent_id,
@@ -88,7 +118,11 @@ impl Processor<PGM> for ExtractToModel {
                     Return::Unmodified
                 }
                 PGM::SetAttr(id, name, value, allow_missing) => {
-                    trace!(self.model.set_test_attr(*id, name, value.to_owned(), *allow_missing), node);
+                    trace!(
+                        self.model
+                            .set_test_attr(*id, name, value.to_owned(), *allow_missing),
+                        node
+                    );
                     Return::None
                 }
                 PGM::SetLimit(test_id, inv_id, selector, value) => {
