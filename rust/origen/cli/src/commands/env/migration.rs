@@ -88,7 +88,9 @@ pub(crate) fn guard_uv_manifest(path: &Path) -> Result<()> {
         return Ok(());
     }
     let contents = fs::read_to_string(path)?;
-    if manifest_state(&contents)? == ManifestState::PoetryOnly {
+    // Only intercept valid Poetry-only manifests. Malformed TOML must reach UV
+    // so callers retain UV's parse diagnostics on stderr.
+    if matches!(manifest_state(&contents), Ok(ManifestState::PoetryOnly)) {
         return Err(origen::Error::new(
             r#"This application uses Poetry-only metadata, which O2's UV environment
 workflow does not read.
@@ -1763,6 +1765,14 @@ variant = [{ version = "^1" }, { version = "^2" }]
         assert!(error.contains("origen env migrate --dry-run"));
         assert!(error.contains("origen env migrate"));
         assert!(error.contains("origen env setup"));
+    }
+
+    #[test]
+    fn poetry_guard_defers_malformed_toml_to_uv() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(PYPROJECT);
+        fs::write(&path, "[tool.poetry\nname = \"broken\"").unwrap();
+        guard_uv_manifest(&path).unwrap();
     }
 
     fn fake_lock<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<u8> {
