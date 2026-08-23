@@ -5,17 +5,19 @@ name = "core"
 #environment = "v93k"
 # To make your application workspace run in production mode by default
 #mode = "production"
-#website_release_location = "https://github.com/Origen-SDK/Origen-SDK.github.io.git"
-
-# Manually doing the RC for now
-website_release_location = "../../Origen-SDK.github.io"
+website_release_location = { location = "https://github.com/Origen-SDK/Origen-SDK.github.io.git" }
 website_release_name = "o2"
 
 [revision_control]
 remote = 'https://github.com/Origen-SDK/o2.git'
 release_branch = 'master'
 system = 'git'
-local = '../'
+local = '../..'
+
+[release]
+provider = 'github_actions'
+origen_workflow = 'publish.yml'
+origen_metal_workflow = 'publish_metal.yml'
 
 [publisher]
 system = "core.application.Publisher"

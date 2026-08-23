@@ -1,4 +1,5 @@
 import origen, subprocess, builtins, types, inspect, re, pathlib
+from sphinx.util.template import SphinxRenderer
 from .. import origen_sphinx_extension as ose
 
 
@@ -54,7 +55,7 @@ def insert_header(app, docname, source):
 def jinja_integrator(app, docname, source):
     src = source[0]
     try:
-        rendered = app.builder.templates.render_string(src, jinja_context(app))
+        rendered = _render_string(app, src)
         source[0] = rendered
     except Exception as e:
         m = getattr(e, 'message', repr(e))
@@ -64,7 +65,16 @@ def jinja_integrator(app, docname, source):
 
 
 def jinja_render_string(app, src, additional_context={}):
-    return app.builder.templates.render_string(src, jinja_context(app))
+    return _render_string(app, src, additional_context)
+
+
+def _render_string(app, src, additional_context={}):
+    context = {**jinja_context(app), **additional_context}
+    templates = getattr(app.builder, 'templates', None)
+    if templates is not None:
+        return templates.render_string(src, context)
+    # Non-HTML builders such as linkcheck do not initialize a template bridge.
+    return SphinxRenderer().render_string(src, context)
 
 
 def jinja_context(app):
@@ -111,11 +121,16 @@ def insert_cmd_output(app, cmd, *, shell=True, **opts):
                          stderr=subprocess.PIPE,
                          stdout=subprocess.PIPE)
     stdout = out.stdout.decode('utf-8').strip()
-    if out.returncode == 1:
+    stderr = out.stderr.decode('utf-8').strip()
+    if out.returncode != 0:
         ose.logger.warning(
-            f"Failed to insert command \"{cmd}\". Command failed to run:")
+            f"Failed to insert command \"{cmd}\" (exit code {out.returncode}):")
         ose.logger.warning(f"STDOUT: {stdout}")
-        ose.logger.warning(f"STDERR: {out.stderr.decode('utf-8').strip()}")
+        ose.logger.warning(f"STDERR: {stderr}")
+        # Keep the generated code block valid and make the failure visible in
+        # the rendered documentation when a command writes only to stderr.
+        if not stdout:
+            stdout = stderr or f"Command failed with exit code {out.returncode}"
 
     # Embed the output in a code block
     # Need to also shift the spacing of the output so its all under the code block

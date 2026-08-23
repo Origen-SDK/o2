@@ -14,21 +14,26 @@ use walkdir::WalkDir;
 //use path_clean::{PathClean};
 use pathdiff::diff_paths;
 use regex::{escape, Regex};
+use std::collections::HashSet;
 use std::fs;
 use std::process::exit;
-use std::collections::HashSet;
 
 #[macro_export]
 macro_rules! clean_target {
     ($name:expr, $dir:expr, $return_file:expr) => {{
-        $crate::core::application::target::clean_name($name, $dir, $return_file, &$crate::app().unwrap().root)
-    }}
+        $crate::core::application::target::clean_name(
+            $name,
+            $dir,
+            $return_file,
+            &$crate::app().unwrap().root,
+        )
+    }};
 }
 
 macro_rules! toml {
     ($root:expr) => {{
         $root.join(".origen").join("application.toml")
-    }}
+    }};
 }
 
 /// Sanitizes the given target/env name and returns it, but will exit the process if it does
@@ -46,9 +51,7 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool, root: &PathBuf) -> S
         for file in all(&root.join(dir)).iter() {
             println!(
                 "    {}",
-                diff_paths(&file, &root.join(dir))
-                    .unwrap()
-                    .display()
+                diff_paths(&file, &root.join(dir)).unwrap().display()
             );
         }
     } else if matches.len() > 1 {
@@ -59,9 +62,7 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool, root: &PathBuf) -> S
         for file in matches.iter() {
             println!(
                 "    {}",
-                diff_paths(&file, &root.join(dir))
-                    .unwrap()
-                    .display()
+                diff_paths(&file, &root.join(dir)).unwrap().display()
             );
         }
     } else {
@@ -70,9 +71,7 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool, root: &PathBuf) -> S
         } else {
             let clean = format!(
                 "{}",
-                diff_paths(&matches[0], &root.join(dir))
-                    .unwrap()
-                    .display()
+                diff_paths(&matches[0], &root.join(dir)).unwrap().display()
             );
             return clean;
         }
@@ -88,12 +87,7 @@ pub fn matches(name: &str, dir: &str, root: &PathBuf) -> Vec<PathBuf> {
     for file in WalkDir::new(format!("{}", root.join(dir).display())) {
         let path = file.unwrap().into_path();
         if path.is_file() {
-            let mut path_str = format!(
-                "{}",
-                diff_paths(&path, &root.join(dir))
-                    .unwrap()
-                    .display()
-            );
+            let mut path_str = format!("{}", diff_paths(&path, &root.join(dir)).unwrap().display());
             // in case we're running on Windows normalize to linux style path separator character
             path_str = path_str.replace("\\", "/").replace("//", "/");
 
@@ -149,11 +143,15 @@ pub fn set(targets: Vec<&str>) -> Vec<String> {
 }
 
 pub fn set_at_root(targets: Vec<&str>, root: &PathBuf) -> Vec<String> {
-    let mut to_set = vec!();
+    let mut to_set = vec![];
     for t in targets.iter() {
         let cn = clean_name(t, "targets", true, root);
         if to_set.contains(&cn) {
-            log_error!("Target '{}' appears multiple times in the TARGETS list ({})", t, cn);
+            log_error!(
+                "Target '{}' appears multiple times in the TARGETS list ({})",
+                t,
+                cn
+            );
             exit(1);
         }
         to_set.push(cn.clone());
@@ -169,7 +167,7 @@ pub fn reset() {
 
 pub fn clear() {
     delete_val("target");
-    set_workspace_array("target", vec!())
+    set_workspace_array("target", vec![])
 }
 
 /// Enables additional targets in the workspace
@@ -198,7 +196,11 @@ pub fn add(targets: Vec<&str>) {
         current.retain(|c| *c != clean_t);
 
         if added.contains(&clean_t) {
-            log_error!("Target '{}' appears multiple times in the TARGETS list ({})", t, clean_t);
+            log_error!(
+                "Target '{}' appears multiple times in the TARGETS list ({})",
+                t,
+                clean_t
+            );
             exit(1);
         }
         added.push(clean_t);
@@ -230,7 +232,11 @@ pub fn remove(targets: Vec<&str>) {
         let clean_t = clean_target!(t, "targets", true);
 
         if removed.contains(&clean_t) {
-            log_error!("Target '{}' appears multiple times in the TARGETS list ({})", t, clean_t);
+            log_error!(
+                "Target '{}' appears multiple times in the TARGETS list ({})",
+                t,
+                clean_t
+            );
             exit(1);
         }
 
@@ -291,7 +297,8 @@ pub fn delete_val(key: &str) {
 
 pub fn delete_val_at_root(key: &str, root: &PathBuf) {
     let path = toml!(root);
-    let data = fs::read_to_string(&path).expect(&format!("Unable to read file {}", &path.display()));
+    let data =
+        fs::read_to_string(&path).expect(&format!("Unable to read file {}", &path.display()));
     let re = Regex::new(format!(r#"{}\s?=.*(\r\n|\n)?"#, escape(key)).as_str()).unwrap();
     let new_data: String = re.replace_all(&data, "").into();
     fs::write(&path, new_data).expect(&format!("Unable to write file {}", &path.display()));
@@ -316,7 +323,8 @@ fn add_val(key: &str, val: &str) {
 
 fn add_val_array_at_root(key: &str, vals: Vec<String>, root: &PathBuf) {
     let path = toml!(root);
-    let data = fs::read_to_string(&path).expect(&format!("Unable to read file {}", &path.display()));
+    let data =
+        fs::read_to_string(&path).expect(&format!("Unable to read file {}", &path.display()));
 
     // Note: use string literals here to account for Windows paths
     let new_data = format!(
@@ -333,7 +341,7 @@ fn add_val_array_at_root(key: &str, vals: Vec<String>, root: &PathBuf) {
 
 /// Verifies that .origen/application.toml exists and if not creates one
 fn ensure_app_dot_toml() {
-    ensure_app_dot_toml_at_root( &app().unwrap().root)
+    ensure_app_dot_toml_at_root(&app().unwrap().root)
 }
 
 fn ensure_app_dot_toml_at_root(root: &PathBuf) {

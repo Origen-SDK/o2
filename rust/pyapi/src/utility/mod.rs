@@ -167,4 +167,3 @@ fn app_utility(
         }
     }
 }
-

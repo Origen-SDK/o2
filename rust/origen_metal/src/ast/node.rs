@@ -88,7 +88,7 @@ impl<T: Attrs> Node<T> {
         }
     }
 
-    /// Returns "<filename>:<lineno>" if present, else ""
+    /// Returns `"<filename>:<lineno>"` if present, else `""`.
     pub fn meta_string(&self) -> String {
         if let Some(meta) = &self.meta {
             if let Some(f) = &meta.filename {

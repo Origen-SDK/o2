@@ -39,10 +39,10 @@ impl Processor<PAT> for CycleCombiner {
                 }
             }
             // For all other nodes except for cycles
-            _ => Ok(Return::ProcessChildren)
+            _ => Ok(Return::ProcessChildren),
         }
     }
-    
+
     fn on_processed_node(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
         if self.cycle_count > 0 {
             let cyc = self.consume_cycles();
@@ -301,7 +301,11 @@ mod tests {
         ast.push(node!(PAT::Test, "cycle_combiner".to_string()));
         ast.push(node!(PAT::Comment, 1, "HELLO".to_string()));
         let id = ast.push_and_open(reg_write_node());
-        ast.push(node!(PAT::Comment, 1, "SHOULD BE INSIDE REG TRANSACTION".to_string()));
+        ast.push(node!(
+            PAT::Comment,
+            1,
+            "SHOULD BE INSIDE REG TRANSACTION".to_string()
+        ));
         ast.push(node!(PAT::Cycle, 1, false));
         ast.push(node!(PAT::Cycle, 1, true));
         ast.push(node!(PAT::Cycle, 1, true));
@@ -309,7 +313,11 @@ mod tests {
         ast.push(node!(PAT::Cycle, 1, true));
         ast.push(node!(PAT::Cycle, 1, true));
         let _ = ast.close(id);
-        ast.push(node!(PAT::Comment, 1, "SHOULD BE OUTSIDE REG TRANSACTION".to_string()));
+        ast.push(node!(
+            PAT::Comment,
+            1,
+            "SHOULD BE OUTSIDE REG TRANSACTION".to_string()
+        ));
 
         let combined = CycleCombiner::run(&ast.to_node()).expect("Cycles combined");
 
@@ -317,11 +325,19 @@ mod tests {
         expect.push(node!(PAT::Test, "cycle_combiner".to_string()));
         expect.push(node!(PAT::Comment, 1, "HELLO".to_string()));
         let id = expect.push_and_open(reg_write_node());
-        expect.push(node!(PAT::Comment, 1, "SHOULD BE INSIDE REG TRANSACTION".to_string()));
+        expect.push(node!(
+            PAT::Comment,
+            1,
+            "SHOULD BE INSIDE REG TRANSACTION".to_string()
+        ));
         expect.push(node!(PAT::Cycle, 1, false));
         expect.push(node!(PAT::Cycle, 5, true));
         let _ = expect.close(id);
-        expect.push(node!(PAT::Comment, 1, "SHOULD BE OUTSIDE REG TRANSACTION".to_string()));
+        expect.push(node!(
+            PAT::Comment,
+            1,
+            "SHOULD BE OUTSIDE REG TRANSACTION".to_string()
+        ));
 
         assert_eq!(combined, expect.to_node());
     }

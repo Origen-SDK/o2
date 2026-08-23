@@ -17,7 +17,7 @@ The ``build`` command is actually a subcommand in the larger ``origen web`` comm
 
 Running ``origen web --help`` will show you what can be done with the *Sphinx app* from the CLI:
 
-{% set origen_exec = '../rust/origen/target/debug/origen.exe' if origen.running_on_windows else '../rust/origen/target/debug/origen' -%}
+{% set origen_exec = str(origen.root.joinpath('../../rust/origen/target/debug/origen.exe' if origen.running_on_windows else '../../rust/origen/target/debug/origen')) -%}
 {% set run_in_shell = false if origen.running_on_windows else true -%}
 
 {{ insert_cmd_output(origen_exec + " web --help", shell=run_in_shell) }}
@@ -38,6 +38,37 @@ with ``--no-api`` during development could result in stale API documentation.
 
 Viewing And Cleaning
 ^^^^^^^^^^^^^^^^^^^^
+
+For local authoring, run the live documentation server:
+
+.. code-block:: console
+
+   $ origen web serve --open
+
+On Python 3.11 and newer this uses ``sphinx-autobuild`` to watch source files,
+rebuild incrementally, and live-reload the browser. Older supported Python
+versions build once and use Python's built-in static server. The default serve
+mode includes generated API, Rustdoc, and subprojects. Use
+``origen web serve --fast`` for an authored-guide-only editing loop.
+
+By default, ``--host auto`` binds all interfaces and advertises the machine's
+resolved hostname, making remote development hosts available without another
+option. Ensure the selected port is allowed by host and network firewalls.
+
+Restrict the server to the local machine when remote access is not wanted:
+
+.. code-block:: console
+
+   $ origen web serve --host 127.0.0.1
+
+The equivalent explicit remote binding is:
+
+.. code-block:: console
+
+   $ origen web serve --host 0.0.0.0 --port 8000
+
+Generated documentation can contain internal APIs and paths, so review network
+and firewall policy before using ``0.0.0.0``.
 
 ``Sphinx`` is *makefile-like*, in that it will only recompile changed files, leading to faster build times.
 A side-effect of this, however, is that the web browser may still be launched, even on a failing build,
@@ -72,12 +103,10 @@ Releasing
 When the documentation is complete, it can be *released* by using the ``-r``, or ``--release`` switch.
 The release procedure and location is dependent on options in the *Origen application*.
 
-.. raw:: html
+.. warning::
 
-  <div class="alert alert-warning" role="alert">
-  <i>Releasing</i> is a feature still in development. Pieces are working, but documentation is
-  purposefully left scarce as certain aspects are either still in development or subject to change.
-  </div>
+   *Releasing* is a feature still in development. Pieces are working, but documentation is
+   purposefully left scarce as certain aspects are either still in development or subject to change.
 
 When building your docs, you may see various *warnings* pop up. In general, it is not good practice
 to leave build warnings hanging around for released content. *Releasing* will interpret all warnings

@@ -1,9 +1,9 @@
-use clap::{App, Arg, ArgMatches};
+use clap::{Arg, ArgMatches, Command as App};
 use origen::core::file_handler::File;
-use origen_metal::utils::version::Version;
 use origen::{Result, STATUS};
 use origen_metal::utils::file::with_dir;
 use origen_metal::utils::file::{cd, symlink};
+use origen_metal::utils::version::Version;
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::path::Path;
@@ -12,12 +12,13 @@ use std::process::Command;
 use crate::commands::_prelude::*;
 pub const BASE_CMD: &'static str = "build";
 
-pub (crate) fn build_cmd<'a>() -> SubCmd<'a> {
+pub(crate) fn build_cmd<'a>() -> SubCmd<'a> {
     core_subcmd__no_exts__no_app_opts!(
         BASE_CMD,
         "Build and publish Origen, builds the pyapi Rust package by default",
-        { |cmd: App| {
-            cmd.visible_alias("b")
+        {
+            |cmd: App| {
+                cmd.visible_alias("b")
             .arg(
                 Arg::new("cli")
                 .long("cli")
@@ -67,7 +68,8 @@ pub (crate) fn build_cmd<'a>() -> SubCmd<'a> {
                     .action(SetArgTrue)
                     .help("Build the metal_pyapi"),
             )
-        }}
+            }
+        }
     )
 }
 
@@ -197,7 +199,9 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
                 change_pyapi_wheel_version(&wheel_dir, &old, &new);
             }
 
-            if *invocation.get_one("publish").unwrap() && !invocation.get_one::<bool>("dry_run").unwrap() {
+            if *invocation.get_one("publish").unwrap()
+                && !invocation.get_one::<bool>("dry_run").unwrap()
+            {
                 let pypi_token =
                     std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
 
@@ -513,7 +517,7 @@ fn write_version(filepath: &Path, version: &str) -> Result<()> {
 
     lazy_static! {
         static ref VERSION_SECTION_HEADER: Regex =
-            Regex::new(r"^\s*\[\s*(package|tool.poetry)\s*\]\s*$").unwrap();
+            Regex::new(r"^\s*\[\s*(package|project)\s*\]\s*$").unwrap();
         static ref SECTION_HEADER: Regex = Regex::new(r"^\s*\[\s*.*\s*\]\s*$").unwrap();
         static ref VERSION_LINE: Regex = Regex::new(r#"^\s*version\s*=\s*".*"\s*$"#).unwrap();
         static ref PYAPI_VERSION_LINE: Regex =

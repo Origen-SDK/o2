@@ -264,9 +264,7 @@ impl GeneralizedListLikeAPI for PinActions {
             _idx = ((self.items().len() as isize) + idx) as usize;
         }
 
-        Python::with_gil(|py| {
-            self.new_pyitem(py, &self.items()[_idx], _idx)
-        })
+        Python::with_gil(|py| self.new_pyitem(py, &self.items()[_idx], _idx))
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {

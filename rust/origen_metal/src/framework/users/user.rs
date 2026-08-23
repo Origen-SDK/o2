@@ -7,9 +7,9 @@ use crate::utils::file::FilePermissions;
 use crate::{Outcome, OutcomeState, Result};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::env;
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
 pub const DEFAULT_USER_SESSION_PATH_OFFSET: &str = "./.o2/.session";
@@ -267,7 +267,7 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
                 is_current = false;
             }
             u_id = id.to_owned();
-        },
+        }
         None => {
             if let Some(id) = super::users::get_current_user_id()? {
                 u_id = id;
@@ -282,7 +282,7 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
     let fe_res = crate::with_optional_frontend(|f| {
         if let Some(fe) = f {
             if let Some(result) = fe.lookup_home_dir(&u_id, dataset, is_current) {
-                return Ok(Some(result?))
+                return Ok(Some(result?));
             }
         }
         Ok(None)
@@ -315,7 +315,11 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
         }
 
         if !hd.ends_with(&u_id) {
-            bail!("Home directory '{}' is not appropriate for current user with id '{}'", hd.display(), &u_id)
+            bail!(
+                "Home directory '{}' is not appropriate for current user with id '{}'",
+                hd.display(),
+                &u_id
+            )
         } else {
             Ok(Some(hd))
         }
@@ -349,7 +353,6 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
 //         Ok(hd)
 //     })
 // }
-
 
 #[derive(Debug, Default)]
 struct PopulateStatus {
@@ -818,7 +821,10 @@ impl User {
             let mut data = self.write_data(None)?;
             data.home_dir = new_dir;
         } else {
-            self.for_datasets_in_hierarchy_mut( |d| { d.home_dir = None; Ok(()) })?;
+            self.for_datasets_in_hierarchy_mut(|d| {
+                d.home_dir = None;
+                Ok(())
+            })?;
         }
         Ok(())
     }
@@ -854,7 +860,7 @@ impl User {
         }
         let pass = match rpassword::read_password_from_tty(Some(&msg)) {
             Ok(pw) => pw,
-            Err(e) => bail!("Error encountered prompting for password: {}", e)
+            Err(e) => bail!("Error encountered prompting for password: {}", e),
         };
         let attempt = self._try_password(&pass, Some(dataset))?;
 
@@ -1347,10 +1353,8 @@ impl User {
         F: FnMut(&Data) -> Result<T>,
     {
         for n in self.data_lookup_hierarchy.iter() {
-            self.with_dataset(&n, |d| {
-                func(d)
-            })?;
-        };
+            self.with_dataset(&n, |d| func(d))?;
+        }
         Ok(())
     }
 
@@ -1359,10 +1363,8 @@ impl User {
         F: FnMut(&mut Data) -> Result<T>,
     {
         for n in self.data_lookup_hierarchy.iter() {
-            self.with_dataset_mut(&n, |d| {
-                func(d)
-            })?;
-        };
+            self.with_dataset_mut(&n, |d| func(d))?;
+        }
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 pub(crate) mod processors;
 
 use crate::prog_gen::supported_testers::SupportedTester;
-use crate::prog_gen::{Model, process_flow};
+use crate::prog_gen::{process_flow, Model};
 use crate::{Result, FLOW};
 use std::path::{Path, PathBuf};
 

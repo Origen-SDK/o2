@@ -69,7 +69,7 @@ impl<'a> Iterator for BitCollection<'a> {
 impl<'a> BitCollection<'a> {
     /// Creates a BitCollection from the given collection of bit IDs.
     /// The resultant collection can not be associated back to a register or field.
-    /// Use the methods <reg>.bits() and <field>.bits() to create BitCollections with the necessary
+    /// Use the methods `reg.bits()` and `field.bits()` to create BitCollections with the necessary
     /// metadata to associate with the parent object.
     pub fn for_bit_ids(ids: &Vec<usize>, dut: &'a MutexGuard<'a, Dut>) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
@@ -91,7 +91,7 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Creates a BitCollection for the given register, normally this would not be called directly
-    /// and would instead be called via <reg>.bits()
+    /// and would instead be called via `reg.bits()`.
     pub fn for_register(reg: &Register, dut: &'a MutexGuard<'a, Dut>) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
 
@@ -112,7 +112,7 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Creates a BitCollection for the given register field, normally this would not be called directly
-    /// and would instead be called via <reg>.bits()
+    /// and would instead be called via `reg.bits()`.
     pub fn for_field(
         ids: &Vec<usize>,
         reg_id: usize,

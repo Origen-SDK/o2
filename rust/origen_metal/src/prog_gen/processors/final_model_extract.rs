@@ -1,8 +1,6 @@
-use crate::prog_gen::{
-    Bin, BinType, FlowCondition, Model, VariableOperation, VariableType, PGM,
-};
-use crate::Result;
 use crate::ast::{Node, Processor, Return};
+use crate::prog_gen::{Bin, BinType, FlowCondition, Model, VariableOperation, VariableType, PGM};
+use crate::Result;
 
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
 /// and converts them into a program model which is returned.

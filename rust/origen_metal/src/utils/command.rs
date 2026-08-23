@@ -6,7 +6,9 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use wait_timeout::ChildExt;
 
-pub fn exec_and_capture_cmd(mut command: Command) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
+pub fn exec_and_capture_cmd(
+    mut command: Command,
+) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
     let mut process = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

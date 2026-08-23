@@ -1,5 +1,5 @@
-use origen_metal::LOGGER;
 use crate::pypath;
+use origen_metal::LOGGER;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -105,7 +105,12 @@ fn trace(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<
 
 #[pyfunction]
 #[pyo3(signature=(prefix, *messages, **_kwargs))]
-fn log_prefix(_py: Python, prefix: String, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+fn log_prefix(
+    _py: Python,
+    prefix: String,
+    messages: &PyTuple,
+    _kwargs: Option<&PyDict>,
+) -> PyResult<()> {
     LOGGER.log_prefix_block(&prefix, &pytuple_to_vector_str!(messages))?;
     Ok(())
 }
@@ -146,7 +151,7 @@ fn add_custom_prefix(name: &str, prefix: Option<String>, level: Option<u8>) -> P
 #[pyfunction]
 fn get_custom_prefixes(py: Python<'_>) -> PyResult<&PyDict> {
     let retn = PyDict::new(py);
-    LOGGER.with_custom_prefixes( |prefixes| {
+    LOGGER.with_custom_prefixes(|prefixes| {
         for (n, p) in prefixes {
             let py_p = PyDict::new(py);
             py_p.set_item("prefix", p.prefix.clone())?;
@@ -164,7 +169,6 @@ pub struct Logger {}
 
 #[pymethods]
 impl Logger {
-
     #[new]
     fn new() -> Self {
         Self {}
@@ -174,44 +178,50 @@ impl Logger {
     fn debug(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         debug(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn deprecated(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         deprecated(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn error(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         error(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn info(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         info(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn success(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         success(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn warning(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         warning(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn display(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         display(py, messages, kwargs)
     }
-    
+
     #[pyo3(signature=(*messages, **kwargs))]
     fn log(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         log(py, messages, kwargs)
     }
 
     #[pyo3(signature=(prefix, *messages, **kwargs))]
-    fn log_prefix(&self, py: Python, prefix: String, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
+    fn log_prefix(
+        &self,
+        py: Python,
+        prefix: String,
+        messages: &PyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<()> {
         log_prefix(py, prefix, messages, kwargs)
     }
 

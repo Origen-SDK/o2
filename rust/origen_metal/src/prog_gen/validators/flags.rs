@@ -1,6 +1,6 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::{FlowCondition, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 
 pub struct Flags {
     open_if: Vec<Node<PGM>>,

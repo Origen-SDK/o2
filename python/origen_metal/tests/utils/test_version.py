@@ -116,7 +116,7 @@ _current_version = None
 def current_version():
     global _current_version
     if _current_version is None:
-        _current_version = pip_show('origen_metal', wrap_poetry=True).version
+        _current_version = pip_show('origen_metal', wrap_uv=True).version
     return _current_version
 
 def test_om_version():

@@ -227,7 +227,12 @@ impl Timeset {
     }
 
     #[pyo3(signature=(name, **_kwargs))]
-    fn add_wavetable(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn add_wavetable(
+        &self,
+        py: Python,
+        name: &str,
+        _kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let t_id;
         {

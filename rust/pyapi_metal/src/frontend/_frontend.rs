@@ -5,6 +5,7 @@ use crate::framework::outcomes::Outcome as PyOutcome;
 use origen_metal::prelude::frontend::*;
 use origen_metal::{Outcome, TypedValue, TypedValueMap, TypedValueVec};
 
+use crate::framework::users::{User, UserDataset};
 use indexmap::IndexMap;
 use origen_metal::log_trace;
 use origen_metal::Result as OMResult;
@@ -12,7 +13,6 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::framework::users::{User, UserDataset};
 
 use crate::_helpers::typed_value;
 
@@ -83,18 +83,15 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
         autoload: Option<bool>,
     ) -> OMResult<Box<dyn DataStoreCategoryFrontendAPI>> {
         with_py_frontend(|py, py_frontend| {
-            py_frontend
-                .data_stores
-                .borrow_mut(py)
-                .add_category(
-                    py,
-                    cat,
-                    match &load_function {
-                        Some(f) => Some(pyo3::types::PyString::new(py, &f.as_string()?).to_object(py)),
-                        None => None
-                    },
-                    autoload,
-                )?;
+            py_frontend.data_stores.borrow_mut(py).add_category(
+                py,
+                cat,
+                match &load_function {
+                    Some(f) => Some(pyo3::types::PyString::new(py, &f.as_string()?).to_object(py)),
+                    None => None,
+                },
+                autoload,
+            )?;
             Ok(())
         })?;
         Ok(Box::new(DataStoreCategoryFrontend::new(cat)))
@@ -134,7 +131,12 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
         }
     }
 
-    fn lookup_home_dir(&self, user_id: &str, dataset: Option<&str>, is_current: bool) -> Option<OMResult<Option<PathBuf>>> {
+    fn lookup_home_dir(
+        &self,
+        user_id: &str,
+        dataset: Option<&str>,
+        is_current: bool,
+    ) -> Option<OMResult<Option<PathBuf>>> {
         let fe_result = with_py_frontend(|py, fe| {
             Ok(match fe._users_.get(*super::LOOKUP_HOME_DIR_FUNC_KEY) {
                 Some(f) => {
@@ -153,7 +155,7 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
                         Some(None)
                     } else if let Ok(b) = result.extract::<bool>(py) {
                         if b {
-                            return runtime_error!("'True' is not a valid return value when looking up a user's home directory")
+                            return runtime_error!("'True' is not a valid return value when looking up a user's home directory");
                         } else {
                             None
                         }
@@ -469,15 +471,25 @@ impl DataStoreFrontendAPI for DataStoreFrontend {
         })?)
     }
 
-    fn validate_password(&self, username: &str, password: &str, user_id: &str, ds_name: &str) -> OMResult<FeatureReturn> {
+    fn validate_password(
+        &self,
+        username: &str,
+        password: &str,
+        user_id: &str,
+        ds_name: &str,
+    ) -> OMResult<FeatureReturn> {
         Ok(self.as_py(|py, py_self| {
-            let func = py_self.call_method1(py, "__lookup_origen_feature__", ("validate_password",))?;
+            let func =
+                py_self.call_method1(py, "__lookup_origen_feature__", ("validate_password",))?;
             if func.is_none(py) {
                 // Not implemented
                 Ok(self.unimplemented("validate_password")?)
             } else {
                 let py_u = Py::new(py, crate::framework::users::User::new(user_id)?)?;
-                let py_ds = Py::new(py, crate::framework::users::UserDataset::new(user_id, ds_name))?;
+                let py_ds = Py::new(
+                    py,
+                    crate::framework::users::UserDataset::new(user_id, ds_name),
+                )?;
                 let kwargs = PyDict::new(py);
                 kwargs.set_item("user", py_u)?;
                 kwargs.set_item("dataset", py_ds)?;

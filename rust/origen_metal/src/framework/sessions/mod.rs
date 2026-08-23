@@ -157,7 +157,7 @@ impl Sessions {
     }
 
     pub fn delete_group(&mut self, name: &str) -> Result<bool> {
-        Ok(match self.groups.remove(name) {
+        Ok(match self.groups.shift_remove(name) {
             Some(mut g) => {
                 g.clean()?;
                 true
@@ -167,7 +167,7 @@ impl Sessions {
     }
 
     pub fn delete_standalone(&mut self, name: &str) -> Result<bool> {
-        Ok(match self.standalones.remove(name) {
+        Ok(match self.standalones.shift_remove(name) {
             Some(s) => {
                 s.remove_file()?;
                 true

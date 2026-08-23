@@ -1,4 +1,4 @@
-use origen_metal::{Result, Outcome, octocrab, futures};
+use origen_metal::{futures, octocrab, Outcome, Result};
 use std::collections::HashMap;
 
 lazy_static! {
@@ -17,7 +17,7 @@ where
 macro_rules! block_on {
     ($call:expr) => {
         futures::executor::block_on($call)
-    }
+    };
 }
 
 pub fn lookup_pat() -> Result<String> {
@@ -27,9 +27,9 @@ pub fn lookup_pat() -> Result<String> {
         Err(e) => match e {
             std::env::VarError::NotPresent => {
                 bail!("Environment variable 'github_pat' was not found")
-            },
-            _ => return Err(e.into())
-        }
+            }
+            _ => return Err(e.into()),
+        },
     }
 }
 
@@ -37,11 +37,9 @@ pub fn get_current_workflow_name() -> Result<Option<String>> {
     match std::env::var(*GH_ENV) {
         Ok(v) => Ok(Some(v)),
         Err(e) => match e {
-            std::env::VarError::NotPresent => {
-                return Ok(None)
-            },
-            _ => return Err(e.into())
-        }
+            std::env::VarError::NotPresent => return Ok(None),
+            _ => return Err(e.into()),
+        },
     }
 }
 
@@ -55,7 +53,7 @@ pub struct Actor {
 #[derive(Deserialize, Debug)]
 pub struct WorkflowRuns {
     pub total_count: usize,
-    workflow_runs: Vec<WorkflowRun>
+    workflow_runs: Vec<WorkflowRun>,
 }
 
 impl WorkflowRuns {
@@ -92,11 +90,19 @@ pub struct WorkflowRun {
 
 impl WorkflowRun {
     pub fn was_cancelled(&self) -> bool {
-        self.conclusion.as_ref().map_or( false, |c| c == "cancelled")
+        self.conclusion.as_ref().map_or(false, |c| c == "cancelled")
     }
 
     pub fn cancel(&self) -> Result<()> {
-        send_post_request(|| { Ok(octocrab::OctocrabBuilder::new().personal_token(lookup_pat()?).build()?) }, &self.cancel_url, None::<()>)?;
+        send_post_request(
+            || {
+                Ok(octocrab::OctocrabBuilder::new()
+                    .personal_token(lookup_pat()?)
+                    .build()?)
+            },
+            &self.cancel_url,
+            None::<()>,
+        )?;
         Ok(())
     }
 
@@ -105,7 +111,10 @@ impl WorkflowRun {
     }
 
     pub fn refresh(&self) -> Result<Self> {
-        Ok(serde_json::from_str(&send_get_request(|| new_crab(None), &self.url)?)?)
+        Ok(serde_json::from_str(&send_get_request(
+            || new_crab(None),
+            &self.url,
+        )?)?)
     }
 }
 
@@ -137,7 +146,7 @@ pub fn send_get_request<F>(crab: F, uri: &str) -> Result<String>
 where
     F: Fn() -> Result<octocrab::Octocrab>,
 {
-    with_blocking_calls( || {
+    with_blocking_calls(|| {
         let c = crab()?;
         log_trace!("Sending GET request to GA: {}", uri);
         let response = futures::executor::block_on(c._get(uri))?;
@@ -150,9 +159,9 @@ where
 pub fn send_post_request<F, H>(crab: F, uri: &str, inputs: Option<H>) -> Result<String>
 where
     F: Fn() -> Result<octocrab::Octocrab>,
-    H: serde::Serialize + Sized
+    H: serde::Serialize + Sized,
 {
-    with_blocking_calls( || {
+    with_blocking_calls(|| {
         let c = crab()?;
         log_trace!("Sending POST request to GA: {}", uri);
         let response = block_on!(c._post(uri, inputs.as_ref()))?;
@@ -165,9 +174,9 @@ where
 pub fn send_put_request<F, H>(crab: F, uri: &str, inputs: Option<H>) -> Result<String>
 where
     F: Fn() -> Result<octocrab::Octocrab>,
-    H: serde::Serialize + Sized
+    H: serde::Serialize + Sized,
 {
-    with_blocking_calls( || {
+    with_blocking_calls(|| {
         let c = crab()?;
         log_trace!("Sending POST request to GA: {}", uri);
         let response = block_on!(c._put(uri, inputs.as_ref()))?;
@@ -178,20 +187,26 @@ where
 }
 
 pub enum GithubAuth {
-    PersonalAccessToken
+    PersonalAccessToken,
 }
 
 pub fn new_crab(auth: Option<GithubAuth>) -> Result<octocrab::Octocrab> {
     Ok(if let Some(a) = auth {
         match a {
-            GithubAuth::PersonalAccessToken => octocrab::Octocrab::builder().personal_token(lookup_pat()?).build()?
+            GithubAuth::PersonalAccessToken => octocrab::Octocrab::builder()
+                .personal_token(lookup_pat()?)
+                .build()?,
         }
     } else {
         octocrab::OctocrabBuilder::new().build()?
     })
 }
 
-pub fn get_latest_workflow_dispatch(owner: &str, repo: &str, workflow: Option<&str>) -> Result<WorkflowRun> {
+pub fn get_latest_workflow_dispatch(
+    owner: &str,
+    repo: &str,
+    workflow: Option<&str>,
+) -> Result<WorkflowRun> {
     let mut uri = "https://api.github.com/repos".to_string();
     if let Some(w) = workflow {
         uri = format!("{}/{}/{}/actions/workflows/{}/runs", uri, owner, repo, w);
@@ -207,7 +222,10 @@ pub fn get_latest_workflow_dispatch(owner: &str, repo: &str, workflow: Option<&s
 pub fn get_workflow_run_by_id(owner: &str, repo: &str, run_id: u64) -> Result<WorkflowRun> {
     Ok(serde_json::from_str(&send_get_request(
         || new_crab(None),
-        &format!("https://api.github.com/repos/{}/{}/actions/runs/{}", owner, repo, run_id)
+        &format!(
+            "https://api.github.com/repos/{}/{}/actions/runs/{}",
+            owner, repo, run_id
+        ),
     )?)?)
 }
 
@@ -219,7 +237,7 @@ pub fn dispatch_workflow<H>(
     inputs: Option<H>,
 ) -> Result<Outcome>
 where
-    H: serde::Serialize + Sized
+    H: serde::Serialize + Sized,
 {
     with_blocking_calls(|| {
         let crab = new_crab(Some(GithubAuth::PersonalAccessToken))?;
@@ -239,12 +257,16 @@ where
 pub fn get_branch_protections(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {
     let resp = &send_get_request(
         || new_crab(Some(GithubAuth::PersonalAccessToken)),
-        &format!("https://api.github.com/repos/{owner}/{repo}/branches/{branch}/protection")
+        &format!("https://api.github.com/repos/{owner}/{repo}/branches/{branch}/protection"),
     )?;
     match serde_json::from_str(resp) {
         Ok(retn) => Ok(retn),
         Err(e) => {
-            bail!("Error building branch protection struct: {}\nUnexpected response:\n{}", e, resp);
+            bail!(
+                "Error building branch protection struct: {}\nUnexpected response:\n{}",
+                e,
+                resp
+            );
         }
     }
 }
@@ -280,7 +302,12 @@ impl UpdateBranchProtectionRule {
     }
 }
 
-pub fn update_branch_protection(owner: &str, repo: &str, branch: &str, new_protections: UpdateBranchProtectionRule) -> Result<BranchProtections> {
+pub fn update_branch_protection(
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    new_protections: UpdateBranchProtectionRule,
+) -> Result<BranchProtections> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/branches/{branch}/protection");
     let res = send_put_request(
         || new_crab(Some(GithubAuth::PersonalAccessToken)),
@@ -290,15 +317,29 @@ pub fn update_branch_protection(owner: &str, repo: &str, branch: &str, new_prote
     match serde_json::from_str(&res) {
         Ok(retn) => Ok(retn),
         Err(e) => {
-            bail!("Error building branch protection struct: {}\nUnexpected response:\n{}", e, res);
+            bail!(
+                "Error building branch protection struct: {}\nUnexpected response:\n{}",
+                e,
+                res
+            );
         }
     }
 }
 
 pub fn lock_branch(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {
-    update_branch_protection(owner, repo, branch, UpdateBranchProtectionRule::lock_branch())
+    update_branch_protection(
+        owner,
+        repo,
+        branch,
+        UpdateBranchProtectionRule::lock_branch(),
+    )
 }
 
 pub fn unlock_branch(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {
-    update_branch_protection(owner, repo, branch, UpdateBranchProtectionRule::unlock_branch())
+    update_branch_protection(
+        owner,
+        repo,
+        branch,
+        UpdateBranchProtectionRule::unlock_branch(),
+    )
 }

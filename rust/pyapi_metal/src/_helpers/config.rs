@@ -1,15 +1,15 @@
-/// Helpers to transition from the config values to PyObjects
-
-use pyo3::prelude::*;
-use origen_metal::config;
-use pyo3::types::{PyDict, PyList};
 use crate::runtime_error;
+use origen_metal::config;
+/// Helpers to transition from the config values to PyObjects
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 
 #[macro_export]
 macro_rules! optional_config_value_map_into_pydict {
     ($py:expr, $map:expr) => {
         if let Some(m) = $map {
-            pyapi_metal::_helpers::config::config_value_map_into_pydict($py, &mut m.iter())?.to_object($py)
+            pyapi_metal::_helpers::config::config_value_map_into_pydict($py, &mut m.iter())?
+                .to_object($py)
         } else {
             $py.None()
         }

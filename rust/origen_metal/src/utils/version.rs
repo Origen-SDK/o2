@@ -1,15 +1,15 @@
 //! Utility functions for dealing with app/Origen version numbers
 
+use crate::toml_edit::Document;
 use crate::Result;
+use crate::{dialoguer, toml_edit};
 use semver;
 use std::fmt;
 use std::fs;
 use std::path::PathBuf;
-use crate::{toml_edit, dialoguer};
-use crate::toml_edit::Document;
 
 lazy_static! {
-    static ref PYPROJECT_PATH: [&'static str; 3] = ["tool", "poetry", "version"];
+    static ref PYPROJECT_PATH: [&'static str; 2] = ["project", "version"];
     static ref CARGO_PATH: [&'static str; 2] = ["package", "version"];
 }
 
@@ -524,7 +524,7 @@ impl TryFrom<&str> for ReleaseType {
             // Self::BetaCustom => "Beta (Custom)",
             // Self::AlphaCustom => "Alpha (Custom)",
             // Self::DevCustom => "Dev (Custom)",
-            _ => return Err(format!("Unrecognized Release Type '{}'", value))
+            _ => return Err(format!("Unrecognized Release Type '{}'", value)),
         })
     }
 }
@@ -641,7 +641,11 @@ impl VersionWithTOML {
         Ok(i)
     }
 
-    pub fn set_other(&mut self, path: &'static [&'static str], value: impl Into<toml_edit::Value>) -> Result<toml_edit::Item> {
+    pub fn set_other(
+        &mut self,
+        path: &'static [&'static str],
+        value: impl Into<toml_edit::Value>,
+    ) -> Result<toml_edit::Item> {
         let mut i: &mut toml_edit::Item = &mut self.toml[path[0]];
         for p in path[1..].iter() {
             i = &mut i[p];
@@ -649,6 +653,44 @@ impl VersionWithTOML {
         let retn = i.clone();
         *i = toml_edit::value(value);
         Ok(retn)
+    }
+
+    /// Returns a dependency specifier from a PEP 621 ``project.dependencies`` array.
+    pub fn get_dependency(&self, name: &str) -> Result<String> {
+        let dependencies = self.toml["project"]["dependencies"]
+            .as_array()
+            .ok_or_else(|| crate::Error::new("project.dependencies is not an array"))?;
+        for dependency in dependencies.iter() {
+            if let Some(specifier) = dependency.as_str() {
+                if dependency_name_matches(specifier, name) {
+                    return Ok(specifier.to_string());
+                }
+            }
+        }
+        bail!(
+            "Dependency '{}' was not found in project.dependencies",
+            name
+        )
+    }
+
+    /// Replaces a named dependency in a PEP 621 ``project.dependencies`` array.
+    pub fn set_dependency(&mut self, name: &str, requirement: &str) -> Result<String> {
+        let dependencies = self.toml["project"]["dependencies"]
+            .as_array_mut()
+            .ok_or_else(|| crate::Error::new("project.dependencies is not an array"))?;
+        for index in 0..dependencies.len() {
+            if let Some(specifier) = dependencies.get(index).and_then(|v| v.as_str()) {
+                if dependency_name_matches(specifier, name) {
+                    let previous = specifier.to_string();
+                    dependencies.replace(index, format!("{}{}", name, requirement));
+                    return Ok(previous);
+                }
+            }
+        }
+        bail!(
+            "Dependency '{}' was not found in project.dependencies",
+            name
+        )
     }
 
     pub fn write(&mut self) -> Result<()> {
@@ -669,9 +711,26 @@ impl VersionWithTOML {
     }
 }
 
+fn dependency_name_matches(specifier: &str, name: &str) -> bool {
+    let normalized = specifier.trim().to_lowercase().replace('_', "-");
+    let name = name.to_lowercase().replace('_', "-");
+    normalized == name
+        || normalized
+            .strip_prefix(&name)
+            .map(|suffix| {
+                suffix
+                    .chars()
+                    .next()
+                    .map(|c| matches!(c, '<' | '>' | '=' | '!' | '~' | '[' | ' ' | '@'))
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write as _;
 
     #[test]
     fn test_new_semver() {
@@ -731,6 +790,31 @@ mod tests {
 
         let v = Version::new_pep440(&Version::default().to_string()).unwrap();
         assert_eq!(v.to_string(), "0.0.0.dev0");
+    }
+
+    #[test]
+    fn reads_and_updates_pep621_dependencies() {
+        static VERSION_PATH: &[&str] = &["project", "version"];
+        let mut source = tempfile::NamedTempFile::new().unwrap();
+        write!(
+            source,
+            "[project]\nversion = \"1.0.0\"\ndependencies = [\"origen-metal~=1.4.0\", \"requests>=2\"]\n"
+        )
+        .unwrap();
+
+        let mut version = VersionWithTOML::new(source.path().to_path_buf(), VERSION_PATH).unwrap();
+        assert_eq!(
+            version.get_dependency("origen_metal").unwrap(),
+            "origen-metal~=1.4.0"
+        );
+        assert_eq!(
+            version.set_dependency("origen-metal", "~=1.5.0").unwrap(),
+            "origen-metal~=1.4.0"
+        );
+        assert_eq!(
+            version.get_dependency("origen-metal").unwrap(),
+            "origen-metal~=1.5.0"
+        );
     }
 
     #[test]

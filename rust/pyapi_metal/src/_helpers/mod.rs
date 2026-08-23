@@ -1,6 +1,6 @@
+pub mod contextlib;
 pub mod pickle;
 pub mod typed_value;
-pub mod contextlib;
 use crate::cfg_if;
 
 #[macro_use]
@@ -124,7 +124,7 @@ where
 }
 
 pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
-    Python::with_gil( |py| {
+    Python::with_gil(|py| {
         let mut split = s.split(".");
         let mut current: PyObject;
 
@@ -146,20 +146,18 @@ pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
             match PyModule::import(py, &*current_str) {
                 Ok(py_mod) => {
                     current = py_mod.to_object(py);
-                },
-                Err(e) => {
-                    match current.getattr(py, component) {
-                        Ok(attr) => current = attr.to_object(py),
-                        Err(e2) => {
-                            return runtime_error!(format!(
-                                "Failed to get qualified attribute '{}': \n\n{} \n\n{}",
-                                s,
-                                e.to_string(),
-                                e2.to_string(),
-                            ));
-                        }
-                    }
                 }
+                Err(e) => match current.getattr(py, component) {
+                    Ok(attr) => current = attr.to_object(py),
+                    Err(e2) => {
+                        return runtime_error!(format!(
+                            "Failed to get qualified attribute '{}': \n\n{} \n\n{}",
+                            s,
+                            e.to_string(),
+                            e2.to_string(),
+                        ));
+                    }
+                },
             }
         }
         Ok(current)

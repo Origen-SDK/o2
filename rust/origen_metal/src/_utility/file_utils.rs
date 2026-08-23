@@ -1,8 +1,8 @@
 use crate::Result;
-use std::fmt::Display;
-use std::path::PathBuf;
-use std::fs;
 use glob;
+use std::fmt::Display;
+use std::fs;
+use std::path::PathBuf;
 
 pub fn resolve_relative_paths_to_strings<D: Display>(
     paths: &Vec<D>,
@@ -66,7 +66,10 @@ pub fn preprocess_as_template(path: &PathBuf) -> Result<Option<String>> {
             let file = entries.first().unwrap();
             let content = fs::read_to_string(&file)?;
 
-            if file.extension().map_or(false, |ext| ext == "j2" || ext == "jinja") {
+            if file
+                .extension()
+                .map_or(false, |ext| ext == "j2" || ext == "jinja")
+            {
                 // Evaluate using minijinja
                 let mut env = minijinja::Environment::new();
                 let file_content = fs::read_to_string(&file)?;

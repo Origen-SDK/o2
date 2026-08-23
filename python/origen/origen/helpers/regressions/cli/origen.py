@@ -287,7 +287,7 @@ class InAppCommands(CoreCommands):
         pls = _CommonNames.pls
         save_ref = "save_ref"
         target = "target"
-        # web = "web"
+        web = "web"
     names = Names()
 
     class _TargetCmd_:
@@ -352,15 +352,15 @@ class InAppCommands(CoreCommands):
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
     env = Cmd(
         names.env,
-        help="Manage your application's Origen/Python environment (dependencies, etc.)",
+        help="Manage your application's Origen/Python environment",
         subcmds=[
             Cmd(
                 "setup",
-                help="Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file",
+                help="Create or synchronize the UV environment from uv.lock",
             ),
             Cmd(
                 "update",
-                help="Update your application's Python dependencies according to the latest pyproject.toml file",
+                help="Upgrade and synchronize the application's locked dependencies",
             ),
         ],
         help_subc_idx=0,
@@ -431,26 +431,36 @@ class InAppCommands(CoreCommands):
         ],
         aliases=["w"],
     )
-    # web = Cmd(names.web)
+    web = Cmd(
+        names.web,
+        help="Build and view application documentation",
+        aliases=["w"],
+        subcmds=[
+            Cmd("build", help="Build the application documentation", aliases=["b", "compile", "html"]),
+            Cmd("clean", help="Remove generated documentation", aliases=["c"]),
+            Cmd("serve", help="Build, watch, and serve application documentation", aliases=["s"]),
+            Cmd("view", help="Open previously generated documentation", aliases=["v"]),
+        ],
+    )
     v = _CommonNames.v_cmd()
 
     commands = [
         # app, aux_cmds, build, compile, creds, env, eval, exec, fmt, generate, i, mailer, mode, new, pl, pls, save_ref, target, web
-        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, save_ref, target
+        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, save_ref, target, web
     ]
     cmds = commands
 
     origen = Cmd(None)
 
 class CoreOpts:
-    help = CmdOpt('help', "Print help information", sn="h", ln="help")
+    help = CmdOpt('help', "Print help", sn="h", ln="help")
     verbosity = CmdOpt('verbosity', "Terminal verbosity level e.g. -v, -vv, -vvv", ln="verbose", ln_aliases=["verbosity"], sn="v")
     vk = CmdOpt("verbosity_keywords", "Keywords for verbose listeners", value_name= "verbosity_keywords", takes_value=True, use_delimiter=True, ln_aliases=["vk"])
 
 class CoreErrorMessages:
     @classmethod
     def _invalid_arg_msg(cls, val):
-        return f"Found argument '{val}' which wasn't expected, or isn't valid in this context"
+        return f"unexpected argument '{val}' found"
 
     @classmethod
     def _missing_arg_val_msg(cls, arg, type, value_name=None):
@@ -466,7 +476,7 @@ class CoreErrorMessages:
             if value_name is None:
                 value_name = arg.to_vn()
             arg = arg.name
-        return f"The argument '{prefix}{arg} <{value_name or arg}>' requires a value but none was supplied"
+        return f"a value is required for '{prefix}{arg} <{value_name or arg}>' but none was supplied"
 
     @classmethod
     def missing_arg_val_msg(cls, arg, value_name=None):
@@ -486,7 +496,7 @@ class CoreErrorMessages:
 
     @classmethod
     def unknown_arg_msg(cls, arg):
-        return cls._invalid_arg_msg(arg)
+        return f"unrecognized subcommand '{arg}'"
 
     @classmethod
     def unknown_opt_msg(cls, opt, ln=True):
@@ -510,11 +520,11 @@ class CoreErrorMessages:
                 mapped_vals.append(f"{v.ln_to_cli()} <{v.to_vn()}>")
             else:
                 mapped_vals.append(f"<{v.to_vn()}>")
-        return "The following required arguments were not provided:" + "\n    " + "    \n".join(mapped_vals)
+        return "the following required arguments were not provided:" + "\n  " + "\n  ".join(mapped_vals)
 
     @classmethod
     def invalid_subc_msg(cls, subc):
-        return f"The subcommand '{subc}' wasn't recognized\n\nUSAGE:\n"
+        return f"unrecognized subcommand '{subc}'\n\nUsage:"
 
     @classmethod
     def cmd_building_err_prefix(cls, cmd):

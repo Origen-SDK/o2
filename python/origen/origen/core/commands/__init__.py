@@ -2,6 +2,7 @@ import importlib, origen
 
 creds = "credentials"
 eval = "eval"
+web = "web"
 
 _subcmds = None
 _base_cmd = None
@@ -27,6 +28,8 @@ def run_core_cmd(base_cmd, sub_cmds, args):
             import_cmd(creds).run(args)
         elif base_cmd == eval:
             import_cmd(eval).run(args)
+        elif base_cmd == web:
+            import_cmd(web).run(args)
         else:
             return False
         return True

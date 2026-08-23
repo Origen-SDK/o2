@@ -313,7 +313,7 @@ macro_rules! backend_expect {
 }
 
 /// Get the caller name. Taken from this SO answer:
-/// https://stackoverflow.com/a/63904992/8533619
+/// <https://stackoverflow.com/a/63904992/8533619>
 #[macro_export]
 macro_rules! current_func {
     () => {{
@@ -346,5 +346,5 @@ macro_rules! hashmap {
 macro_rules! scrub_path {
     ($path:expr) => {{
         std::path::PathBuf::from_iter($path.components())
-    }}
+    }};
 }

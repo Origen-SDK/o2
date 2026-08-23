@@ -1,5 +1,5 @@
-use std::{path::PathBuf, sync::RwLock};
 use super::UniquenessOption;
+use std::{path::PathBuf, sync::RwLock};
 
 /// Configuration for the program generator, an singleton is instantiated as
 /// `PROG_GEN_CONFIG` in `lib.rs`
@@ -50,7 +50,7 @@ impl Config {
     pub fn debug_enabled(&self) -> bool {
         *self.debug_enabled.read().unwrap()
     }
-    
+
     pub fn set_debug_enabled(&self, enabled: bool) {
         *self.debug_enabled.write().unwrap() = enabled;
     }
@@ -62,7 +62,7 @@ impl Config {
     pub fn set_app_name(&self, name: String) {
         *self.app_name.write().unwrap() = Some(name);
     }
-    
+
     /// Returns an ID that it guaranteed unique across threads and within the lifetime of an Origen
     /// invocation
     pub fn generate_unique_id(&self) -> usize {
@@ -86,20 +86,20 @@ impl Config {
         let src_files = self.src_files.read().unwrap();
         src_files.last().cloned()
     }
-    
+
     pub fn set_test_template_load_path(&self, paths: Vec<PathBuf>) {
         let mut lp = self.test_template_load_path.write().unwrap();
         *lp = paths;
     }
-    
+
     pub fn test_template_load_path(&self) -> Vec<PathBuf> {
         self.test_template_load_path.read().unwrap().clone()
     }
-    
+
     pub fn set_uniqueness_option(&self, option: UniquenessOption) {
         *self.uniqueness_option.write().unwrap() = Some(option);
     }
-    
+
     pub fn uniqueness_option(&self) -> Option<UniquenessOption> {
         self.uniqueness_option.read().unwrap().clone()
     }

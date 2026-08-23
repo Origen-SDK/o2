@@ -1,7 +1,7 @@
+use super::base::IGXLBase;
 use crate::core::tester::{Interceptor, TesterID};
 use crate::testers::SupportedTester;
 use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
-use super::base::IGXLBase;
 
 #[derive(Debug, Clone)]
 pub struct J750 {}
@@ -33,7 +33,7 @@ impl TesterID for J750 {
     fn id(&self) -> SupportedTester {
         SupportedTester::J750
     }
-    
+
     fn id_prog_gen(&self) -> ProgGenSupportedTester {
         ProgGenSupportedTester::J750
     }

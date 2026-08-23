@@ -7,7 +7,7 @@ class TestOrigenVersion:
 
     def current_version(self):
         if self._current_version is None:
-            self._current_version = pip_show('origen', wrap_poetry=True).version
+            self._current_version = pip_show('origen', wrap_uv=True).version
         return self._current_version
 
     def test_origen_version(self):

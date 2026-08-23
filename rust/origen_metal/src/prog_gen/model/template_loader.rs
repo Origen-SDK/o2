@@ -70,15 +70,15 @@ pub fn load_test_from_lib(
         tester
     );
     let tester_name = tester.to_string().to_lowercase();
-    
+
     let key = format!("{}_{}_{}", &tester_name, lib_name, test_name);
-    
+
     if let Some(t) = LOADED_TESTS.read().unwrap().get(&key) {
         return Ok(t.clone());
     }
-    
+
     let mut available_tests: HashSet<String> = HashSet::new();
-    
+
     // Look for an app-defined library/test first
     for path in crate::PROG_GEN_CONFIG.test_template_load_path() {
         let path = path.join(format!("{}/{}/{}.json", tester_name, lib_name, test_name));
@@ -112,9 +112,7 @@ pub fn load_test_from_lib(
                 log_debug!("{}", e);
                 let mut msg = format!(
                     "No test method named '{}' found in library '{}' (for {})",
-                    test_name,
-                    lib_name,
-                    tester
+                    test_name, lib_name, tester
                 );
                 if available_tests.len() > 0 {
                     let mut available_tests: Vec<String> = available_tests.into_iter().collect();
@@ -192,13 +190,11 @@ mod unit_tests {
             Some("boolean")
         );
         assert!(template.collections.as_ref().unwrap().contains_key("tsen"));
-        assert!(
-            template.collections.as_ref().unwrap()["tsen"]
-                .collections
-                .as_ref()
-                .unwrap()
-                .contains_key("registers")
-        );
+        assert!(template.collections.as_ref().unwrap()["tsen"]
+            .collections
+            .as_ref()
+            .unwrap()
+            .contains_key("registers"));
         assert_eq!(
             template.collections.as_ref().unwrap()["tsen"]
                 .collections

@@ -84,7 +84,12 @@ impl ArmDebug {
     }
 
     #[classmethod]
-    fn model_init(_cls: &PyType, py: Python, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         crate::dut::PyDUT::ensure_pins("dut")?;
         let swd_id = check_for_swd(py)?;
         let jtag_id = check_for_jtag(py)?;
@@ -245,7 +250,12 @@ impl DP {
 
     #[classmethod]
     #[pyo3(signature=(instance, block_options=None))]
-    fn model_init(_cls: &PyType, py: Python, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
@@ -346,7 +356,12 @@ impl JtagDP {
 
     #[classmethod]
     #[pyo3(signature=(instance, block_options=None))]
-    fn model_init(_cls: &PyType, py: Python, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
@@ -502,7 +517,12 @@ impl MemAP {
     }
 
     #[classmethod]
-    fn model_init(_cls: &PyType, py: Python, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {

@@ -1,8 +1,7 @@
-use crate::prog_gen::{Test, TestInvocation, to_param_value};
+use crate::prog_gen::{to_param_value, Test, TestInvocation};
 use origen_metal::prog_gen::{ParamValue, SupportedTester};
-use pyo3::{exceptions, prelude::*};
 use pyo3::types::PyDict;
-
+use pyo3::{exceptions, prelude::*};
 
 #[pyclass(subclass)]
 /// Python interface for the tester backend.
@@ -37,7 +36,14 @@ impl V93K {
         allow_missing: bool,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Test> {
-        let t = Test::new(name.clone(), self.tester.to_owned(), library, name, allow_missing, kwargs)?;
+        let t = Test::new(
+            name.clone(),
+            self.tester.to_owned(),
+            library,
+            name,
+            allow_missing,
+            kwargs,
+        )?;
         Ok(t)
     }
 
@@ -49,7 +55,11 @@ impl V93K {
         kwargs: Option<&PyDict>,
     ) -> PyResult<TestInvocation> {
         let t = TestInvocation::new(name.clone(), self.tester.to_owned(), allow_missing, kwargs)?;
-        t.set_attr("name", Some(ParamValue::String(name.to_owned())), allow_missing)?;
+        t.set_attr(
+            "name",
+            Some(ParamValue::String(name.to_owned())),
+            allow_missing,
+        )?;
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs {
                 if let Ok(name) = k.extract::<String>() {

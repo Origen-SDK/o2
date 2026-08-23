@@ -19,21 +19,21 @@ pub enum STIL {
     Annotation(String),
     Environment(Option<String>),
     InheritEnv(String),
-    FileRef(String, Option<(String,String,String)>),  // name, (type, format, version)
+    FileRef(String, Option<(String, String, String)>), // name, (type, format, version)
     NameMaps(Option<String>),
     NameMapsInherit(Option<String>, Option<String>), // name, namespace
     NameMapsPrefix(String),
     NameMapsSeparator(String),
     NameMapsScanCells,
-    NameMapsScanCell(Option<String>, Option<String>),  // name, map_string
+    NameMapsScanCell(Option<String>, Option<String>), // name, map_string
     NameMapsSignals,
-    NameMapsSignal(Option<String>, Option<String>),  // name, map_string
-    NameMapsSignalGroups(Option<String>),  // group name
-    NameMapsSignalGroup(Option<String>, Option<String>),  // name, map_string
+    NameMapsSignal(Option<String>, Option<String>), // name, map_string
+    NameMapsSignalGroups(Option<String>),           // group name
+    NameMapsSignalGroup(Option<String>, Option<String>), // name, map_string
     NameMapsVariables,
-    NameMapsVariable(Option<String>, Option<String>),  // name, map_string
+    NameMapsVariable(Option<String>, Option<String>), // name, map_string
     NameMapsNames,
-    NameMapsName(Option<String>, Option<String>),  // name, map_string
+    NameMapsName(Option<String>, Option<String>), // name, map_string
     Include(String, Option<String>),
     Signals,
     Signal(String, stil::SignalType), // name, type

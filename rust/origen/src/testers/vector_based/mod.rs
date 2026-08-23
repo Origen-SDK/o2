@@ -87,10 +87,7 @@ where
         VectorBased::print_vector(self, renderer, repeat, compressable)
     }
 
-    fn print_pinlist(
-        &self,
-        renderer: &mut pattern_renderer::Renderer,
-    ) -> Option<Result<String>> {
+    fn print_pinlist(&self, renderer: &mut pattern_renderer::Renderer) -> Option<Result<String>> {
         VectorBased::print_pinlist(self, renderer)
     }
 

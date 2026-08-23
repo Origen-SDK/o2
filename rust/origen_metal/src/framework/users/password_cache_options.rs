@@ -139,11 +139,15 @@ impl PasswordCacheOptions {
 
 impl fmt::Display for PasswordCacheOptions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Session => "session",
-            Self::Keyring => "keyring",
-            Self::None => "none",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Session => "session",
+                Self::Keyring => "keyring",
+                Self::None => "none",
+            }
+        )
     }
 }
 
@@ -151,7 +155,7 @@ impl From<&PasswordCacheOptions> for Option<String> {
     fn from(value: &PasswordCacheOptions) -> Option<String> {
         match value {
             PasswordCacheOptions::None => None,
-            _ => Some(value.to_string())
+            _ => Some(value.to_string()),
         }
     }
 }
@@ -171,7 +175,7 @@ impl TryFrom<Option<&str>> for PasswordCacheOptions {
                 "session" | "session_store" => PasswordCacheOptions::Session,
                 "keyring" => PasswordCacheOptions::Keyring,
                 "none" => PasswordCacheOptions::None,
-                _ => bail!("Invalid password cache option: '{}'", v)
+                _ => bail!("Invalid password cache option: '{}'", v),
             })
         } else {
             Ok(PasswordCacheOptions::None)

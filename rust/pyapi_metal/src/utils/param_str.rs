@@ -1,10 +1,10 @@
-use pyo3::prelude::*;
-use pyo3::basic::CompareOp;
-use pyo3::types::{PyDict, PyType};
-use origen_metal::Result;
-use origen_metal::utils::param_str::ParamStr as OmParamStr;
-use origen_metal::utils::param_str::MultiParamStr as OmMultiParamStr;
 use indexmap::IndexMap;
+use origen_metal::utils::param_str::MultiParamStr as OmMultiParamStr;
+use origen_metal::utils::param_str::ParamStr as OmParamStr;
+use origen_metal::Result;
+use pyo3::basic::CompareOp;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyType};
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "param_str")?;
@@ -16,7 +16,7 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass]
 struct ParamStr {
-    om: OmParamStr
+    om: OmParamStr,
 }
 
 #[pymethods]
@@ -24,8 +24,17 @@ impl ParamStr {
     // Create a new ParamStr, and parse it, in one method, returning the ParamStr as parsed
     #[classmethod]
     #[pyo3(signature=(input_str, allows_leading_str=false, defaults=None, allows_non_defaults=None))]
-    fn and_parse<'py>(cls: &PyType, py: Python<'py>, input_str: String, allows_leading_str: bool, defaults: Option<&PyDict>, allows_non_defaults: Option<bool>) -> PyResult<Py<Self>> {
-        let slf = Self {om: Self::new_om(allows_leading_str, defaults, allows_non_defaults)?};
+    fn and_parse<'py>(
+        cls: &PyType,
+        py: Python<'py>,
+        input_str: String,
+        allows_leading_str: bool,
+        defaults: Option<&PyDict>,
+        allows_non_defaults: Option<bool>,
+    ) -> PyResult<Py<Self>> {
+        let slf = Self {
+            om: Self::new_om(allows_leading_str, defaults, allows_non_defaults)?,
+        };
         let obj = Py::new(cls.py(), slf)?;
         {
             let pyref = obj.borrow_mut(py);
@@ -36,8 +45,14 @@ impl ParamStr {
 
     #[new]
     #[pyo3(signature=(allows_leading_str=false, defaults=None, allows_non_defaults=None))]
-    fn new(allows_leading_str: bool, defaults: Option<&PyDict>, allows_non_defaults: Option<bool>) -> PyResult<Self> {
-        Ok(Self {om: Self::new_om(allows_leading_str, defaults, allows_non_defaults)?})
+    fn new(
+        allows_leading_str: bool,
+        defaults: Option<&PyDict>,
+        allows_non_defaults: Option<bool>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            om: Self::new_om(allows_leading_str, defaults, allows_non_defaults)?,
+        })
     }
 
     #[getter]
@@ -80,7 +95,9 @@ impl ParamStr {
     }
 
     pub fn add_default(&mut self, name: String, value: &PyAny) -> PyResult<bool> {
-        Ok(self.om.add_default(name, Self::extract_param_value(value)?)?)
+        Ok(self
+            .om
+            .add_default(name, Self::extract_param_value(value)?)?)
     }
 
     pub fn add_defaults(&mut self, to_add: &PyDict) -> PyResult<Vec<bool>> {
@@ -91,7 +108,10 @@ impl ParamStr {
         Ok(self.om.remove_default(to_remove)?)
     }
 
-    pub fn remove_defaults(&mut self, to_remove: Vec<String>) -> PyResult<Vec<Option<Vec<String>>>> {
+    pub fn remove_defaults(
+        &mut self,
+        to_remove: Vec<String>,
+    ) -> PyResult<Vec<Option<Vec<String>>>> {
         Ok(self.om.remove_defaults(&to_remove)?)
     }
 
@@ -102,10 +122,14 @@ impl ParamStr {
 
     /// If the ParamStr fails to parse, returns the exception instead of raising one.
     /// Non-ParamStr parse exceptions will still be raised (such is missing the input argument)
-    pub fn try_parse<'py>(mut slf: PyRefMut<Self>, py: Python<'py>, input: String) -> PyResult<PyObject> {
+    pub fn try_parse<'py>(
+        mut slf: PyRefMut<Self>,
+        py: Python<'py>,
+        input: String,
+    ) -> PyResult<PyObject> {
         Ok(match slf.om.parse(input) {
             Ok(_) => slf.into_py(py),
-            Err(e) => runtime_exception!(e.msg).to_object(py)
+            Err(e) => runtime_exception!(e.msg).to_object(py),
         })
     }
 
@@ -154,7 +178,12 @@ impl ParamStr {
     }
 
     fn items(&self) -> PyResult<Vec<(String, Vec<String>)>> {
-        Ok(self.om.get_parsed()?.iter().map(|(k, v)| (k.to_string(), (*v).clone())).collect())
+        Ok(self
+            .om
+            .get_parsed()?
+            .iter()
+            .map(|(k, v)| (k.to_string(), (*v).clone()))
+            .collect())
     }
 
     fn get(&self, key: &str) -> PyResult<Option<Vec<String>>> {
@@ -169,7 +198,10 @@ impl ParamStr {
         if let Some(s) = self.get(key)? {
             Ok(s)
         } else {
-            Err(pyo3::exceptions::PyKeyError::new_err(format!("No key '{}'", key)))
+            Err(pyo3::exceptions::PyKeyError::new_err(format!(
+                "No key '{}'",
+                key
+            )))
         }
     }
 
@@ -199,7 +231,7 @@ impl ParamStr {
 
     fn dup(&self) -> PyResult<Self> {
         Ok(Self {
-            om: self.om.clone()
+            om: self.om.clone(),
         })
     }
 
@@ -208,7 +240,9 @@ impl ParamStr {
     }
 
     fn set_param(&mut self, param: String, value: &PyAny) -> PyResult<bool> {
-        Ok(self.om.set_param(param, Self::extract_param_value(value)?)?)
+        Ok(self
+            .om
+            .set_param(param, Self::extract_param_value(value)?)?)
     }
 
     fn set(&mut self, param: String, value: &PyAny) -> PyResult<bool> {
@@ -218,15 +252,20 @@ impl ParamStr {
 
 impl ParamStr {
     fn from_om(om_param_str: OmParamStr) -> Self {
-        Self {
-            om: om_param_str
-        }
+        Self { om: om_param_str }
     }
 
-    fn new_om(allows_leading_str: bool, defaults: Option<&PyDict>, allows_non_defaults: Option<bool>) -> Result<OmParamStr> {
+    fn new_om(
+        allows_leading_str: bool,
+        defaults: Option<&PyDict>,
+        allows_non_defaults: Option<bool>,
+    ) -> Result<OmParamStr> {
         let om_defaults;
         if let Some(defs) = defaults {
-            om_defaults = Some((allows_non_defaults.unwrap_or(false), Self::extract_defaults(defs)?));
+            om_defaults = Some((
+                allows_non_defaults.unwrap_or(false),
+                Self::extract_defaults(defs)?,
+            ));
         } else {
             om_defaults = None
         }
@@ -236,14 +275,17 @@ impl ParamStr {
     fn extract_defaults(defs: &PyDict) -> PyResult<IndexMap<String, Option<Vec<String>>>> {
         let mut om_defs = IndexMap::new();
         for (key, default) in defs {
-            om_defs.insert(key.extract::<String>()?, Self::extract_param_value(default)?);
+            om_defs.insert(
+                key.extract::<String>()?,
+                Self::extract_param_value(default)?,
+            );
         }
         Ok(om_defs)
     }
 
     fn extract_param_value(val: &PyAny) -> Result<Option<Vec<String>>> {
         Ok(if let Ok(s) = val.extract::<String>() {
-            Some(vec!(s))
+            Some(vec![s])
         } else if let Ok(v) = val.extract::<Vec<String>>() {
             Some(v)
         } else if val.is_none() {
@@ -278,17 +320,16 @@ impl ParamStrIter {
 
 #[pyclass]
 struct MultiParamStr {
-    om: OmMultiParamStr
+    om: OmMultiParamStr,
 }
 
 #[pymethods]
 impl MultiParamStr {
-
     #[new]
     #[pyo3(signature=(allow_leading_str=false))]
     fn new(allow_leading_str: bool) -> PyResult<Self> {
         let om = OmMultiParamStr::new(allow_leading_str);
-        Ok(Self {om: om})
+        Ok(Self { om: om })
     }
 
     #[getter]
@@ -308,9 +349,12 @@ impl MultiParamStr {
 
     #[getter]
     pub fn parsed(&self) -> PyResult<Option<Vec<ParamStr>>> {
-        Ok(self.om.parsed().as_ref().map(|param_strs| { param_strs.iter().map(|param_str| {
-            ParamStr::from_om(param_str.clone())
-        }).collect()}))
+        Ok(self.om.parsed().as_ref().map(|param_strs| {
+            param_strs
+                .iter()
+                .map(|param_str| ParamStr::from_om(param_str.clone()))
+                .collect()
+        }))
     }
 
     #[getter]
@@ -320,13 +364,20 @@ impl MultiParamStr {
 
     #[getter]
     pub fn param_strs(&self) -> PyResult<Vec<ParamStr>> {
-        Ok(self.om.param_strs().iter().map(|param_str| {
-            ParamStr::from_om(param_str.clone())
-        }).collect())
+        Ok(self
+            .om
+            .param_strs()
+            .iter()
+            .map(|param_str| ParamStr::from_om(param_str.clone()))
+            .collect())
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        Ok(self.om.parsed().as_ref().map_or(0, |param_str| param_str.len()))
+        Ok(self
+            .om
+            .parsed()
+            .as_ref()
+            .map_or(0, |param_str| param_str.len()))
     }
 
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<MultiParamStrIter> {

@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
+use std::cmp::Ordering;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 pub enum Bin {
@@ -64,7 +64,7 @@ impl Ord for Bin {
 pub struct BinArray {
     store: Vec<Bin>,
     pointer: Option<usize>, // Still usize for Vec indexing
-    next: Option<u32>,     // Changed to u32 for bin values
+    next: Option<u32>,      // Changed to u32 for bin values
 }
 
 impl BinArray {
@@ -96,7 +96,7 @@ impl BinArray {
             self.store.sort();
         }
     }
-    
+
     pub fn push_range(&mut self, start: u32, end: u32) {
         self.store.push(Bin::Range(start, end));
     }
@@ -169,7 +169,6 @@ impl BinArray {
 
 #[cfg_attr(feature = "python", pymethods)]
 impl BinArray {
-    
     pub fn debug(&self) {
         println!("{:?}", self);
     }

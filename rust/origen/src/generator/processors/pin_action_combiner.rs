@@ -94,7 +94,7 @@ impl Processor<PAT> for PinActionCombiner {
                 }
                 Ok(Return::Unmodified)
             }
-            _ => Ok(Return::Unmodified)
+            _ => Ok(Return::Unmodified),
         }
     }
 }

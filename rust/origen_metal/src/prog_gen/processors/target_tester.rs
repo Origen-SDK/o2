@@ -2,8 +2,8 @@
 //! are not intended for the given tester
 
 use super::super::nodes::PGM;
-use crate::prog_gen::supported_testers::SupportedTester;
 use crate::ast::*;
+use crate::prog_gen::supported_testers::SupportedTester;
 use crate::Result;
 
 pub struct TargetTester {

@@ -9,7 +9,9 @@ pub struct CleanResources {
 }
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
-    let mut p = CleanResources { in_resources: false };
+    let mut p = CleanResources {
+        in_resources: false,
+    };
     Ok(node.process(&mut p)?.unwrap())
 }
 
@@ -23,9 +25,7 @@ impl Processor<PGM> for CleanResources {
                 self.in_resources = orig;
                 Ok(Return::ReplaceChildren(nodes))
             }
-            PGM::Test(_, _) => {
-                Ok(Return::ProcessChildren)
-            }
+            PGM::Test(_, _) => Ok(Return::ProcessChildren),
             // For all other nodes
             _ => {
                 if self.in_resources {

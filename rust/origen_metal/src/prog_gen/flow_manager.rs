@@ -4,10 +4,10 @@
 //! application code to always deal with an immutable reference to an instance of this
 //! struct at origen::FLOW.
 
-use crate::prog_gen::PGM;
-use indexmap::IndexMap;
 use crate::ast::{Node, AST};
+use crate::prog_gen::PGM;
 use crate::Result;
+use indexmap::IndexMap;
 use std::fmt;
 use std::sync::RwLock;
 
@@ -34,7 +34,7 @@ impl FlowManager {
             }),
         }
     }
-    
+
     /// Clears all flows and starts program generation from scratch
     pub fn reset(&self) {
         let mut inner = self.inner.write().unwrap();

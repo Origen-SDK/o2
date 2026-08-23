@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Documentation system block diagram, light variant.
+  Keep in sync with doc_system_block_diagram-dark.svg: the geometry is
+  identical and only the palette differs. Referenced from
+  guides/documenting/core_concepts.rst with the only-light/only-dark classes so
+  it follows the theme toggle rather than the OS preference.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" width="900" height="430"
+     role="img" aria-labelledby="dsbd-title dsbd-desc" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <title id="dsbd-title">Origen documentation system block diagram</title>
+  <desc id="dsbd-desc">The Origen CLI invokes a Sphinx app that hosts the Origen Sphinx
+  Extension and emits generated web pages. The Sphinx app exchanges content with the
+  Origen application and with the theme, API, and other extensions.</desc>
+
+  <defs>
+    <marker id="dsbd-arrow-light" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <g stroke="#475569" stroke-width="1.6" marker-end="url(#dsbd-arrow-light)" fill="none">
+    <path d="M 196 150 H 252"/>
+    <path d="M 620 150 H 686"/>
+    <path d="M 113 330 V 300 H 300 V 262" marker-start="url(#dsbd-arrow-light)"/>
+    <path d="M 787 330 V 300 H 600 V 262" marker-start="url(#dsbd-arrow-light)"/>
+  </g>
+
+  <g fill="#e0f2fe" stroke="#2180ac" stroke-width="1.6">
+    <rect x="252" y="46" width="368" height="216" rx="10"/>
+    <rect x="686" y="112" width="196" height="76" rx="8" fill="#2a9fd6" stroke="#2180ac"/>
+    <rect x="18" y="330" width="190" height="72" rx="8"/>
+    <rect x="692" y="330" width="190" height="72" rx="8"/>
+    <ellipse cx="107" cy="150" rx="89" ry="52"/>
+    <rect x="300" y="120" width="272" height="76" rx="8" fill="#ffffff" stroke="#2a9fd6"/>
+  </g>
+
+  <g font-size="15" fill="#0f172a" text-anchor="middle">
+    <text x="436" y="76" font-weight="600">Sphinx App</text>
+    <text x="107" y="144">Origen CLI</text>
+    <text x="107" y="166" font-size="13.5" fill="#334155">(origen web build)</text>
+    <text x="436" y="152" fill="#0f4c63" font-weight="600">Origen Sphinx</text>
+    <text x="436" y="172" fill="#0f4c63" font-weight="600">Extension</text>
+    <text x="784" y="144" fill="#ffffff" font-weight="600">Generated Web</text>
+    <text x="784" y="164" fill="#ffffff" font-weight="600">Pages</text>
+    <text x="113" y="372">Origen Application</text>
+    <text x="787" y="362">Theme, API, and</text>
+    <text x="787" y="382">other extensions</text>
+  </g>
+</svg>

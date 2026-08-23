@@ -1,33 +1,33 @@
-pub mod tester_apis;
-mod test_invocation;
+mod condition;
 mod flow_options;
+mod group;
+pub mod interface;
+mod pattern_group;
+mod resources;
 mod test;
 mod test_collection_item;
-mod group;
-mod pattern_group;
-mod condition;
-mod resources;
-pub mod interface;
+mod test_invocation;
+pub mod tester_apis;
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use test_invocation::TestInvocation;
-use test::Test;
-use test_collection_item::TestCollectionItem;
+use condition::Condition;
 use group::Group;
 use pattern_group::PatternGroup;
-use condition::Condition;
 use resources::Resources;
+use test::Test;
+use test_collection_item::TestCollectionItem;
+use test_invocation::TestInvocation;
 
 use origen_metal::ast::{Meta, Node};
-use pyo3::types::{PyAny, PyDict, PyList, PyTuple};
-use origen_metal::{Result, Error, FLOW};
-use origen_metal::prog_gen::{PGM, ParamType, ParamValue, UniquenessOption};
-use pyo3::prelude::*;
-use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
-use std::result::Result as StdResult;
 use origen_metal::prog_gen::test_ids::define as define_test_ids;
+use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
+use origen_metal::prog_gen::{ParamType, ParamValue, UniquenessOption, PGM};
+use origen_metal::{Error, Result, FLOW};
+use pyo3::prelude::*;
+use pyo3::types::{PyAny, PyDict, PyList, PyTuple};
+use std::result::Result as StdResult;
 
 #[derive(Debug)]
 pub struct FrameInfo {
@@ -260,7 +260,8 @@ fn _processed_ast(tester: &str) -> Result<Node<PGM>> {
         Err(e) => {
             bail!(
                 "Failed to identify a supported tester type from '{}': {}",
-                tester, e
+                tester,
+                e
             )
         }
     };
@@ -276,11 +277,11 @@ fn _processed_ast(tester: &str) -> Result<Node<PGM>> {
         _ => bail!(
             "The tester type '{}' is not supported yet for processed AST generation",
             tester
-        )
+        ),
     }
-}   
+}
 
-#[pyfunction]   
+#[pyfunction]
 fn processed_ast_str(tester: String) -> PyResult<String> {
     Ok(origen_metal::ast::to_string(&_processed_ast(&tester)?))
 }
@@ -411,12 +412,14 @@ pub fn to_param_value(value: &PyAny) -> Result<Option<ParamValue>> {
             if item.downcast::<PyDict>().is_ok() {
                 bail!("Illegal list value: mapping elements are not supported")
             }
-            let item = to_param_value(item)?.ok_or_else(|| {
-                Error::new("Illegal list value: None elements are not supported")
-            })?;
+            let item = to_param_value(item)?
+                .ok_or_else(|| Error::new("Illegal list value: None elements are not supported"))?;
             match item {
-                ParamValue::Bool(_) | ParamValue::UInt(_) | ParamValue::Int(_)
-                | ParamValue::Float(_) | ParamValue::String(_) => values.push(item),
+                ParamValue::Bool(_)
+                | ParamValue::UInt(_)
+                | ParamValue::Int(_)
+                | ParamValue::Float(_)
+                | ParamValue::String(_) => values.push(item),
                 _ => bail!("Illegal list value: only scalar elements are supported"),
             }
         }
@@ -513,16 +516,27 @@ pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<Para
             }
         }
         ParamType::ListStrings | ParamType::ListClasses => match to_param_value(value)? {
-            Some(ParamValue::List(values)) => Ok(ParamValue::List(values.into_iter().map(|item| {
-                match (ptype, item) {
-                    (ParamType::ListClasses, ParamValue::String(v)) => ParamValue::Class(v),
-                    (ParamType::ListStrings, ParamValue::Bool(v)) => ParamValue::String(v.to_string()),
-                    (ParamType::ListStrings, ParamValue::Int(v)) => ParamValue::String(v.to_string()),
-                    (ParamType::ListStrings, ParamValue::UInt(v)) => ParamValue::String(v.to_string()),
-                    (ParamType::ListStrings, ParamValue::Float(v)) => ParamValue::String(v.to_string()),
-                    (_, item) => item,
-                }
-            }).collect())),
+            Some(ParamValue::List(values)) => Ok(ParamValue::List(
+                values
+                    .into_iter()
+                    .map(|item| match (ptype, item) {
+                        (ParamType::ListClasses, ParamValue::String(v)) => ParamValue::Class(v),
+                        (ParamType::ListStrings, ParamValue::Bool(v)) => {
+                            ParamValue::String(v.to_string())
+                        }
+                        (ParamType::ListStrings, ParamValue::Int(v)) => {
+                            ParamValue::String(v.to_string())
+                        }
+                        (ParamType::ListStrings, ParamValue::UInt(v)) => {
+                            ParamValue::String(v.to_string())
+                        }
+                        (ParamType::ListStrings, ParamValue::Float(v)) => {
+                            ParamValue::String(v.to_string())
+                        }
+                        (_, item) => item,
+                    })
+                    .collect(),
+            )),
             _ => bail!("Illegal value, expected a List, got: '{}'", value),
         },
         ParamType::Any => Ok(ParamValue::Any(format!("{}", value.str()?))),

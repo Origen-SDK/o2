@@ -6,9 +6,8 @@ macro_rules! req_sv_arg {
             .help($help)
             .action(crate::commands::_prelude::clap_arg_actions::SetArg)
             .value_name($value_name)
-            .multiple(false)
             .required(true)
-    }}
+    }};
 }
 
 /// Generate an optional, single-value option
@@ -20,9 +19,8 @@ macro_rules! sv_opt {
             .help($help)
             .action(crate::commands::_prelude::clap_arg_actions::SetArg)
             .value_name($value_name)
-            .multiple(false)
             .required(false)
-    }}
+    }};
 }
 
 /// Generate a single flag option, e.g., a yes/no indicator
@@ -33,7 +31,6 @@ macro_rules! sf_opt {
             .long($name)
             .help($help)
             .action(crate::commands::_prelude::clap_arg_actions::SetArgTrue)
-            .takes_value(false)
             .required(false)
-    }}
+    }};
 }

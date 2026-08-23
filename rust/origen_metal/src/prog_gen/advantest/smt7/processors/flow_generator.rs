@@ -1,7 +1,7 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::config::SMT7Config;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamType, Test, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -30,7 +30,7 @@ pub struct FlowGenerator {
     on_fails: Vec<Node<PGM>>,
     on_passes: Vec<Node<PGM>>,
     resources_block: bool,
-    options: SMT7Config
+    options: SMT7Config,
 }
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
@@ -271,8 +271,7 @@ impl Processor<PGM> for FlowGenerator {
                     for (name, id) in &self.test_methods {
                         writeln!(&mut f, "{}:", name)?;
                         let test = self.model.tests.get(id).unwrap();
-                        for (name, kind, value) in test.sorted_params()
-                        {
+                        for (name, kind, value) in test.sorted_params() {
                             if let Some(v) = value {
                                 if !self.options.render_default_tmparams {
                                     // Skip this if the value is the same as the default value for this parameter, to reduce clutter in the output file
@@ -844,7 +843,7 @@ impl Processor<PGM> for FlowGenerator {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{process_flow, FlowCondition, Model, PGM, SupportedTester};
+    use crate::prog_gen::{process_flow, FlowCondition, Model, SupportedTester, PGM};
     use std::fs;
     use tempfile::tempdir;
 

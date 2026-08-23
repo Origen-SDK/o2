@@ -1,6 +1,6 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 
 /// This optimizes the condition nodes such that any adjacent flow nodes that
 /// have the same condition, will be grouped together under a single condition

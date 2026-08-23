@@ -1,4 +1,4 @@
-use origen_metal::{Result, Outcome, TypedValue};
+use origen_metal::{Outcome, Result, TypedValue};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;

@@ -122,7 +122,6 @@ __config_metadata__ = _origen.config_metadata()
 
 status = _origen.status()
 ''' Dictionary of various application and workspace attributes
-    Keys include: ``{{ list(origen.status.keys())|pprint }}``
 
     Returns:
         dict: Application and/or workspace attributes as key-value pairs.

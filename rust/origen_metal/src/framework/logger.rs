@@ -56,17 +56,24 @@ extern crate time;
 
 use crate::utils::terminal;
 use crate::Result;
+use lazy_static::lazy_static;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard};
-use lazy_static::lazy_static;
-use std::collections::HashMap;
 
 lazy_static! {
     static ref LOGGER_PREFIXES: [&'static str; 8] = [
-        "DISPLAY", "DEBUG", "TRACE", "DEPRECATED", "ERROR", "INFO", "SUCCESS", "WARNING"
+        "DISPLAY",
+        "DEBUG",
+        "TRACE",
+        "DEPRECATED",
+        "ERROR",
+        "INFO",
+        "SUCCESS",
+        "WARNING"
     ];
 }
 
@@ -122,7 +129,7 @@ impl Logger {
     }
 
     /// Specify a log directory and start logging to a file, by default this will begin logging to
-    /// <dir>/debug.log, but an alternative default log file name can also be given.
+    /// `<dir>/debug.log`, but an alternative default log file name can also be given.
     pub fn set_log_dir(&self, dir: PathBuf, log_file_name: Option<String>) -> Result<()> {
         {
             let mut inner = self.inner.write().unwrap();
@@ -137,7 +144,12 @@ impl Logger {
         Ok(())
     }
 
-    pub fn add_custom_prefix(&self, name: &str, prefix: Option<String>, level: Option<u8>) -> Result<()> {
+    pub fn add_custom_prefix(
+        &self,
+        name: &str,
+        prefix: Option<String>,
+        level: Option<u8>,
+    ) -> Result<()> {
         let mut inner = self.inner.write().unwrap();
         let uname = name.to_uppercase();
         if inner.custom_prefixes.contains_key(&uname) {
@@ -147,10 +159,13 @@ impl Logger {
         }
 
         let prefix = prefix.unwrap_or(uname.clone());
-        inner.custom_prefixes.insert(uname, CustomLoggerPrefix {
-            level: level.unwrap_or(0 as u8),
-            prefix: prefix,
-        });
+        inner.custom_prefixes.insert(
+            uname,
+            CustomLoggerPrefix {
+                level: level.unwrap_or(0 as u8),
+                prefix: prefix,
+            },
+        );
         Ok(())
     }
 
@@ -166,7 +181,7 @@ impl Logger {
 
     pub fn with_custom_prefixes<F, T>(&self, mut func: F) -> Result<T>
     where
-        F: FnMut(&HashMap<String, CustomLoggerPrefix>) -> Result<T>
+        F: FnMut(&HashMap<String, CustomLoggerPrefix>) -> Result<T>,
     {
         let inner = self.inner.read().unwrap();
         func(&inner.custom_prefixes)

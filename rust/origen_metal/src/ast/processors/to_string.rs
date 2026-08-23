@@ -76,7 +76,8 @@ mod tests {
     Integer(2001)
     Float(97.1)
         String(\"Test Indent\")
-    String(\"Pop back\")\n".to_string();
+    String(\"Pop back\")\n"
+            .to_string();
 
         assert_eq!(ast.to_string(), expect);
     }

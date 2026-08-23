@@ -1,12 +1,12 @@
 use super::_frontend::DataStoreCategoryFrontend;
 use crate::_helpers::{indexmap_to_pydict, new_py_obj, pytype_from_pyany};
+use crate::framework::outcomes::pyobj_into_om_outcome;
+use crate::PyOutcome;
 use indexmap::IndexMap;
 use origen_metal::Result as OMResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyList, PyString, PyTuple};
-use std::sync::{RwLock};
-use crate::framework::outcomes::pyobj_into_om_outcome;
-use crate::PyOutcome;
+use std::sync::RwLock;
 
 #[pyclass]
 pub struct PyDataStores {
@@ -42,7 +42,7 @@ impl PyDataStores {
     }
 
     pub fn remove_category(&mut self, py: Python, category: &str) -> PyResult<()> {
-        match self.categories.remove(category) {
+        match self.categories.shift_remove(category) {
             Some(py_cat) => {
                 let cat = &mut *py_cat.borrow_mut(py);
                 cat.mark_stale(py)?;
@@ -82,18 +82,22 @@ impl PyDataStores {
 
     #[getter]
     fn unloaded_categories(&self, py: Python) -> PyResult<Vec<String>> {
-        Ok(self.categories.iter().filter_map( |(n, cat)| {
-            let c = cat.borrow(py);
-            if c.is_unloaded() {
-                Some(n.to_owned())
-            } else {
-                None
-            }
-        }).collect())
+        Ok(self
+            .categories
+            .iter()
+            .filter_map(|(n, cat)| {
+                let c = cat.borrow(py);
+                if c.is_unloaded() {
+                    Some(n.to_owned())
+                } else {
+                    None
+                }
+            })
+            .collect())
     }
 
     fn __getitem__(&self, key: &str) -> PyResult<&Py<PyDataStoreCategory>> {
-        Python::with_gil( |py| {
+        Python::with_gil(|py| {
             if let Some(l) = self.get(py, key)? {
                 Ok(l)
             } else {
@@ -149,14 +153,12 @@ impl PyDataStores {
 
     // TEST_NEEDED
     pub fn require_cat(&self, cat: &str) -> PyResult<&Py<PyDataStoreCategory>> {
-        Python::with_gil( |py| {
-            match self.get(py, cat)? {
-                Some(c) => Ok(c),
-                None => runtime_error!(format!(
-                    "Expected category {} to be present, but none was found!",
-                    cat
-                )),
-            }
+        Python::with_gil(|py| match self.get(py, cat)? {
+            Some(c) => Ok(c),
+            None => runtime_error!(format!(
+                "Expected category {} to be present, but none was found!",
+                cat
+            )),
         })
     }
 }
@@ -166,7 +168,7 @@ pub struct PyDataStoreCategory {
     name: String,
     objects: IndexMap<String, PyObject>,
     stale: bool,
-    loaded: RwLock::<bool>,
+    loaded: RwLock<bool>,
     load_function: Option<Py<PyAny>>,
     autoload: bool,
     // TODO add lazy loading?
@@ -314,7 +316,7 @@ impl PyDataStoreCategory {
     /// The Rust trait prototype is based on how Rust's HashMap behaves.
     pub fn remove(&mut self, py: Python, name: &str) -> PyResult<()> {
         self.check_stale()?;
-        match self.objects.remove(name) {
+        match self.objects.shift_remove(name) {
             Some(py_ds) => {
                 py_ds.call_method0(py, "_mark_stale_")?;
                 Ok(())
@@ -360,8 +362,7 @@ impl PyDataStoreCategory {
                 if !t.as_ref(py).is_callable() {
                     return runtime_error!(format!(
                         "Load function '{}' for category '{}' is not a callable object",
-                        fname,
-                        name
+                        fname, name
                     ));
                 } else {
                     f = t;
@@ -370,15 +371,16 @@ impl PyDataStoreCategory {
 
             log_trace!("Loading {} from function {}", slf.name, f);
             let py_result = f.call1(py, PyTuple::new(py, [slf.into_py(py)]))?;
-            super::with_py_data_stores(|py, ds| {
-                match ds.categories.get(&name) {
-                    Some(py_cat) => {
-                        let cat = py_cat.borrow(py);
-                        *cat.loaded.write().unwrap() = true;
-                        Ok(())
-                    },
-                    None => runtime_error!(format!("Failed to recall data set category '{}' after loading", name))
+            super::with_py_data_stores(|py, ds| match ds.categories.get(&name) {
+                Some(py_cat) => {
+                    let cat = py_cat.borrow(py);
+                    *cat.loaded.write().unwrap() = true;
+                    Ok(())
                 }
+                None => runtime_error!(format!(
+                    "Failed to recall data set category '{}' after loading",
+                    name
+                )),
             })?;
             Ok(Some(pyobj_into_om_outcome(py, py_result)?.into()))
         } else {
@@ -440,7 +442,12 @@ impl PyDataStoreCategory {
         }
     }
 
-    pub fn new_py(py: Python, name: &str, load_function: Option<Py<PyAny>>, autoload: Option<bool>) -> PyResult<Py<Self>> {
+    pub fn new_py(
+        py: Python,
+        name: &str,
+        load_function: Option<Py<PyAny>>,
+        autoload: Option<bool>,
+    ) -> PyResult<Py<Self>> {
         Py::new(py, {
             let mut s = Self::new(name);
             if let Some(f) = load_function {

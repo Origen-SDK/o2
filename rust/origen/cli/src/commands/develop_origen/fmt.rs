@@ -12,12 +12,10 @@ use std::process::Command;
 use crate::commands::_prelude::*;
 pub const BASE_CMD: &'static str = "fmt";
 
-pub (crate) fn fmt_cmd<'a>() -> SubCmd<'a> {
-    core_subcmd__no_exts__no_app_opts!(
-        BASE_CMD,
-        "Nicely format all Rust and Python files",
-        { |cmd| { cmd } }
-    )
+pub(crate) fn fmt_cmd<'a>() -> SubCmd<'a> {
+    core_subcmd__no_exts__no_app_opts!(BASE_CMD, "Nicely format all Rust and Python files", {
+        |cmd| cmd
+    })
 }
 
 pub(crate) fn run() -> Result<()> {
@@ -82,7 +80,7 @@ fn starting(job: &str) {
 // Returns true if no problems
 fn py_fmt(dir: &Path) {
     let res = PYTHON_CONFIG
-        .poetry_command()
+        .uv_command()
         .arg("run")
         .arg("yapf")
         .arg("--in-place")

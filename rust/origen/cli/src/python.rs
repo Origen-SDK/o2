@@ -1,15 +1,15 @@
 // Responsible for managing Python execution
+pub use crate::_generated::python::MIN_PYTHON_VERSION;
+use crate::_generated::python::PYTHONS;
 use crate::built_info;
-use origen::{Result, STATUS};
 use origen::core::status::DependencySrc;
-use origen_metal::utils::file::search_backwards_for_first;
+use origen::{Result, STATUS};
 use origen_metal::new_cmd;
+use origen_metal::utils::file::search_backwards_for_first;
 use semver::Version;
 use std::env;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use crate::_generated::python::PYTHONS;
-pub use crate::_generated::python::MIN_PYTHON_VERSION;
 
 #[macro_export]
 macro_rules! strs_to_cli_arr {
@@ -17,9 +17,12 @@ macro_rules! strs_to_cli_arr {
         format!(
             "{}=[{}]",
             $name,
-            $strs.map(|t| format!("r'{}'", t)).collect::<Vec<String>>().join(", ")
+            $strs
+                .map(|t| format!("r'{}'", t))
+                .collect::<Vec<String>>()
+                .join(", ")
         )
-    }}
+    }};
 }
 
 lazy_static! {
@@ -27,17 +30,22 @@ lazy_static! {
 }
 
 macro_rules! pyproject_str {
-    () => { "pyproject.toml" }
+    () => {
+        "pyproject.toml"
+    };
 }
 macro_rules! user_env_str {
-    () => { "ORIGEN_PYPROJECT" }
+    () => {
+        "ORIGEN_PYPROJECT"
+    };
 }
 
 const PYPROJECT: &'static str = pyproject_str!();
 const USER_ENV: &'static str = user_env_str!();
 
 lazy_static! {
-    pub static ref NO_ORIGEN_BOOT_MODULE_ERROR: &'static str = "ModuleNotFoundError: No module named 'origen.boot'";
+    pub static ref NO_ORIGEN_BOOT_MODULE_ERROR: &'static str =
+        "ModuleNotFoundError: No module named 'origen.boot'";
 }
 
 pub struct Config {
@@ -64,11 +72,14 @@ pub fn resolve_pyproject() -> Result<DependencySrc> {
             Ok(None)
         }
     })? {
-        return Ok(DependencySrc::Workspace(p.to_path_buf()))
+        return Ok(DependencySrc::Workspace(p.to_path_buf()));
     }
 
     if let Some(p) = env::var_os(USER_ENV) {
-        log_trace!("Attempting to find user-given pyproject: {}", p.to_string_lossy());
+        log_trace!(
+            "Attempting to find user-given pyproject: {}",
+            p.to_string_lossy()
+        );
         let mut f = PathBuf::from(p);
         if f.exists() {
             f = f.join(PYPROJECT);
@@ -76,16 +87,31 @@ pub fn resolve_pyproject() -> Result<DependencySrc> {
                 log_trace!("Found user-given pyproject: {}", f.display());
                 return Ok(DependencySrc::UserGlobal(f));
             } else {
-                bail!(concat!("Could not locate ", pyproject_str!(), " from ", user_env_str!(), " {}"), f.display());
+                bail!(
+                    concat!(
+                        "Could not locate ",
+                        pyproject_str!(),
+                        " from ",
+                        user_env_str!(),
+                        " {}"
+                    ),
+                    f.display()
+                );
             }
         } else {
-            bail!(concat!(user_env_str!(), " '{}' does not exists!"), f.display());
+            bail!(
+                concat!(user_env_str!(), " '{}' does not exists!"),
+                f.display()
+            );
         }
     }
 
     // Try the python package installation directory
     let path = std::env::current_exe()?;
-    log_trace!("Searching CLI installation directories for pyproject: {}", path.display());
+    log_trace!(
+        "Searching CLI installation directories for pyproject: {}",
+        path.display()
+    );
     if let Some(p) = search_backwards_for_first(path, |p| {
         let f = p.join(PYPROJECT);
         log_trace!("Searching for workspace project from {}", p.display());
@@ -96,34 +122,37 @@ pub fn resolve_pyproject() -> Result<DependencySrc> {
             Ok(None)
         }
     })? {
-        return Ok(DependencySrc::Global(p.to_path_buf()))
+        return Ok(DependencySrc::Global(p.to_path_buf()));
     }
 
-    log_trace!("No pyproject found. Skipping Poetry invocations...");
+    log_trace!("No pyproject found. Skipping UV invocations...");
     Ok(DependencySrc::NoneFound)
 }
 
 impl Config {
     pub fn base_cmd(&self) -> Command {
         let dep_src = STATUS.dependency_src();
-        let mut c = new_cmd!(&self.command);
+        let mut c = if matches!(dep_src.as_ref(), Some(DependencySrc::NoneFound) | None) {
+            new_cmd!(&self.command)
+        } else {
+            new_cmd!("uv")
+        };
 
         if let Some(dep_src) = dep_src.as_ref() {
             match dep_src {
-                DependencySrc::App(_path) | DependencySrc::Workspace(_path) => {
-                    c.arg("-m");
-                    c.arg("poetry");
-                },
-                DependencySrc::UserGlobal(path) | DependencySrc::Global(path) => {
-                    c.arg("-m");
-                    c.arg("poetry");
-                    c.arg("-C");
-                    c.arg(path);
+                DependencySrc::App(path)
+                | DependencySrc::Workspace(path)
+                | DependencySrc::UserGlobal(path)
+                | DependencySrc::Global(path) => {
+                    c.arg("--project");
+                    c.arg(path.parent().unwrap_or(path));
                 }
                 DependencySrc::NoneFound => {}
             }
         } else {
-            log_error!("Dependency source has not been set - defaulting to global Python installation");
+            log_error!(
+                "Dependency source has not been set - defaulting to global Python installation"
+            );
         }
         c
     }
@@ -133,6 +162,8 @@ impl Config {
         if let Some(d) = STATUS.dependency_src().as_ref() {
             if d.src_available() {
                 c.arg("run");
+                c.arg("--no-sync");
+                c.arg("--no-editable");
                 c.arg(&self.command);
             }
         }
@@ -147,66 +178,23 @@ impl Config {
         c
     }
 
-    pub fn poetry_command(&self) -> Command {
-        let mut c = Command::new(&self.command);
-        c.arg("-m");
-        c.arg("poetry");
+    pub fn uv_command(&self) -> Command {
+        let mut c = Command::new("uv");
         if let Some(d) = STATUS.dependency_src().as_ref() {
             if let Some(path) = d.src_file() {
-                c.arg("-C");
-                c.arg(path);
+                c.arg("--project");
+                c.arg(path.parent().unwrap_or(path));
             }
         }
         c
     }
-
-    // TODO Invocation see if these are needed or can be cleaned up
-    // fn get_origen_pkg_path(&self) -> Result<PathBuf> {
-    //     let mut c = Command::new("pip");
-    //     c.arg("show");
-    //     c.arg("origen");
-    //     let output = exec_and_capture_cmd(c)?;
-    //     if let Some(loc) = output.1.iter().find_map( |line| line.strip_prefix("Location: ")) {
-    //         Ok(PathBuf::from(loc))
-    //     } else {
-    //         bail!(
-    //             "Error locating origen package information from pip.\nReceived stdout:\n{}\nReceived stderr:\n{}",
-    //             output.1.join("\n"),
-    //             output.2.join("\n")
-    //         );
-    //     }
-    // }
-
-    // fn in_workspace(&self) -> Result<bool> {
-    //     let mut c = Command::new(&self.command);
-    //     c.arg("-m");
-    //     c.arg("poetry");
-    //     c.arg("env");
-    //     c.arg("info");
-    //     let output = exec_and_capture_cmd(c)?;
-    //     if !output.0.success() {
-    //         if let Some(l) = output.2.last() {
-    //             if l.starts_with("Poetry could not find a pyproject.toml file in ") {
-    //                 return Ok(false);
-    //             }
-    //         }
-    //         bail!(
-    //             "Unexpected response when querying poetry environment:\nReceived stdout:\n{}Received stderr:\n{}",
-    //             output.1.join("\n"),
-    //             output.2.join("\n")
-    //         );
-    //     }
-    //     Ok(true)
-    // }
 }
 
 impl Default for Config {
     fn default() -> Config {
         match resolve_pyproject() {
-            Ok(deps) => {
-                STATUS.set_dependency_src(Some(deps))
-            },
-            Err(e) => log_error!("Errors encountered resolving pyproject: {}", e)
+            Ok(deps) => STATUS.set_dependency_src(Some(deps)),
+            Err(e) => log_error!("Errors encountered resolving pyproject: {}", e),
         }
         for cmd in PYTHONS.iter() {
             log_trace!("Searching for installed python at '{}'", cmd);
@@ -230,27 +218,6 @@ impl Default for Config {
     }
 }
 
-/// Returns a path to the virtual env for the current (application) directory.
-/// The caller is responsible for setting the current directory before calling this.
-pub fn virtual_env() -> Result<PathBuf> {
-    let (_code, stdout, stderr) =
-        origen::utility::command_helpers::exec_and_capture("poetry", Some(vec!["env", "info"]))?;
-    let r = regex::Regex::new(r"^Path:\s*(.*)").unwrap();
-    for line in &stdout {
-        log_trace!("{}", line);
-        if let Some(captures) = r.captures(line) {
-            return Ok(PathBuf::from(captures.get(1).unwrap().as_str()));
-        }
-    }
-    for line in stdout {
-        log_debug!("{}", line);
-    }
-    for line in stderr {
-        log_debug!("[STDERR] {}", line);
-    }
-    bail!("Could not read the path info from Poetry's output, run with full verbosity to see what happened")
-}
-
 /// Get the Python version from the given command
 fn get_version(command: &str) -> Option<Version> {
     match new_cmd!(command).arg("--version").output() {
@@ -259,9 +226,14 @@ fn get_version(command: &str) -> Option<Version> {
     }
 }
 
-/// Returns the version of poetry (obtained from running "poetry --version")
-pub fn poetry_version() -> Option<Version> {
-    match &PYTHON_CONFIG.poetry_command().arg("--version").output() {
+/// Returns the version of the Python that was discovered for this workspace.
+pub fn python_version() -> Option<Version> {
+    get_version(&PYTHON_CONFIG.command)
+}
+
+/// Returns the installed UV version.
+pub fn uv_version() -> Option<Version> {
+    match Command::new("uv").arg("--version").output() {
         Ok(output) => {
             let text = std::str::from_utf8(&output.stdout).unwrap();
             log_trace!("{}", text);
@@ -397,23 +369,43 @@ pub fn run_with_callbacks(
 /// Adds any Origen-related environment settings to a command
 pub fn add_origen_env(cmd: &mut Command) {
     if origen::STATUS.is_origen_present || origen::STATUS.is_app_in_origen_dev_mode {
-        cmd.env(
-            "PYTHONPATH",
-            format!(
-                "{}",
-                origen::STATUS
-                    .origen_wksp_root
-                    .join("rust")
-                    .join("pyapi")
-                    .join("target")
-                    .display()
-            ),
-        );
+        // A source checkout needs the freshly compiled backends on the path:
+        // '_origen' is built into the pyapi target directory and
+        // '_origen_metal' is staged inside the origen_metal Python package.
+        // Prepend rather than overwrite; callers (notably CI) legitimately set
+        // PYTHONPATH themselves and silently discarding it makes 'origen exec'
+        // behave differently from running the same command directly.
+        let root = &origen::STATUS.origen_wksp_root;
+        let mut paths = vec![
+            root.join("rust").join("pyapi").join("target"),
+            root.join("python").join("origen_metal"),
+        ];
+        if let Some(inherited) = std::env::var_os("PYTHONPATH") {
+            paths.extend(std::env::split_paths(&inherited));
+        }
+        let mut deduped: Vec<std::path::PathBuf> = Vec::with_capacity(paths.len());
+        for path in paths {
+            if !deduped.contains(&path) {
+                deduped.push(path);
+            }
+        }
+        match std::env::join_paths(deduped) {
+            Ok(joined) => {
+                cmd.env("PYTHONPATH", joined);
+            }
+            Err(e) => {
+                log_debug!(
+                    "Could not compose PYTHONPATH for the Origen environment: {}",
+                    e
+                );
+            }
+        }
     }
 }
 
 pub fn is_backend_origen_mod_missing_err(err: &origen::Error) -> bool {
-    err.to_string().contains("ModuleNotFoundError: No module named '_origen'")
+    err.to_string()
+        .contains("ModuleNotFoundError: No module named '_origen'")
 }
 
 /// Attempts to get the username and email, utilizing the full Origen environment (site config, etc.)
@@ -460,7 +452,7 @@ mod tests {
         );
         assert_eq!(
             Version::parse("1.1.0-rc1").unwrap(),
-            extract_version("Poetry version 1.1.0rc1\n").unwrap()
+            extract_version("uv 1.1.0rc1\n").unwrap()
         );
     }
 }

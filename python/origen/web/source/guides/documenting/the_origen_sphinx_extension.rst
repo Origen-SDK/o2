@@ -20,9 +20,9 @@ into your *Sphinx app* in various phases.
 
 The |inline_ose| is responsible for, but not limited to:
 
-* Listening for and enacting options from ``origen build``.
+* Listening for and enacting options from ``origen web build``.
 * Setting up the |ose_theme|
-* Configuring :recommonmark_home:`recommonmark <>` to accept embedded RST.
+* Integrating MyST Parser for Markdown content.
 * Allowing Jinja templating in all RST files.
 * Building and including |ose_subprojects|
 
@@ -82,15 +82,20 @@ shipped along with the top *Origen's application's* webpages.
 The Origen Theme
 ^^^^^^^^^^^^^^^^
 
-Unless :sphinx_using_a_theme:`the configuration says otherwise <>`, Origen will set the current theme to
-``origen``. Origen's theme is a modified :bootstrap4:`bootstrap4 <>` theme with
-:darkly:`darkly <>` overlaid atop and dark-themed syntax highlighting from :dracula_pygments:`dracula <>`.
+Unless :sphinx_using_a_theme:`the configuration says otherwise <>`, Origen uses
+``pydata_sphinx_theme`` when it is available. The extension supplies Origen's
+branding, navigation defaults, favicon, responsive layout, and light/dark mode.
+On older supported Python environments where PyData Sphinx Theme is not
+available, it falls back to the bundled ``origen`` theme derived from
+:bootstrap4:`Bootstrap 4 <>`.
 
 Origen's theme also includes some items not easily reachable by extensions. The *origen theme options*
 section below will give a tour of what options Origen's theme has available.
 
 Origen Theme Options
 """"""""""""""""""""
+
+.. _ose-logos:
 
 .. py:data:: logos
 
@@ -156,6 +161,8 @@ Origen Theme Options
 
   .. versionadded:: 0.0.0
 
+.. _ose-favicon:
+
 .. py:data:: favicon
 
   Sphinx's favicon, :sphinx_confval_html_favicon:`shown here <>`,
@@ -213,4 +220,4 @@ The |inline_ose|:
 * The |ose_theme|, though part of the |inline_ose|, contains its own
   :link-to:`configuration options <ose_theme_opts>`, which follows Sphinx's rules for
   configuring themes, but is also accessible in your ``config.py`` via
-  :sphinx_confval_html_theme_options:`html_theme_options`.
+  :sphinx_confval_html_theme_options:`html_theme_options <>`.

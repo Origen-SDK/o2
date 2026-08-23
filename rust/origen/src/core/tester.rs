@@ -6,19 +6,19 @@ use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::generator::PAT;
-use origen_metal::prog_gen::PGM;
-use origen_metal::prog_gen::{Model, PatternReferenceType};
 use crate::testers::{instantiate_tester, SupportedTester};
-use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use crate::utility::file_utils::to_relative_path;
 use crate::with_current_job;
 use crate::Result;
 use crate::TEST;
-use origen_metal::FLOW;
 use indexmap::IndexMap;
 use origen_metal::ast::Node;
 use origen_metal::framework::reference_files;
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
+use origen_metal::prog_gen::PGM;
+use origen_metal::prog_gen::{Model, PatternReferenceType};
 use origen_metal::utils::differ::{ASCIIDiffer, Differ};
+use origen_metal::FLOW;
 use std::collections::HashSet;
 use std::env;
 use std::io::Write;
@@ -35,7 +35,10 @@ macro_rules! push_pin_actions {
 /// When running on GitHub Actions, this function runs a diff command
 /// to show the differences in the CI log. Does nothing otherwise.
 fn display_diff_on_ci(old_path: &Path, new_path: &Path) {
-    if env::var("GITHUB_ACTIONS").map(|v| v == "true").unwrap_or(false) {
+    if env::var("GITHUB_ACTIONS")
+        .map(|v| v == "true")
+        .unwrap_or(false)
+    {
         println!("Running diff for GitHub Actions CI:");
         match Command::new("diff")
             .arg("-u")
@@ -745,8 +748,10 @@ impl Tester {
                                         self.stats.changed_program_files += 1;
                                         display_redln!("Diffs found");
                                         display_diff_on_ci(&ref_list, &list);
-                                        let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
-                                        let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
+                                        let old =
+                                            to_relative_path(&ref_list, None).unwrap_or(ref_list);
+                                        let new = to_relative_path(&list, None)
+                                            .unwrap_or(list.to_owned());
                                         let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
                                             .unwrap_or("tkdiff".to_string());
                                         displayln!(
@@ -879,7 +884,7 @@ impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 
 pub trait TesterID {
     fn id(&self) -> SupportedTester;
-    
+
     fn id_prog_gen(&self) -> ProgGenSupportedTester;
 
     /// Returns the id() as a String in most cases, but may be overridden to something
@@ -905,7 +910,10 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
-        origen_metal::prog_gen::render_program(self.id_prog_gen(), &self.output_dir()?.join("test_program"))
+        origen_metal::prog_gen::render_program(
+            self.id_prog_gen(),
+            &self.output_dir()?.join("test_program"),
+        )
     }
 
     /// The tester should implement this to return a differ instance which is configured

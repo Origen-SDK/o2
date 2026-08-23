@@ -1,8 +1,18 @@
 name: Publish Origen Metal
+permissions:
+  contents: write
 
 on:
   workflow_dispatch:
     inputs:
+      release_ref:
+        description: Exact prepared Origen Metal release tag to publish
+        required: true
+        type: string
+      version:
+        description: Expected Origen Metal version
+        required: true
+        type: string
       publish_python:
         description: Publish the Origen Metal Python package to PyPI
         required: true
@@ -12,6 +22,11 @@ on:
         description: Publish the origen_metal Rust crate to crates.io
         required: true
         default: false
+        type: boolean
+      publish_github_release:
+        description: Create the prepared Origen Metal GitHub Release
+        required: true
+        default: true
         type: boolean
 
 concurrency:
@@ -33,24 +48,41 @@ jobs:
 
       - name: Check out the repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
+          fetch-depth: 0
+
+      - name: Validate release ref and history
+        run: |
+          python ci/validate_release.py source \
+            --version "${{ inputs.version }}" \
+            --tag-prefix origen-metal \
+            --tags "$(git tag --points-at HEAD)" \
+            --history python/origen/doc/metal/history \
+            --manifest python/origen_metal/pyproject.toml \
+            --manifest rust/origen_metal/Cargo.toml \
+            --manifest rust/pyapi_metal/Cargo.toml
 
       - name: Set up Python for version check
-        if: ${{ inputs.publish_python && inputs.publish_rust }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Require matching Python and Rust versions
-        if: ${{ inputs.publish_python && inputs.publish_rust }}
         run: |
           python - <<'PY'
           import tomllib
 
           with open("python/origen_metal/pyproject.toml", "rb") as f:
-              python_version = tomllib.load(f)["tool"]["poetry"]["version"]
+              python_version = tomllib.load(f)["project"]["version"]
           with open("rust/origen_metal/Cargo.toml", "rb") as f:
               rust_version = tomllib.load(f)["package"]["version"]
 
+          expected = "${{ inputs.version }}"
+          if python_version != expected:
+              raise SystemExit(
+                  f"Origen Metal version mismatch: expected={expected}, Python={python_version}"
+              )
           if python_version != rust_version:
               raise SystemExit(
                   f"Origen Metal version mismatch: Python={python_version}, Rust={rust_version}"
@@ -69,6 +101,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
 
       - name: Run build script in Docker container
         uses: Baardrw/docker-run-action@main
@@ -104,6 +138,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -122,14 +158,28 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        run: |
-          pip install poetry==1.3.2
-          poetry --version
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.5"
 
       - name: Build Origen Metal Python package
         working-directory: python/origen_metal
-        run: poetry build --format wheel
+        # Pin the build interpreter. uv otherwise builds against whichever
+        # Python it discovers for the isolated PEP 517 environment, which can
+        # silently emit the same ABI tag from several matrix cells.
+        run: uv build --wheel --clear --no-create-gitignore --python ${{ matrix.python-version }}
+
+      # Assert the tag at the source. After artifact merge, several cells that
+      # all produced the same tag are indistinguishable from a single correct
+      # wheel, so a post-merge check cannot catch this.
+      - name: Verify wheel targets Python ${{ matrix.python-version }}
+        run: >
+          python ci/validate_release.py wheels
+          --package origen-metal
+          --version "${{ inputs.version }}"
+          --directory python/origen_metal/dist
+          --expect-python-versions "${{ matrix.python-version }}"
 
       - name: Upload Origen Metal wheel
         uses: actions/upload-artifact@v4
@@ -156,6 +206,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -179,8 +231,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        if: ${{ inputs.publish_rust }}
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
 
       - name: Retrieve Origen Metal wheels
         if: ${{ inputs.publish_python }}
@@ -193,6 +246,10 @@ jobs:
         if: ${{ inputs.publish_python }}
         run: ls -al ./om_wheels
 
+      - name: Validate Origen Metal wheel versions
+        if: ${{ inputs.publish_python }}
+        run: python ci/validate_release.py wheels --package origen-metal --version "${{ inputs.version }}" --directory om_wheels
+
       - name: Publish Origen Metal to PyPI
         if: ${{ inputs.publish_python }}
         uses: pypa/gh-action-pypi-publish@v1.8.10
@@ -200,6 +257,7 @@ jobs:
           packages-dir: om_wheels
           password: ${{ secrets.PYPI_OM_API_TOKEN }}
           verify-metadata: false
+          skip-existing: true
           verbose: true
 
       - name: Install Rust
@@ -215,4 +273,39 @@ jobs:
         working-directory: rust/origen_metal
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_ORIGEN_METAL }}
-        run: cargo publish --locked
+        run: |
+          if python - <<'PY' | grep -qx true
+          import json, urllib.request
+          version = "${{ inputs.version }}"
+          with urllib.request.urlopen("https://crates.io/api/v1/crates/origen_metal") as response:
+              print("true" if version in {v["num"] for v in json.load(response)["versions"]} else "false")
+          PY
+          then
+            echo "origen_metal ${{ inputs.version }} already exists; skipping duplicate publish"
+          else
+            cargo publish --locked
+          fi
+
+  publish_github_release:
+    needs: [publish]
+    if: ${{ inputs.publish_github_release }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
+      - name: Extract release notes
+        run: |
+          python ci/extract_release_notes.py \
+            --history python/origen/doc/metal/history \
+            --tag-prefix origen-metal \
+            --version "${{ inputs.version }}" \
+            --output release_body.md
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          commit: ${{ inputs.release_ref }}
+          tag: ${{ inputs.release_ref }}
+          bodyFile: release_body.md
+          generateReleaseNotes: false
+          allowUpdates: true

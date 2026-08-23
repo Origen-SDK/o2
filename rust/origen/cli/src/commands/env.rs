@@ -1,326 +1,300 @@
-//! Some notes on how Origen's Python environment is setup and invoked:
-//!
-use super::_prelude::*;
-extern crate time;
+//! Manage an application's UV environment.
 
-use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
-use online::online;
+use super::_prelude::*;
+use crate::python::{python_version, uv_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
 use origen::core::status::search_for;
 use origen::core::term::*;
-use origen::utility::file_actions as fa;
-use regex::Regex;
 use semver::VersionReq;
 use std::process::Command;
-use std::path::PathBuf;
 
 pub const BASE_CMD: &'static str = "env";
+static MINIMUM_UV_VERSION: &str = "0.12.5";
 
-static MINIMUM_PIP_VERSION: &str = "23.1.2";
-static MINIMUM_POETRY_VERSION: &str = "1.3.2";
+/// Python versions below this cannot execute UV's Windows console-script
+/// launchers. See `provision_with_pip`.
+static MINIMUM_UV_LAUNCHER_PYTHON: &str = "3.8.0";
 
 gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
-    "Manage your application's Origen/Python environment (dependencies, etc.)",
-    { |cmd: App<'a>| {cmd.arg_required_else_help(true)}},
-    core_subcmd__no_exts__no_app_opts!("setup", "Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file", { |cmd: App| {
-        cmd.arg(Arg::new("origen")
-                .long("origen")
-                .help("The path to a local version of Origen to use (to develop Origen)")
-                .action(SetArg)
-            )
-    }}),
-    core_subcmd__no_exts__no_app_opts!("update", "Update your application's Python dependencies according to the latest pyproject.toml file", { |cmd: App| {cmd}})
+    "Manage your application's Origen/Python environment",
+    { |cmd: App| { cmd.arg_required_else_help(true) } },
+    core_subcmd__no_exts__no_app_opts!(
+        "setup",
+        "Create or synchronize the UV environment from uv.lock",
+        {
+            |cmd: App| {
+                cmd.arg(
+                    Arg::new("origen")
+                        .long("origen")
+                        .help("Point this application at an Origen source checkout. Note: this permanently records the path in the application's pyproject.toml and uv.lock; remove it with 'uv remove origen'")
+                        .action(SetArg),
+                )
+            }
+        }
+    ),
+    core_subcmd__no_exts__no_app_opts!(
+        "update",
+        "Upgrade and synchronize the application's locked dependencies",
+        { |cmd: App| { cmd } }
+    )
 );
 
 pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
+    require_python();
+    require_uv();
+
+    let app_root = &origen::app().unwrap().root;
+    let pyproject = app_root.join("pyproject.toml");
+    if !pyproject.exists() {
+        display_redln!(
+            "Application pyproject.toml was not found at {}",
+            pyproject.display()
+        );
+        std::process::exit(1);
+    }
+
     match invocation.subcommand_name() {
         Some("update") => {
-            install_poetry();
-            let _ = PYTHON_CONFIG.poetry_command().arg("update").status();
-
-            // Don't think we need to do anything here, if something goes wrong Poetry will give a better
-            // error message than we could
+            run_uv(app_root, &["lock", "--upgrade"])?;
+            provision(app_root)?;
         }
-
         Some("setup") => {
-            let mut origen_source_changed = false;
-            let mut run_origen_build = false;
-
-            let origen_root = match invocation
+            if let Some(path) = invocation
                 .subcommand_matches("setup")
                 .unwrap()
-                // .get_one::<&str>("origen") produces a panic when executed
                 .get_one::<String>("origen")
             {
-                None => None,
-                Some(x) => {
-                    let path = std::path::Path::new(x)
-                        .canonicalize()
-                        .expect("That path to Origen doesn't exist");
-                    let (found, path) = search_for(vec![".origen_dev_workspace"], false, &path);
-                    if found {
-                        Some(path)
-                    } else {
-                        log_error!("Origen was not found at that path");
-                        std::process::exit(1);
-                    }
+                let path = std::path::Path::new(path)
+                    .canonicalize()
+                    .expect("The path supplied to --origen does not exist");
+                let (found, root) = search_for(vec![".origen_dev_workspace"], false, &path);
+                if !found {
+                    display_redln!(
+                        "An Origen source checkout was not found at {}",
+                        path.display()
+                    );
+                    std::process::exit(1);
                 }
-            };
-
-            print!("Is a suitable Python available? ... ");
-            if PYTHON_CONFIG.available {
-                greenln("YES");
-            } else {
-                redln("NO");
-                println!("");
-                println!(
-                    "Could not find Python > {} available, please install this and try again.",
-                    MIN_PYTHON_VERSION
+                let package = root.join("python").join("origen");
+                let package_str = package.to_string_lossy();
+                displayln!(
+                    "Adding '{}' as a path dependency. This edits pyproject.toml and uv.lock; run 'uv remove origen' to undo it before committing.",
+                    package_str
                 );
-                std::process::exit(1);
+                run_uv(app_root, &["add", package_str.as_ref()])?;
             }
-
-            print!("Is the internet accessible?     ... ");
-            if online(None).is_ok() {
-                greenln("YES");
-            } else {
-                redln("NO");
-                println!("");
-                println!("In future, Origen would now talk you through what files to get and where to put them, but that's not implemented yet, sorry!");
-                std::process::exit(1);
-            }
-
-            install_poetry();
-
-            let app_root = &origen::app().unwrap().root;
-            let pyproject = app_root.join("pyproject.toml");
-            if !pyproject.exists() {
-                display_red!("ERROR: ");
-                displayln!("application pyproject file not found!");
-                std::process::exit(1);
-            }
-
-            log_trace!("Checking against for origen development path option {:?}", origen_root);
-            if let Some(p) = origen_root {
-                log_trace!("origen path provided");
-                let origen_root = p.join("python").join("origen");
-
-                // Poetry seems to have a number of bugs when switching back and forth between path and version
-                // references, this step ensures it comes up correctly, but should be removed in future
-                delete_virtual_env();
-
-                // Comment out the current reference to Origen
-                let r = Regex::new(r"^\s*origen ?=").unwrap();
-                if let Err(e) = fa::insert_before(&pyproject, &r, "#") {
-                    display_redln!("{}", e);
-                    std::process::exit(1);
-                };
-
-                // And add a new one pointing to the given path
-                let r = Regex::new(r"^\s*\[\s*tool.poetry.dependencies\s*\].*").unwrap();
-                let line = format!("\norigen = {{ path = \"{}\" }}", normalize_path_string(&origen_root));
-                if let Err(e) = fa::insert_after(&pyproject, &r, &line) {
-                    display_redln!("{}", e);
-                    std::process::exit(1);
-                };
-
-                // Make sure Rust nightly is enabled in the app dir, just do this quietly if it succeeds
-                match origen::utility::command_helpers::exec_and_capture(
-                    "rustup",
-                    Some(vec!["override", "set", "nightly"]),
-                ) {
-                    Err(e) => log_error!("{}", e),
-                    Ok((code, stdout, stderr)) => {
-                        if !code.success() {
-                            for line in stdout {
-                                displayln!("{}", line);
-                            }
-                            for line in stderr {
-                                display_redln!("{}", line);
-                            }
-                        }
-                    }
-                }
-
-                origen_source_changed = true;
-                run_origen_build = true;
-
-            // We want to keep the Origen development apps permanently running on a local reference to Origen
-            } else if !origen::STATUS.is_origen_present {
-                log_trace!("No origen development path provided and Origen is not present");
-                // If we are about to switch from a path to a version reference then delete the virtual env to ensure the
-                // switch happens cleanly, this is for a Poetry bug and should be removed in future
-                if origen::STATUS.is_app_in_origen_dev_mode {
-                    delete_virtual_env();
-                }
-
-                // Remove any path references to Origen
-                let r = Regex::new(r"origen\s*=\s*\{\s*path\s*=").unwrap();
-                if let Err(e) = fa::remove_line_all(&pyproject, &r) {
-                    display_redln!("{}", e);
-                    std::process::exit(1);
-                };
-
-                // Un-comment any version reference and if there is none then add a new one
-                // pointing to the latest Origen version
-                let r = Regex::new(r"^\s*origen\s*=").unwrap();
-                if !(match fa::contains(&pyproject, &r) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        display_redln!("{}", e);
-                        std::process::exit(1);
-                    }
-                }) {
-                    let r = Regex::new(r"^#+\s*origen\s*=").unwrap();
-                    match fa::replace(&pyproject, &r, "origen =") {
-                        // If pyproject.toml does not contain any reference to origen then add it
-                        Ok(replaced) => {
-                            if !replaced {
-                                let r = Regex::new(r"^\s*\[\s*tool.poetry.dependencies\s*\].*")
-                                    .unwrap();
-                                let line =
-                                    format!("\norigen = \"{}\"", origen::STATUS.origen_version);
-                                if let Err(e) = fa::insert_after(&pyproject, &r, &line) {
-                                    display_redln!("{}", e);
-                                    std::process::exit(1);
-                                };
-                            }
-                        }
-                        Err(e) => {
-                            display_redln!("{}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                    origen_source_changed = true;
-                }
-            }
-
-            // Lower than this version has a bug which can crash with local path dependencies
-            print!("Is PIP version >= {}?         ... ", MINIMUM_PIP_VERSION);
-
-            // This gives an error that suggests it is not working when run on Windows, yet it solves the problem
-            // seen with the earlier version on CI
-            let pip_version = format!("pip=={}", MINIMUM_PIP_VERSION);
-            let args = vec!["run", "pip", "install", &pip_version];
-            let status = PYTHON_CONFIG.poetry_command().args(&args).status();
-
-            if status.is_ok() {
-                greenln("YES");
-            } else {
-                redln("NO");
-            }
-
-            print!("Are the app's deps. installed?  ... ");
-
-            let status = PYTHON_CONFIG
-                .poetry_command()
-                .arg("install")
-                .arg("--no-root")
-                .status();
-
-            if status.is_ok() {
-                if origen_source_changed {
-                    std::env::set_current_dir(&origen::app().unwrap().root)
-                        .expect("Couldn't cd to the app root");
-
-                    let status = PYTHON_CONFIG
-                        .poetry_command()
-                        .arg("update")
-                        .arg("origen")
-                        .status();
-                    if status.is_ok() {
-                        greenln("YES");
-                        if run_origen_build {
-                            println!("Building origen...");
-                            let _ = Command::new("origen").arg("build").status();
-                        }
-                        std::process::exit(0);
-                    } else {
-                        redln("NO");
-                        std::process::exit(1);
-                    }
-                } else {
-                    greenln("YES");
-                    std::process::exit(0);
-                }
-            } else {
-                redln("NO");
-                std::process::exit(1);
-            }
+            provision(app_root)?;
         }
-        None => unreachable!(),
         _ => unreachable!(),
     }
     Ok(())
 }
 
-fn install_poetry() {
-    let mut attempts = 0;
-    while attempts < 3 {
-        print!("Is a suitable Poetry available? ... ");
-        let mut version = poetry_version();
-        let required_poetry_version =
-            VersionReq::parse(&format!(">={}", MINIMUM_POETRY_VERSION)).unwrap();
-
-        if version.is_some()
-            && required_poetry_version.matches(&{
-                version.as_mut().unwrap().pre = vec![]; // The comparison below will fail with any prereleases, which we don't want, so just ignore it.
-                version.unwrap()
-            })
-        {
-            greenln("YES");
-            attempts = 3;
-        } else {
-            redln("NO");
-            println!("");
-            attempts = attempts + 1;
-
-            if attempts == 3 {
-                display_redln!("Failed to install Poetry, run again with -vvv to see what happened")
-            } else {
-                let mut c = Command::new(&PYTHON_CONFIG.command);
-                c.arg("-m");
-                c.arg("pip");
-                c.arg("install");
-                if attempts == 2 {
-                    c.arg("--user");
-                    displayln!(
-                        "Trying again to install Poetry in user dir, please wait a few moments"
-                    )
-                } else {
-                    displayln!("Installing Poetry, please wait a few moments")
-                }
-                c.arg("--ignore-installed");
-                c.arg(format!("poetry=={}", MINIMUM_POETRY_VERSION));
-                log_debug!("Running command {:?}", c);
-                match c.output() {
-                    Ok(output) => {
-                        let text = std::str::from_utf8(&output.stdout).unwrap();
-                        log_trace!("{}", text);
-                    }
-                    Err(e) => log_debug!("{}", e),
-                }
-            }
-
-            println!("");
-        }
-    }
-}
-
-fn delete_virtual_env() {
-    log_trace!("Deleting Python virtual environment");
-    if let Ok(path) = crate::python::virtual_env() {
-        log_trace!("Path to virtual env found: '{}'", path.display());
-        if path.exists() {
-            let _ = std::fs::remove_dir_all(&path);
-        }
-    }
-}
-
-fn normalize_path_string(path: &PathBuf) -> String {
-    if cfg!(windows) {
-        path.display().to_string().trim_start_matches(r"\\?\").to_string().replace("\\", "/")
+/// Install the locked environment.
+///
+/// Normally this is a plain `uv sync`. Windows with Python 3.7 takes a
+/// different route; see `provision_with_pip` for why.
+fn provision(app_root: &std::path::Path) -> origen::Result<()> {
+    if needs_pip_provisioning() {
+        provision_with_pip(app_root)
     } else {
-        path.display().to_string()
+        run_uv(app_root, &["sync", "--all-groups", "--no-editable"])
     }
+}
+
+/// UV writes Windows console scripts as a trampoline with a zip archive
+/// appended. The trampoline runs `python.exe <the .exe itself>` and relies on
+/// the interpreter executing that archive. CPython's old C `zipimport`, used up
+/// to and including 3.7, rejects it and falls back to parsing the executable as
+/// source, so *every* console script in such an environment is unusable --
+/// `pytest`, and `origen` itself. CPython 3.8 replaced `zipimport` with the
+/// pure-Python implementation, which reads it correctly.
+///
+/// pip's launchers are built differently and do work there, which is how this
+/// combination behaved before O2 moved to UV. Retire this path when O2 drops
+/// Python 3.7, or when UV's launcher becomes readable by it.
+fn needs_pip_provisioning() -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+    let minimum = semver::Version::parse(MINIMUM_UV_LAUNCHER_PYTHON).unwrap();
+    python_version().map_or(false, |version| version < minimum)
+}
+
+fn provision_with_pip(app_root: &std::path::Path) -> origen::Result<()> {
+    displayln!(
+        "Python {} on Windows cannot execute UV's console-script launchers, so this \
+         environment will be installed with pip. The contents still come from uv.lock.",
+        python_version().map_or("<unknown>".to_string(), |v| v.to_string())
+    );
+
+    let venv = app_root.join(".venv");
+    // Pin the interpreter. Without it UV picks its own preferred Python for the
+    // environment, which is not necessarily the one that was discovered here --
+    // it may even download a different version - and the environment would then
+    // not match the interpreter the rest of the workspace is using.
+    let interpreter = discovered_python_executable()?;
+    run_uv(
+        app_root,
+        &[
+            "venv",
+            "--seed",
+            // Replace any existing environment. Unlike `uv sync`, installing
+            // with pip cannot prune packages that are no longer in the lock, so
+            // starting clean is what keeps this path equivalent to a sync.
+            "--clear",
+            "--python",
+            &interpreter,
+            &venv.to_string_lossy(),
+        ],
+    )?;
+
+    // Export the resolved lock rather than re-resolving, so pip installs
+    // exactly what `uv sync` would have. The project itself is excluded here
+    // and installed separately, matching `--no-editable`.
+    let requirements =
+        std::env::temp_dir().join(format!("origen-uv-requirements-{}.txt", std::process::id()));
+    let requirements_arg = requirements.to_string_lossy().to_string();
+    let export = run_uv(
+        app_root,
+        &[
+            "export",
+            "--frozen",
+            "--all-groups",
+            "--no-hashes",
+            "--no-emit-project",
+            "-o",
+            &requirements_arg,
+        ],
+    );
+    if export.is_err() {
+        let _ = std::fs::remove_file(&requirements);
+        return export;
+    }
+
+    let python = venv.join("Scripts").join("python.exe");
+    let result = (|| -> origen::Result<()> {
+        run_python(
+            &python,
+            &["-m", "pip", "install", "-r", &requirements_arg],
+            app_root,
+        )?;
+        if is_installable_project(app_root) {
+            run_python(
+                &python,
+                &["-m", "pip", "install", "--no-deps", "."],
+                app_root,
+            )
+        } else {
+            displayln!("Project is virtual (tool.uv package = false); dependencies only.");
+            Ok(())
+        }
+    })();
+    let _ = std::fs::remove_file(&requirements);
+    result
+}
+
+/// Does UV install this project itself, or only its dependencies?
+///
+/// A project marked `[tool.uv] package = false` is virtual: `uv sync` installs
+/// its dependencies and never builds the project. Installing it with pip anyway
+/// makes setuptools guess at the layout and publish whatever directories it
+/// happens to find.
+fn is_installable_project(root: &std::path::Path) -> bool {
+    let contents = match std::fs::read_to_string(root.join("pyproject.toml")) {
+        Ok(c) => c,
+        Err(_) => return true,
+    };
+    let parsed: toml::Value = match toml::from_str(&contents) {
+        Ok(v) => v,
+        Err(_) => return true,
+    };
+    parsed
+        .get("tool")
+        .and_then(|t| t.get("uv"))
+        .and_then(|uv| uv.get("package"))
+        .and_then(|p| p.as_bool())
+        .unwrap_or(true)
+}
+
+fn run_python(
+    python: &std::path::Path,
+    args: &[&str],
+    cwd: &std::path::Path,
+) -> origen::Result<()> {
+    let mut command = Command::new(python);
+    command.args(args).current_dir(cwd);
+    log_debug!("Running Python command: {:?}", command);
+    displayln!("+ {} {}", python.display(), args.join(" "));
+    let status = command.status()?;
+    if !status.success() {
+        bail!("'{}' failed with status {}", args.join(" "), status)
+    }
+    Ok(())
+}
+
+/// Resolve the discovered Python command to a concrete interpreter path, so it
+/// can be handed to UV unambiguously.
+fn discovered_python_executable() -> origen::Result<String> {
+    let output = Command::new(&PYTHON_CONFIG.command)
+        .args(["-c", "import sys; print(sys.executable)"])
+        .output()?;
+    if !output.status.success() {
+        bail!(
+            "Could not resolve the path of Python command '{}'",
+            PYTHON_CONFIG.command
+        )
+    }
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if path.is_empty() {
+        bail!(
+            "Python command '{}' did not report an executable path",
+            PYTHON_CONFIG.command
+        )
+    }
+    Ok(path)
+}
+
+fn require_python() {
+    print!("Is a suitable Python available? ... ");
+    if PYTHON_CONFIG.available {
+        greenln("YES");
+    } else {
+        redln("NO");
+        display_redln!(
+            "Could not find Python >= {}. Install a supported Python and try again.",
+            MIN_PYTHON_VERSION
+        );
+        std::process::exit(1);
+    }
+}
+
+fn run_uv(root: &std::path::Path, args: &[&str]) -> origen::Result<()> {
+    let mut command = Command::new("uv");
+    command.arg("--project").arg(root).args(args);
+    log_debug!("Running UV command: {:?}", command);
+    // Echoed unconditionally: provisioning is long-running and its failures are
+    // otherwise opaque, particularly in CI where no verbosity flag is passed.
+    displayln!("+ uv {}", args.join(" "));
+    let status = command.status()?;
+    if !status.success() {
+        bail!("UV command failed with status {}", status);
+    }
+    Ok(())
+}
+
+fn require_uv() {
+    let required = VersionReq::parse(&format!(">={}", MINIMUM_UV_VERSION)).unwrap();
+    if let Some(version) = uv_version() {
+        if required.matches(&version) {
+            displayln!("UV {} is available", version);
+            return;
+        }
+    }
+
+    display_redln!(
+        "UV >= {} is required. Install the standalone UV binary from https://docs.astral.sh/uv/getting-started/installation/ and rerun the command.",
+        MINIMUM_UV_VERSION
+    );
+    std::process::exit(1);
 }

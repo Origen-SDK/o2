@@ -220,7 +220,7 @@ pub fn origen_config_metadata<'a>() -> RwLockReadGuard<'a, OrigenConfigMetadata>
     ORIGEN_CONFIG_METADATA.read().unwrap()
 }
 
-pub (crate) fn set_origen_config_metadata(new: OrigenConfigMetadata) {
+pub(crate) fn set_origen_config_metadata(new: OrigenConfigMetadata) {
     let mut m = ORIGEN_CONFIG_METADATA.write().unwrap();
     *m = new;
 }

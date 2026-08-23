@@ -1,11 +1,10 @@
+use super::base::IGXLBase;
 use crate::core::tester::{Interceptor, TesterID};
 use crate::testers::SupportedTester;
 use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
-use super::base::IGXLBase;
-
 
 /// Teradyne UltraFlex tester implementation.
-/// 
+///
 /// Inherits IGXL pattern generation from IGXLBase trait.
 /// Adds UltraFlex-specific header directives.
 #[derive(Debug, Clone)]
@@ -42,7 +41,7 @@ impl TesterID for UltraFlex {
     fn id(&self) -> SupportedTester {
         SupportedTester::ULTRAFLEX
     }
-    
+
     fn id_prog_gen(&self) -> ProgGenSupportedTester {
         ProgGenSupportedTester::ULTRAFLEX
     }

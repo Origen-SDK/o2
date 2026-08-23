@@ -1,6 +1,6 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 
 /// This combines adjacent if flag nodes where the flag is in the opposite state
 ///

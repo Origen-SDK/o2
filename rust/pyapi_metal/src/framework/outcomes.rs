@@ -32,7 +32,7 @@ pub fn pyobj_into_om_outcome(py: Python, obj: PyObject) -> PyResult<OrigenOutcom
         let mut o = OrigenOutcome::new_succeeded();
         o.message = Some(s);
         Ok(o)
-    } else if let Ok(b)= obj.extract::<bool>(py) {
+    } else if let Ok(b) = obj.extract::<bool>(py) {
         let o = OrigenOutcome::new_pass_or_fail(b);
         Ok(o)
     } else {

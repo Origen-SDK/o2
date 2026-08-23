@@ -2,23 +2,23 @@
 //! usage (input and output variables)
 use std::collections::HashSet;
 
+use crate::ast::*;
 use crate::prog_gen::FlowCondition;
 use crate::prog_gen::GroupType;
 use crate::prog_gen::PGM;
-use crate::ast::*;
 use crate::Result;
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
-    let mut p = Collector {  
+    let mut p = Collector {
         ..Default::default()
     };
     let mut node = node.process(&mut p)?.unwrap();
-    
+
     let mut p2 = PassthroughCollector {
         ..Default::default()
-     };
+    };
     node = node.process(&mut p2)?.unwrap();
-    
+
     Ok(node)
 }
 
@@ -94,9 +94,9 @@ impl Processor<PGM> for Collector {
     fn on_node(&mut self, node: &Node<PGM>) -> Result<Return<PGM>> {
         match &node.attrs {
             PGM::Flow(_) | PGM::SubFlow(_, _) => {
-                self.flows.push(FlowData { 
+                self.flows.push(FlowData {
                     ..Default::default()
-                 });
+                });
                 let orig = self.processing_subflow;
                 self.processing_subflow = true;
                 let n = node.process_and_update_children(self)?;
@@ -105,7 +105,7 @@ impl Processor<PGM> for Collector {
             }
             PGM::Group(_, _, kind, _) => {
                 if kind == &GroupType::Flow {
-                    self.flows.push(FlowData { 
+                    self.flows.push(FlowData {
                         ..Default::default()
                     });
                 }
@@ -147,7 +147,11 @@ impl Processor<PGM> for Collector {
                 FlowCondition::IfEnable(flags) | FlowCondition::UnlessEnable(flags) => {
                     for f in flags {
                         let flag = f.to_uppercase();
-                        self.flows.last_mut().unwrap().referenced_enables.insert(flag);
+                        self.flows
+                            .last_mut()
+                            .unwrap()
+                            .referenced_enables
+                            .insert(flag);
                     }
                 }
                 FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
@@ -182,9 +186,7 @@ impl Processor<PGM> for Collector {
                     Ok(Return::Unmodified)
                 }
             }
-            _ => {
-                Ok(Return::Unmodified)
-            }
+            _ => Ok(Return::Unmodified),
         }
     }
 }
@@ -240,13 +242,13 @@ impl Processor<PGM> for PassthroughCollector {
                     Ok(Return::Unmodified)
                 }
             }
-            _ => Ok(Return::Unmodified)
+            _ => Ok(Return::Unmodified),
         }
     }
 }
 
 impl PassthroughCollector {
-    fn finalize_flow_data(&mut self) -> FlowData{
+    fn finalize_flow_data(&mut self) -> FlowData {
         // Extract the FlowData from the first child
         let mut flow_data = self.flow_stack.pop().unwrap();
 
@@ -266,7 +268,10 @@ impl PassthroughCollector {
         }
         // Make sure that all referenced flags that originate from an upstream flow are input
         for fl in &flow_data.referenced_flags {
-            if flow_data.modified_flags.contains(fl) || flow_data.output_flags.contains(fl) || flow_data.downstream_flags.contains(fl) {
+            if flow_data.modified_flags.contains(fl)
+                || flow_data.output_flags.contains(fl)
+                || flow_data.downstream_flags.contains(fl)
+            {
                 continue;
             }
             flow_data.input_flags.insert(fl.to_string());

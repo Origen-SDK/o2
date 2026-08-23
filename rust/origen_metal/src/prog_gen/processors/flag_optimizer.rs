@@ -1,6 +1,6 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 ///  This processor eliminates the use of un-necessary flags between adjacent tests:
@@ -115,7 +115,7 @@ impl Processor<PGM> for FlagOptimizer {
             PGM::Condition(_) => {
                 let children = node.process_and_box_children(self)?;
                 Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
-            },
+            }
             PGM::OnFailed(_) | PGM::OnPassed(_) => {
                 let mut flag = None;
                 let update = {

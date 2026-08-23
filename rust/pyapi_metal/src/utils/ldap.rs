@@ -29,7 +29,7 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
 /// A single LDAP instance
 #[pyclass(subclass)]
 pub struct LDAP {
-    om: OmLdap
+    om: OmLdap,
 }
 
 impl LDAP {}
@@ -122,8 +122,7 @@ impl LDAP {
                                 config.data_id = data_id.extract::<String>()?;
                             }
                             if let Some(mapping) = pop_config.get_item("mapping")? {
-                                config.mapping =
-                                    mapping.extract::<HashMap<String, String>>()?;
+                                config.mapping = mapping.extract::<HashMap<String, String>>()?;
                             }
                             if let Some(required) = pop_config.get_item("required")? {
                                 config.required = required.extract::<Vec<String>>()?;
@@ -272,13 +271,14 @@ impl LDAP {
     fn get_populate_user_config<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
         typed_value::into_optional_pydict(
             py,
-            self.om.populate_user_config().map( |c| c.config_into_map())
+            self.om.populate_user_config().map(|c| c.config_into_map()),
         )
     }
 
     fn populate_user(&self, user: PyRef<User>, dataset: PyRef<UserDataset>) -> PyResult<PyOutcome> {
         Ok(with_user(&user.user_id(), |u| {
             u.with_dataset_mut(dataset.dataset(), |d| self.om.populate_user(u, d))
-        })?.into())
+        })?
+        .into())
     }
 }

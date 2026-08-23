@@ -160,7 +160,8 @@ class PluginsCmdAudit(CLIShared, ABC):
             out = self.add_no_pl_aux_cfg(cmd).run()
             self.assert_out(out, None)
 
-    def setup_class(cls):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
         c = cls.TestBaseCmd
         c._cmd = cls.cmd
         c.loaded_plugins = cls.loaded_plugins

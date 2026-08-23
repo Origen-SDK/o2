@@ -12,5 +12,5 @@ requires that following naming convention is followed:
 To execute the tests, run the following command from the command line:
 
 ~~~
-poetry run pytest
+uv run --no-editable pytest
 ~~~

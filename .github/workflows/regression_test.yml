@@ -14,8 +14,15 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *regression-test-paths-ignore
   workflow_dispatch:
+
+# A new push makes an older run for the same branch obsolete. Cancelling it
+# avoids spending the full OS/Python matrix on code that is no longer current.
+concurrency:
+  group: regression-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  rust-lockfiles:
+  lockfiles:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +30,20 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
+          # Pinned to the toolchain whose rustfmt produced the committed
+          # formatting baseline. 'stable' would let a future rustfmt style
+          # change fail unrelated PRs. This is independent of the crates'
+          # rust-version (1.87); bump it deliberately, reformatting in its own
+          # commit. The build and test jobs below still track stable.
+          toolchain: "1.89"
+          components: rustfmt
+
+      - name: Validate Rust Formatting
+        run: |
+          cargo fmt --manifest-path rust/origen/Cargo.toml --all -- --check
+          cargo fmt --manifest-path rust/origen_metal/Cargo.toml --all -- --check
+          cargo fmt --manifest-path rust/pyapi/Cargo.toml --all -- --check
+          cargo fmt --manifest-path rust/pyapi_metal/Cargo.toml --all -- --check
 
       - name: Validate Rust Lockfiles
         run: |
@@ -36,8 +56,33 @@ jobs:
             cargo metadata --locked --format-version 1 --manifest-path "$manifest" > /dev/null
           done
 
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
+      # The committed uv.lock files are only meaningful if drift is caught.
+      # 'uv sync' silently regenerates a stale lock, so assert freshness here.
+      - name: Validate UV Lockfiles
+        run: |
+          for project in \
+            python/origen \
+            python/origen_metal \
+            test_apps/pl_ext_cmds \
+            test_apps/python_app \
+            test_apps/python_no_app \
+            test_apps/python_plugin \
+            test_apps/python_plugin_no_cmds \
+            test_apps/python_plugin_the_second \
+            test_apps/test_apps_shared_test_helpers
+          do
+            echo "Checking $project"
+            uv lock --check --project "$project"
+          done
+
   build:
-    needs: rust-lockfiles
+    needs: lockfiles
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +110,17 @@ jobs:
           rustc --version
           cargo --version
 
-      # TODO Invocations: Currently some problem with poetry/pip on Windows where dependencies on drives/mounts separate
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.os }}-py${{ matrix.python-version }}
+          workspaces: |
+            rust/origen -> target
+            rust/pyapi -> target
+            rust/origen_metal -> target
+            rust/pyapi_metal -> target
+
+      # Windows tool caches are kept on the workspace drive so native dependencies
       # from where the pyproject is located cannot be built. Can workaround this in Windows by updating the
       # AGENT_TOOLSDIRECTORY/RUNNER_TOOL_CACHE environment variables, but I'm unable to get these to stick across steps
       # in GA. Next few steps are all messiness to debug/work around that.
@@ -115,7 +170,6 @@ jobs:
           echo $env:AGENT_TOOLSDIRECTORY
           echo $env:RUNNER_TOOL_CACHE
           ls $env:AGENT_TOOLSDIRECTORY
-          python -c "import os; [print(f'{v}: {k}') for v,k in os.environ.items()];"
           python -c "import os, sys; print(os.path.dirname(sys.executable))"
 
       # Needed to compile keyring library
@@ -157,15 +211,34 @@ jobs:
           python -c "import sys; print(sys.version)"
           pip --version
 
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
       - name: Display Origen CLI Version
         run: origen -v
 
       - name: Build PyAPI
-        run: origen origen build
+        run: origen develop_origen build
 
       - name: Setup App Env
         working-directory: test_apps/python_app
         run: origen env setup
+
+      # Guards the Windows/Python 3.7 provisioning path. UV writes console
+      # scripts as a trampoline that hands the executable back to Python to run
+      # as an appended zip, which CPython 3.7 cannot read -- it reports a
+      # SyntaxError against the .exe. 'origen env setup' installs with pip on
+      # that combination so the launchers work. Executing one directly, with no
+      # UV involvement, is the assertion that the workaround is still doing its
+      # job; it is cheap and fails loudly rather than surfacing later as an
+      # unrelated-looking test error.
+      - name: Verify venv console scripts are executable (Windows-Only)
+        if: startsWith(matrix.os, 'windows-')
+        working-directory: test_apps/python_app
+        run: .venv\Scripts\pytest.exe --version
 
       - name: Display Origen App Version
         working-directory: test_apps/python_app
@@ -178,41 +251,26 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         run: where.exe origen
 
-      - name: Display Poetry Version
+      - name: Display UV Version
         working-directory: test_apps/python_app
-        run: poetry --version
+        run: uv --version
 
       # - name: Install importlib_metadata (Python 3.12)
       #   run: pip install importlib_metadata
-
-      # - name: Cache Poetry Version (Linux)
-      #   if: contains(matrix.os, 'ubuntu')
-      #   working-directory: test_apps/python_app
-      #   run: |
-      #     POETRY_VER=$(python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))")
-      #     echo $POETRY_VER
-      #     echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
-      # - name: Cache Poetry Version (Windows)
-      #   if: startsWith(matrix.os, 'windows-')
-      #   working-directory: test_apps/python_app
-      #   run: |
-      #     $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))"
-      #     echo $POETRY_VER
-      #     echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
 
       - name: Show Origen Binary Location (Linux)
         if: contains(matrix.os, 'ubuntu')
         working-directory: test_apps/python_app
         run: |
           which origen
-          poetry run which origen
+          uv run --no-sync --no-editable which origen
       - name: Show Origen Binary Location (Windows)
         if: startsWith(matrix.os, 'windows-')
         working-directory: test_apps/python_app
         run: |
           where.exe origen
           echo ""
-          poetry run where.exe origen
+          uv run --no-sync --no-editable where.exe origen
 
       # TODO GA: Add to build script?
       - name: Move Origen executable (Linux)
@@ -222,25 +280,40 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         run: cp rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
+      # One representative Linux job validates the complete user-facing
+      # documentation command, including AutoAPI, MyST, Rustdoc, and the
+      # example subproject. Sphinx warnings are fatal, while the separate
+      # network-dependent external-link checker remains disabled in CI.
+      - name: Build Core Documentation
+        if: contains(matrix.os, 'ubuntu') && matrix.python-version == '3.11'
+        working-directory: python/origen
+        run: uv run --no-editable origen web build --clean --sphinx-args="-W --keep-going"
+
       - name: Show Origen Binary Location (Linux)
         if: contains(matrix.os, 'ubuntu')
         working-directory: test_apps/python_app
         run: |
           which origen
-          poetry run which origen
+          uv run --no-sync --no-editable which origen
       - name: Show Origen Binary Location (Windows)
         if: startsWith(matrix.os, 'windows-')
         working-directory: test_apps/python_app
         run: |
           where.exe origen
           echo ""
-          poetry run where.exe origen
+          uv run --no-sync --no-editable where.exe origen
 
       - name: Run Python-App Unit Tests
         uses: Wandalen/wretry.action@v1.3.0
+        env:
+          PYTHONPATH: ${{ github.workspace }}/rust/pyapi/target${{ runner.os == 'Windows' && ';' || ':' }}${{ github.workspace }}/python/origen_metal
         with:
           attempt_limit: 2
           current_path: test_apps/python_app
+          # Routed through 'origen exec' so the wrapper users are told to use
+          # stays covered. It prepends the same two debug-backend paths and now
+          # preserves the inherited PYTHONPATH, so resolution is identical to
+          # invoking 'uv run' directly.
           command: origen exec pytest -vv
 
       - name: Run Python-App Diff Tests
@@ -253,11 +326,11 @@ jobs:
           attempt_limit: 3
           attempt_delay: 10000 # ms = 10 seconds
           current_path: test_apps/python_no_app
-          command: poetry install
+          command: python ../../ci/provision_env.py .
 
-      - name: Display Poetry Version (No-App)
+      - name: Display UV Version (No-App)
         working-directory: test_apps/python_no_app
-        run: poetry --version
+        run: uv --version
 
       # Copy _origen
       - name: Copy Origen Library (Windows)
@@ -281,60 +354,67 @@ jobs:
         working-directory: test_apps/python_no_app
         run: |
           which origen
-          poetry run which origen
+          uv run --no-sync --no-editable which origen
       - name: Show Origen Binary Location (Windows)
         if: startsWith(matrix.os, 'windows-')
         working-directory: test_apps/python_no_app
         run: |
           where.exe origen
           echo ""
-          poetry run where.exe origen
+          uv run --no-sync --no-editable where.exe origen
 
       - name: Display Origen No-App Version
         working-directory: test_apps/python_no_app
-        run: poetry run origen -vvv
+        run: uv run --no-sync --no-editable origen -vvv
 
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
-        run: poetry run pytest -vv
+        run: uv run --no-sync --no-editable pytest -vv
+        env:
+          PYTHONPATH: ${{ github.workspace }}/rust/pyapi/target${{ runner.os == 'Windows' && ';' || ':' }}${{ github.workspace }}/python/origen_metal
 
       - name: Run Rust Tests
-        if: matrix.python-version == 3.8
+        if: contains(matrix.os, 'ubuntu') && matrix.python-version == '3.8'
         working-directory: rust/origen
         run: cargo test --locked --workspace
 
       - name: Run Rust Tests - PyAPI
-        if: matrix.python-version == 3.8
+        if: matrix.python-version == '3.8'
         working-directory: rust/pyapi
         run: cargo test --locked --no-default-features
         env:
           RUSTFLAGS: -D warnings
 
       - name: Run Rust Tests - Metal PyAPI
-        if: matrix.python-version == 3.8
+        if: matrix.python-version == '3.8'
         working-directory: rust/pyapi_metal
         run: cargo test --locked --no-default-features
         env:
           RUSTFLAGS: -D warnings
 
       - name: Build PyAPI - Metal
-        run: origen origen build --metal
+        run: origen develop_origen build --metal
 
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal
-        run: poetry install
+        run: python ../../ci/provision_env.py .
 
       - name: Run Python Unit Tests - Metal
         working-directory: python/origen_metal
-        run: poetry run pytest -vv
+        run: uv run --no-sync --no-editable pytest -vv
+        env:
+          PYTHONPATH: ${{ github.workspace }}/rust/pyapi/target${{ runner.os == 'Windows' && ';' || ':' }}${{ github.workspace }}/python/origen_metal
 
       - name: Run Rust Tests - Metal
+        if: contains(matrix.os, 'ubuntu') && matrix.python-version == '3.8'
         working-directory: rust/origen_metal
         run: cargo test --locked
 
-      # Use a global pytest install for invocation tests
+      # A global pytest install drives the invocation tests, which deliberately
+      # run outside any UV environment. Pinned because this lane also runs on
+      # Python 3.7, which pytest 8 dropped.
       - name: Install Pytest
-        run: pip install pytest==7.2.1 jinja2==3.1.2
+        run: pip install pytest==7.2.1
 
       - name: Get Pytest Version (Check Install)
         run: pytest --version
@@ -343,7 +423,7 @@ jobs:
       #   working-directory: test_apps/no_workspace
       #   run: pytest test_user_install.py::TestUserInstall -vv
 
-      # TODO GA: Regressions: eventually want to move this into a poetry build step
+      # TODO GA: Fold this packaging flow into the UV build configuration.
       # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
       #   'mv' command should be be fine for both linux & powershell
       # Update: remove binary since it is being copied earlier.
@@ -361,28 +441,21 @@ jobs:
       - name: Remove origen_metal tmp Directory
         run: rm python/origen_metal/tmp -r
 
-      # TODO GA: Regressions: Need to better handle this
-      # Issue being that working on a newer Python version than what's released will not resolve
-      # Workaround by removing origen_metal package from origen dependencies and installing separately
-      - name: Hack origen pyproject
-        uses: Wandalen/wretry.action@v1.3.0
-        with:
-          attempt_limit: 3
-          attempt_delay: 10000 # ms = 10 seconds
-          current_path: python/origen
-          command: poetry remove origen_metal
-
-      - name: Build Origen Wheel With Development Library
+      # setuptools-rust compiles '_origen' as part of the wheel build, so this
+      # produces a release extension rather than packaging the debug library.
+      - name: Build Origen Wheel
         working-directory: python/origen
-        run: |
-          poetry build --format wheel
+        run: uv build --wheel --clear --no-create-gitignore
 
+      # uv writes a '.gitignore' into the output directory. Dotfiles are not
+      # hidden on Windows, so an unfiltered listing picks it up and the wheel
+      # name becomes two lines. Suppress the file and match '*.whl' explicitly.
       - name: Save wheel name (Windows)
         if: startsWith(matrix.os, 'windows-')
         working-directory: python/origen/dist
         run: |
-          ls
-          $env:DIST=Get-ChildItem -Name
+          Get-ChildItem -Force
+          $env:DIST=(Get-ChildItem -Name -Filter *.whl | Select-Object -First 1)
           echo "DIST=$env:DIST" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "DIST ENV..."
           echo $env:DIST
@@ -394,13 +467,13 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         working-directory: python/origen/dist
         run: |
-          ls
-          echo DIST=`ls` >> $GITHUB_ENV
+          ls -a
+          echo DIST=$(ls *.whl | head -1) >> $GITHUB_ENV
 
-      - name: Check Global Pip/Poetry Versions
+      - name: Check Global Pip/UV Versions
         run: |
           pip --version
-          poetry --version
+          uv --version
 
       - name: Install Origen Package Globally (Windows)
         if: startsWith(matrix.os, 'windows-')
@@ -428,13 +501,6 @@ jobs:
         if: startsWith(matrix.os, 'windows-')
         run: where.exe origen
 
-      # - name: Reinstall Poetry Version
-      #   run: |
-      #     echo ${{ env.poetry_version }}
-      #     poetry --version
-      #     pip install poetry==${{ env.poetry_version }}
-      #     poetry --version
-
       - name: Run User-Global Invocation Tests
         working-directory: test_apps/no_workspace
         run: pytest test_user_install.py::TestUserInstall -vv
@@ -446,8 +512,7 @@ jobs:
       
       - name: Install Plugins
         run: |
-          pip install test_apps/test_apps_shared_test_helpers
-          pip install test_apps/python_plugin
+          pip install test_apps/pl_ext_cmds test_apps/test_apps_shared_test_helpers test_apps/python_plugin
           pip install python/origen/dist/${{ env.DIST }} --force-reinstall
           pip install python/origen_metal --force-reinstall
 
@@ -471,6 +536,6 @@ jobs:
       # With global origen available, test user install errors which fall back to the global install
       - name: Run User Install Errors - Falling Back To Global Install
         working-directory: test_apps/no_workspace
-        run:
-          poetry --version
+        run: |
+          uv --version
           pytest test_user_install.py::TestErrorCasesWithFallback -vv

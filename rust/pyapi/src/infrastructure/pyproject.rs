@@ -1,7 +1,7 @@
+use origen::core::status::DependencySrc;
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use origen::core::status::DependencySrc;
 
 pub fn populate_status(py: Python, status: &PyDict) -> PyResult<()> {
     if let Some(d) = STATUS.dependency_src().as_ref() {

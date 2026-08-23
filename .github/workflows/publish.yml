@@ -1,14 +1,17 @@
 name: Publish Packages
+permissions:
+  contents: write
 on:
   workflow_dispatch:
     inputs:
-      origen_python_package:
-        description: Publish the Origen python package
-        default: "false"
-        type: choice
-        options:
-          - true
-          - false
+      release_ref:
+        description: Exact prepared Origen release tag to publish
+        required: true
+        type: string
+      version:
+        description: Expected Origen package version
+        required: true
+        type: string
       # build_for_debug_target:
       #   description: If 'true', does not use the '--release' switch when building Rust libraries
       #   required: false
@@ -16,39 +19,30 @@ on:
       publish_pypi:
         description: Publish built packages to PyPi
         required: true
-        default: "false"
-        type: choice
-        options:
-          - true
-          - false
+        default: false
+        type: boolean
       publish_pypi_test:
         description: Publish To PyPI Test Server
         required: true
-        default: "false"
-        type: choice
-        options:
-          - true
-          - false
+        default: false
+        type: boolean
       publish_github_release:
         description: Publish built packages to Github Release page
         required: true
-        default: "false"
-        type: choice
-        options:
-          - true
-          - false
+        default: false
+        type: boolean
       prerelease:
         description: Indicate that any release is a pre/dev release
         required: true
-        default: "true"
-        type: choice
-        options:
-          - true
-          - false
+        default: true
+        type: boolean
       # id:
       #   description: Set the run ID to a known value
       #   required: false
       #   type: number
+concurrency:
+  group: publish-origen
+  cancel-in-progress: false
 env:
   origen_ver_file: origen_version
 jobs:
@@ -58,6 +52,26 @@ jobs:
     # with imcomplete or duplicate releases.
     runs-on: ubuntu-latest
     steps:
+      - name: Check out exact release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
+          fetch-depth: 0
+
+      - name: Validate release ref, version, and history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/validate_release.py source \
+            --version "${{ inputs.version }}" \
+            --tag-prefix origen \
+            --tags "$(git tag --points-at HEAD)" \
+            --history python/origen/doc/history \
+            --manifest python/origen/pyproject.toml \
+            --manifest rust/origen/Cargo.toml \
+            --manifest rust/origen/cli/Cargo.toml \
+            --manifest rust/pyapi/Cargo.toml
+
       - name: Query Concurrency
         id: query-concurrency
         uses: fkirc/skip-duplicate-actions@v5
@@ -81,6 +95,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
         
       - name: Run Build Script in Docker container
         # Using someone else's fixed version of the docker-run-action until this PR is merged:
@@ -141,6 +157,8 @@ jobs:
       ORIGEN_PUBLISH_STEP: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -161,10 +179,10 @@ jobs:
       - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
 
-      - name: Install Poetry
-        run: |
-          pip install poetry==1.3.2
-          poetry --version
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.5"
 
       # - name: Build Origen CLI
       #   working-directory: rust/origen/cli
@@ -195,11 +213,28 @@ jobs:
 
       - name: Build Origen Python Package
         working-directory: python/origen
-        run: poetry build --format wheel
+        run: |
+          cargo build --manifest-path ../../rust/origen/cli/Cargo.toml --release --bin origen
+          cp ../../rust/origen/target/release/origen.exe origen/__bin__/bin/origen.exe
+          # --python pins the build interpreter; uv otherwise picks whichever
+          # Python it discovers for the isolated build environment, which can
+          # silently emit the same ABI tag from several matrix cells.
+          uv build --wheel --clear --no-create-gitignore --python ${{ matrix.python-version }}
 
       - name: Display Dist Directory
         working-directory: python/origen/dist
         run: ls
+
+      # Assert the tag at the source. After artifact merge, several cells that
+      # all produced the same tag are indistinguishable from a single correct
+      # wheel, so a post-merge check cannot catch this.
+      - name: Verify wheel targets Python ${{ matrix.python-version }}
+        run: >
+          python ci/validate_release.py wheels
+          --package origen
+          --version "${{ inputs.version }}"
+          --directory python/origen/dist
+          --expect-python-versions "${{ matrix.python-version }}"
 
       - name: Upload Origen Python Package Artifact
         uses: actions/upload-artifact@v4
@@ -209,7 +244,7 @@ jobs:
 
       - name: Get Origen Python Package Version
         working-directory: python/origen
-        run: poetry version -s > ${{ env.origen_ver_file }}
+        run: python -c "import pathlib,re; print(re.search(r'^version\s*=\s*\"([^\"]+)\"', pathlib.Path('pyproject.toml').read_text(), re.M).group(1))" > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
         uses: actions/upload-artifact@v4
@@ -222,39 +257,6 @@ jobs:
         with:
           name: cli-${{runner.os}}-${{matrix.python-version}}
           path: python\origen\origen\__bin__\bin\origen.exe
-
-      # - name: "Publish To PyPi"
-      #   if: ${{ github.event.inputs.publish_pypi }} == true
-      #   working_directory: python
-      #   run: |
-      #     echo "Publishing to PyPi"
-      #   # poetry publish ...
-
-      # - name: "Publish To PyPi Test Server"
-      #   if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
-      #   working-directory: python
-      #   run: |
-      #     echo "Publishing to PyPi Test Server"
-      #     poetry config repositories.pypi-test https://test.pypi.org/legacy/
-      #     poetry config pypi-token.pypi-test ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
-      #     poetry publish -r pypi-test
-
-      # - name: pypi-publish
-      #   if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
-        # uses: pypa/gh-action-pypi-publish@v1.4.2
-        # with:
-        #   packages_dir: python/dist/
-        #   user: __token__
-        #   password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
-        #   repository_url: https://test.pypi.org/legacy/
-        #   skip_existing: true
-
-      # - name: "Publish To Github Releases"
-      #   if: ${{ github.event.inputs.publish_github_release }} == true
-      #   working_directory: python
-      #   run: |
-      #     echo "Publishing to Github Releases"
-      #   # ...
 
   merge_artifacts:
     needs: [build_manylinux, build_windows]
@@ -280,6 +282,9 @@ jobs:
     needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
       - name: Retrieve Origen Wheels
         uses: actions/download-artifact@v4
         with:
@@ -288,6 +293,9 @@ jobs:
 
       - name: List Origen Wheels
         run: ls -al ./origen_wheels
+
+      - name: Validate wheel versions
+        run: python ci/validate_release.py wheels --package origen --version "${{ inputs.version }}" --directory origen_wheels
 
       - name: Retrieve Origen Standalone CLI
         uses: actions/download-artifact@v4
@@ -301,56 +309,70 @@ jobs:
   publish_to_pypi_test:
     needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+    if: ${{ inputs.publish_pypi_test }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
       - name: Retrieve Wheels
         uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
 
+      - name: Validate wheel versions
+        run: python ci/validate_release.py wheels --package origen --version "${{ inputs.version }}" --directory origen_wheels
+
       - name: List Origen Wheels
         run: ls -al ./origen_wheels
 
       - name: Push To PyPi Test Server
-        if: ${{ github.event.inputs.origen_python_package == 'true' }}
         uses: pypa/gh-action-pypi-publish@v1.8.10
         with:
           packages-dir: origen_wheels
           password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
           verify-metadata: false
+          skip-existing: true
           verbose: true
 
   publish_to_pypi:
     needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.publish_pypi == 'true' }}
+    if: ${{ inputs.publish_pypi }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref }}
       - name: Retrieve Wheels
         uses: actions/download-artifact@v4
         with:
           name: origen_wheels
           path: origen_wheels
 
+      - name: Validate wheel versions
+        run: python ci/validate_release.py wheels --package origen --version "${{ inputs.version }}" --directory origen_wheels
+
       - name: List Origen Wheels
         run: ls -al ./origen_wheels
 
       - name: Push To PyPi Server
-        if: ${{ github.event.inputs.origen_python_package == 'true' }}
         uses: pypa/gh-action-pypi-publish@v1.8.10
         with:
           packages-dir: origen_wheels
           password: ${{ secrets.PYPI_ORIGEN_API_TOKEN }}
           verify-metadata: false
+          skip-existing: true
           verbose: true
 
   publish_github_release:
     needs: [build_manylinux, build_windows, merge_artifacts]
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.publish_github_release == 'true' }}
+    if: ${{ inputs.publish_github_release }}
     steps:
         - uses: actions/checkout@v4
+          with:
+            ref: ${{ inputs.release_ref }}
 
         - uses: actions/download-artifact@v4
           with:
@@ -393,21 +415,27 @@ jobs:
         - name: Show Versions
           run: echo ${{ env.origen_version }}
 
-        - name: Figure Out Tag
+        - name: Extract release notes
           run: |
-            echo "tag=commit-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
-        - name: Display Tag
-          run: echo ${{ env.tag }}
+            python ci/extract_release_notes.py \
+              --history python/origen/doc/history \
+              --tag-prefix origen \
+              --version "${{ inputs.version }}" \
+              --output release_body.md
 
         - name: Generate Github Release
           uses: ncipollo/release-action@v1
           with:
             artifacts: ./origen.zip, cli.zip
             artifactErrorsFailBuild: true
-            prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-            commit: ${{ github.sha }}
-            tag: ${{ env.tag }}
+            prerelease: ${{ inputs.prerelease }}
+            commit: ${{ inputs.release_ref }}
+            tag: ${{ inputs.release_ref }}
+            bodyFile: release_body.md
+            generateReleaseNotes: false
+            allowUpdates: true
+            replacesArtifacts: true
+
   cleanup:
     needs: [precheck, build_manylinux, build_windows, merge_artifacts, publish_to_pypi_test, publish_to_pypi, publish_github_release, show_wheels]
     runs-on: ubuntu-latest

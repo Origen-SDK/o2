@@ -1,7 +1,7 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::{FlowID, PGM};
 use crate::Result;
 use indexmap::IndexMap;
-use crate::ast::{Node, Processor, Return};
 
 /// This nests OnFailed and OnPassed nodes into their parent tests (or groups)
 ///
@@ -52,7 +52,7 @@ impl Processor<PGM> for NestOnResultNodes {
             }
             PGM::Test(_, fid) | PGM::TestStr(_, fid, _, _, _) | PGM::Cz(_, _, fid) => {
                 if self.pass == 1 && self.nodes.contains_key(fid) {
-                    let n = { self.nodes.remove(fid).unwrap() };
+                    let n = { self.nodes.shift_remove(fid).unwrap() };
                     let mut nodes = vec![n.process_and_update_children(self)?];
                     nodes.append(&mut node.process_children(self)?);
                     Ok(Return::ReplaceChildren(nodes))
@@ -63,7 +63,7 @@ impl Processor<PGM> for NestOnResultNodes {
             PGM::Group(_, _, _, fid) => {
                 if let Some(fid) = fid {
                     if self.pass == 1 && self.nodes.contains_key(fid) {
-                        let n = { self.nodes.remove(fid).unwrap() };
+                        let n = { self.nodes.shift_remove(fid).unwrap() };
                         let mut nodes = vec![n.process_and_update_children(self)?];
                         nodes.append(&mut node.process_children(self)?);
                         Ok(Return::ReplaceChildren(nodes))

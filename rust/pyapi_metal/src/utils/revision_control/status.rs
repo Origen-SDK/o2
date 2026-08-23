@@ -26,7 +26,10 @@ impl Status {
 
     #[getter]
     fn conflicted(&self, py: Python) -> PyResult<Vec<PyObject>> {
-        to_py_paths(py, &self.stat.conflicted.iter().map(|p| p.display()).collect())
+        to_py_paths(
+            py,
+            &self.stat.conflicted.iter().map(|p| p.display()).collect(),
+        )
     }
 
     #[getter]

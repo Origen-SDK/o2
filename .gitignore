@@ -26,6 +26,14 @@ rls/
 
 # Output directories
 /python/origen/output
+
+# setuptools scratch directory left behind by 'uv build' on the origen package
+/python/origen/build
+/python/origen/dist
+/python/origen_metal/dist
+
+# Local reproduction of the GA Linux matrix (ci/local_ga_linux.sh)
+/.local-ga
 /python/origen/.origen
 /python/origen/web/source/_static/build
 /python/origen/web/source/interbuild

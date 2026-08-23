@@ -3,9 +3,9 @@ use crate::generator::PAT;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
-use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use crate::{Result, DUT};
 use origen_metal::ast::{Node, Return};
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 
 #[derive(Debug, Clone)]
 pub struct SMT7 {}
@@ -20,7 +20,7 @@ impl TesterID for SMT7 {
     fn id(&self) -> SupportedTester {
         SupportedTester::V93KSMT7
     }
-    
+
     fn id_prog_gen(&self) -> ProgGenSupportedTester {
         ProgGenSupportedTester::V93KSMT7
     }

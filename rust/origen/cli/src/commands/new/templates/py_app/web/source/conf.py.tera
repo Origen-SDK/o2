@@ -36,7 +36,7 @@ release = '0.0.0'
 extensions = [
     'origen.web.origen_sphinx_extension', 'origen_autoapi.sphinx',
     'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosectionlabel',
-    'recommonmark', 'origen.web.shorthand'
+    'myst_parser', 'origen.web.shorthand'
 ]
 
 autosectionlabel_prefix_document = True

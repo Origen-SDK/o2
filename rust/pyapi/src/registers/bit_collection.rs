@@ -702,13 +702,15 @@ impl BitCollection {
     /// Locates the "closest" controller to this bitcollection.
     /// "Closest" being defined as the first subblock (or the DUT) which implements a "verify/write_register"
     /// that owns the memory map -> address block -> register -> bit collection <- self
-    fn controller_for(slf: &PyCell<Self>, py: Python, operation: Option<&str>) -> PyResult<PyObject> {
+    fn controller_for(
+        slf: &PyCell<Self>,
+        py: Python,
+        operation: Option<&str>,
+    ) -> PyResult<PyObject> {
         let bc = slf.extract::<PyRef<Self>>()?;
         match bc._controller_for(py, operation)? {
             Some(c) => Ok(c),
-            None => {
-                Ok(py.None())
-            }
+            None => Ok(py.None()),
         }
     }
 
