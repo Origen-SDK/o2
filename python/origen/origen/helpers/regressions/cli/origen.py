@@ -15,12 +15,50 @@ class _CommonNames:
     eval = "eval"
     exec = "exec"
     fmt = "fmt"
+    env = "env"
     i = "interactive"
     v = "-v"
 
     @classmethod
     def aux_cmds_cmd(cls, add_opts=None):
         return Cmd(cls.aux_cmds, help="Interface with auxillary commands")
+
+    @classmethod
+    def env_cmd(cls):
+        return Cmd(
+            cls.env,
+            help="Manage your application's Origen/Python environment",
+            subcmds=[
+                Cmd(
+                    "setup",
+                    help="Create or synchronize the UV environment from uv.lock",
+                ),
+                Cmd(
+                    "update",
+                    help="Upgrade and synchronize the application's locked dependencies",
+                ),
+                Cmd(
+                    "migrate",
+                    help="Convert a Poetry project to PEP 621 metadata and UV sources",
+                    opts=[
+                        CmdOpt(
+                            "dry_run",
+                            help="Print the proposed pyproject.toml diff without changing files",
+                            ln="dry-run",
+                        ),
+                        CmdOpt(
+                            "project",
+                            help="Project directory or pyproject.toml path; defaults to the nearest project",
+                            ln="project",
+                            takes_value=True,
+                            value_name="PATH",
+                        ),
+                    ],
+                ),
+            ],
+            help_subc_idx=0,
+            extendable=False,
+        )
 
     @classmethod
     def eval_cmd(cls, add_opts=None):
@@ -211,6 +249,7 @@ class GlobalCommands(CoreCommands):
         aux_cmds = _CommonNames.aux_cmds
         pls = _CommonNames.pls
         pl = _CommonNames.pl
+        env = _CommonNames.env
 
         proj = "proj"
         new = _CommonNames.new
@@ -225,6 +264,7 @@ class GlobalCommands(CoreCommands):
     aux_cmds = _CommonNames.aux_cmds_cmd()
     pls = _CommonNames.pls_cmd()
     pl = _CommonNames.pl_cmd()
+    env = _CommonNames.env_cmd()
     # proj = Cmd(names.proj)
     new = Cmd(
         names.new,
@@ -238,7 +278,7 @@ class GlobalCommands(CoreCommands):
 
     commands = [
         # proj, fmt, build
-        creds, eval, exec, i, new,
+        creds, env, eval, exec, i, new,
         pls, pl, aux_cmds,
    ]
     cmds = commands
@@ -274,7 +314,7 @@ class InAppCommands(CoreCommands):
         # build = _CommonNames.build
         # compile = "compile"
         creds = _CommonNames.creds
-        env = "env"
+        env = _CommonNames.env
         eval = _CommonNames.eval
         exec = _CommonNames.exec
         # fmt = _CommonNames.fmt
@@ -350,22 +390,7 @@ class InAppCommands(CoreCommands):
     )
     aux_cmds = _CommonNames.aux_cmds_cmd()
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
-    env = Cmd(
-        names.env,
-        help="Manage your application's Origen/Python environment",
-        subcmds=[
-            Cmd(
-                "setup",
-                help="Create or synchronize the UV environment from uv.lock",
-            ),
-            Cmd(
-                "update",
-                help="Upgrade and synchronize the application's locked dependencies",
-            ),
-        ],
-        help_subc_idx=0,
-        extendable=False
-    )
+    env = _CommonNames.env_cmd()
     eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
     exec = _CommonNames.exec_cmd()
     # fmt = Cmd(names.fmt)

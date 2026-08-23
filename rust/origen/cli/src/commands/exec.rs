@@ -7,7 +7,7 @@ pub const EXEC_HELP: &'static str =
     "Execute a command within your Origen/Python environment (e.g. origen exec pytest)";
 
 pub(crate) fn run_pre_phase(invocation: &clap::ArgMatches) -> Result<i32> {
-    let mut cmd = PYTHON_CONFIG.uv_command();
+    let mut cmd = PYTHON_CONFIG.uv_command()?;
     cmd.arg("run");
     cmd.arg("--no-sync");
     cmd.arg("--no-editable");

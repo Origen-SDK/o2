@@ -79,8 +79,15 @@ fn starting(job: &str) {
 
 // Returns true if no problems
 fn py_fmt(dir: &Path) {
-    let res = PYTHON_CONFIG
-        .uv_command()
+    let mut cmd = match PYTHON_CONFIG.uv_command() {
+        Ok(cmd) => cmd,
+        Err(error) => {
+            log_error!("{}", error);
+            redln("NO");
+            return;
+        }
+    };
+    let res = cmd
         .arg("run")
         .arg("yapf")
         .arg("--in-place")

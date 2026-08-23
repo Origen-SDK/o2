@@ -117,6 +117,7 @@ fn main() -> Result<()> {
 
     let mut pre_phase_app = pre_phase_app!();
     pre_phase_app = commands::exec::add_prephase_cmds(pre_phase_app);
+    pre_phase_app = commands::env::add_prephase_cmds(pre_phase_app);
 
     let mut print_help = false;
     let mut verbosity;
@@ -165,6 +166,23 @@ fn main() -> Result<()> {
                     // the full parser must report missing-argument errors.
                     if subc.get_one::<String>("cmd").is_some() {
                         run_pre_phase_cmd!(exec, subc);
+                    }
+                }
+                Some((commands::env::BASE_CMD, subc))
+                    if subc.subcommand_matches("migrate").is_some() =>
+                {
+                    let strict = add_verbosity_opts(
+                        Command::new("")
+                            .disable_version_flag(true)
+                            .disable_help_flag(true),
+                        true,
+                    );
+                    let strict = commands::env::add_prephase_cmds(strict);
+                    if let Ok(strict_matches) = strict.try_get_matches_from(std::env::args_os()) {
+                        let strict_env = strict_matches
+                            .subcommand_matches(commands::env::BASE_CMD)
+                            .unwrap();
+                        run_pre_phase_cmd!(env, strict_env);
                     }
                 }
                 // "External subcommand" received, which in this case is either a non-pre-prephase or invalid command.
@@ -512,9 +530,9 @@ fn main() -> Result<()> {
     commands::credentials::add_helps(&mut helps);
     commands::interactive::add_helps(&mut helps);
 
+    commands::env::add_helps(&mut helps);
     if STATUS.is_app_present {
         commands::app::add_helps(&mut helps, app_cmds.as_ref().unwrap());
-        commands::env::add_helps(&mut helps);
         commands::generate::add_helps(&mut helps);
         commands::target::add_helps(&mut helps);
         commands::save_ref::add_helps(&mut helps);
@@ -543,6 +561,7 @@ fn main() -> Result<()> {
     app = commands::plugins::add_commands(app, &helps, &extensions)?;
     app = commands::aux_cmds::add_commands(app, &helps, &aux_cmds, &extensions)?;
 
+    app = commands::env::add_commands(app, &helps, &extensions)?;
     /************************************************************************************/
     /******************** Origen dev commands *******************************************/
     /************************************************************************************/
@@ -556,7 +575,6 @@ fn main() -> Result<()> {
     /************************************************************************************/
     if STATUS.is_app_present {
         app = commands::app::add_commands(app, &helps, app_cmds.as_ref().unwrap(), &extensions)?;
-        app = commands::env::add_commands(app, &helps, &extensions)?;
         app = commands::generate::add_commands(app, &helps, &extensions)?;
         app = commands::save_ref::add_commands(app, &helps, &extensions)?;
         app = commands::web::add_commands(app, &helps, &extensions)?;

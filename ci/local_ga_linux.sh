@@ -59,9 +59,17 @@ origen develop_origen build
 step "Build PyAPI - Metal"
 origen develop_origen build --metal
 
+if [[ "$PY_VERSION" == 3.11* ]]; then
+    step "Run Poetry Migration Transaction Tests"
+    cargo test --manifest-path "$ROOT/rust/origen/Cargo.toml" --locked -p cli migration
+
+    step "Migrate Historical Poetry Application"
+    python "$ROOT/ci/test_poetry_migration.py"
+fi
+
 step "Setup App Env"
 cd "$ROOT/test_apps/python_app"
-origen env setup
+UV_PYTHON="$PYO3_PYTHON" origen env setup
 origen -v
 
 step "Stage CLI into the package"
@@ -77,7 +85,7 @@ origen examples
 
 step "Setup No-App Env"
 cd "$ROOT/test_apps/python_no_app"
-uv sync --all-groups --no-editable
+UV_PYTHON="$PYO3_PYTHON" uv sync --all-groups --no-editable
 
 step "Copy Origen Library"
 cp "$ROOT/rust/pyapi/target/debug/lib_origen.so" "$ROOT/python/origen/_origen.so"
@@ -89,7 +97,7 @@ PYTHONPATH="$ROOT/rust/pyapi/target:$ROOT/python/origen_metal" \
 
 step "Setup Python Env - Metal"
 cd "$ROOT/python/origen_metal"
-uv sync --all-groups --no-editable
+UV_PYTHON="$PYO3_PYTHON" uv sync --all-groups --no-editable
 
 step "Run Python Unit Tests - Metal"
 PYTHONPATH="$ROOT/rust/pyapi/target:$ROOT/python/origen_metal" \

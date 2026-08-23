@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "example"
+version = "1.2.3"
+description = ""
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.0,<3.13"
+origen = { path = "../../python/origen", develop = true }
+origen_metal = { path = "../../python/origen_metal", develop = true }
+python_plugin = { path = "../python_plugin", develop = true }
+test_apps_shared_test_helpers = { path = "../test_apps_shared_test_helpers", develop = true }
+python_plugin_no_cmds = { path = "../python_plugin_no_cmds", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = ">= 6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+
+# Use '-m "not <mark>"' on the command line to bypass these tests
+markers = [
+    "online: marks tests as requiring an internet connection",
+    "ldap: marks tests requiring/using the external ldap",
+]

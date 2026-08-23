@@ -86,6 +86,22 @@ Use ``origen exec`` to invoke tools inside the application environment:
 This avoids accidentally running pytest, Sphinx, or another tool from a global
 Python installation.
 
+Applications created by older O2 releases may still contain
+``[tool.poetry]`` metadata and ``poetry.lock``. Migrate that metadata before
+running any UV-backed command:
+
+.. code-block:: console
+
+   $ origen env migrate --dry-run
+   $ origen env migrate
+   $ origen env setup
+
+The dry run prints the proposed manifest diff without writing. The migration
+converts supported dependencies and sources, generates ``uv.lock``, and removes
+``poetry.lock`` only after the UV lock is validated. Unsupported Poetry-specific
+configuration is reported before any file changes. Review and commit
+``pyproject.toml`` and ``uv.lock`` together.
+
 Troubleshooting
 ---------------
 

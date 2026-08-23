@@ -1,4 +1,5 @@
 //! Manage an application's UV environment.
+mod migration;
 
 use super::_prelude::*;
 use crate::python::{python_version, uv_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
@@ -36,14 +37,85 @@ gen_core_cmd_funcs__no_exts__no_app_opts!(
         "update",
         "Upgrade and synchronize the application's locked dependencies",
         { |cmd: App| { cmd } }
+    ),
+    core_subcmd__no_exts__no_app_opts!(
+        "migrate",
+        "Convert a Poetry project to PEP 621 metadata and UV sources",
+        {
+            |cmd: App| {
+                cmd.arg(
+                    Arg::new("dry-run")
+                        .long("dry-run")
+                        .help("Print the proposed pyproject.toml diff without changing files")
+                        .action(SetArgTrue),
+                )
+                .arg(
+                    Arg::new("project")
+                        .long("project")
+                        .help("Project directory or pyproject.toml path; defaults to the nearest project")
+                        .value_name("PATH")
+                        .action(SetArg),
+                )
+            }
+        }
     )
 );
 
-pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
-    require_python();
-    require_uv();
+pub(crate) fn add_prephase_cmds(cmd: App) -> App {
+    let migrate = App::new("migrate")
+        .arg(Arg::new("dry-run").long("dry-run").action(SetArgTrue))
+        .arg(
+            Arg::new("project")
+                .long("project")
+                .value_name("PATH")
+                .action(SetArg),
+        );
+    cmd.subcommand(
+        App::new(BASE_CMD)
+            .disable_help_flag(true)
+            .subcommand(migrate),
+    )
+}
 
-    let app_root = &origen::app().unwrap().root;
+pub(crate) fn run_pre_phase(invocation: &clap::ArgMatches) -> origen::Result<i32> {
+    migration::run(
+        invocation
+            .subcommand_matches("migrate")
+            .expect("pre-phase env execution requires the migrate subcommand"),
+    )?;
+    Ok(0)
+}
+
+pub(crate) fn guard_uv_manifest(path: &std::path::Path) -> origen::Result<()> {
+    migration::guard_uv_manifest(path)
+}
+
+pub(crate) fn ensure_uv_available() -> origen::Result<()> {
+    let required = VersionReq::parse(&format!(">={}", MINIMUM_UV_VERSION)).unwrap();
+    if let Some(version) = uv_version() {
+        if required.matches(&version) {
+            displayln!("UV {} is available", version);
+            return Ok(());
+        }
+    }
+    Err(origen::Error::new(&format!(
+        "UV >= {} is required. Install the standalone UV binary from https://docs.astral.sh/uv/getting-started/installation/ and rerun the command.",
+        MINIMUM_UV_VERSION
+    )))
+}
+
+pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
+    if let Some(migrate) = invocation.subcommand_matches("migrate") {
+        return migration::run(migrate);
+    }
+
+    let app_root = &origen::app()
+        .ok_or_else(|| {
+            origen::Error::new(
+                "'origen env setup' and 'origen env update' require an Origen application",
+            )
+        })?
+        .root;
     let pyproject = app_root.join("pyproject.toml");
     if !pyproject.exists() {
         display_redln!(
@@ -52,6 +124,9 @@ pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
         );
         std::process::exit(1);
     }
+    guard_uv_manifest(&pyproject)?;
+    require_python();
+    require_uv();
 
     match invocation.subcommand_name() {
         Some("update") => {
@@ -284,17 +359,8 @@ fn run_uv(root: &std::path::Path, args: &[&str]) -> origen::Result<()> {
 }
 
 fn require_uv() {
-    let required = VersionReq::parse(&format!(">={}", MINIMUM_UV_VERSION)).unwrap();
-    if let Some(version) = uv_version() {
-        if required.matches(&version) {
-            displayln!("UV {} is available", version);
-            return;
-        }
+    if let Err(error) = ensure_uv_available() {
+        display_redln!("{}", error);
+        std::process::exit(1);
     }
-
-    display_redln!(
-        "UV >= {} is required. Install the standalone UV binary from https://docs.astral.sh/uv/getting-started/installation/ and rerun the command.",
-        MINIMUM_UV_VERSION
-    );
-    std::process::exit(1);
 }

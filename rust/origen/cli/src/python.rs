@@ -130,8 +130,11 @@ pub fn resolve_pyproject() -> Result<DependencySrc> {
 }
 
 impl Config {
-    pub fn base_cmd(&self) -> Command {
+    pub fn base_cmd(&self) -> Result<Command> {
         let dep_src = STATUS.dependency_src();
+        if let Some(path) = dep_src.as_ref().and_then(DependencySrc::src_file) {
+            crate::commands::env::guard_uv_manifest(path)?;
+        }
         let mut c = if matches!(dep_src.as_ref(), Some(DependencySrc::NoneFound) | None) {
             new_cmd!(&self.command)
         } else {
@@ -154,11 +157,11 @@ impl Config {
                 "Dependency source has not been set - defaulting to global Python installation"
             );
         }
-        c
+        Ok(c)
     }
 
-    pub fn run_cmd(&self, code: &str) -> Command {
-        let mut c = self.base_cmd();
+    pub fn run_cmd(&self, code: &str) -> Result<Command> {
+        let mut c = self.base_cmd()?;
         if let Some(d) = STATUS.dependency_src().as_ref() {
             if d.src_available() {
                 c.arg("run");
@@ -175,18 +178,19 @@ impl Config {
                 c.arg(format!("pyproject_src={}", path.display()));
             }
         }
-        c
+        Ok(c)
     }
 
-    pub fn uv_command(&self) -> Command {
+    pub fn uv_command(&self) -> Result<Command> {
         let mut c = Command::new("uv");
         if let Some(d) = STATUS.dependency_src().as_ref() {
             if let Some(path) = d.src_file() {
+                crate::commands::env::guard_uv_manifest(path)?;
                 c.arg("--project");
                 c.arg(path.parent().unwrap_or(path));
             }
         }
-        c
+        Ok(c)
     }
 }
 
@@ -284,7 +288,7 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) -> Result<ExitStatus> {
-    let mut cmd = PYTHON_CONFIG.run_cmd(code);
+    let mut cmd = PYTHON_CONFIG.run_cmd(code)?;
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {
@@ -303,7 +307,7 @@ pub fn run(code: &str) -> Result<ExitStatus> {
 #[macro_export]
 macro_rules! python_cmd {
     ($code:expr) => {{
-        let mut cmd = PYTHON_CONFIG.run_cmd($code);
+        let mut cmd = PYTHON_CONFIG.run_cmd($code)?;
         if let Ok(p) = std::env::current_exe() {
             cmd.arg(&format!("origen_cli={}", p.display()));
         };
@@ -338,7 +342,7 @@ pub fn run_with_callbacks(
 ) -> Result<()> {
     use origen::utility::command_helpers::log_stdout_and_stderr;
 
-    let mut cmd = PYTHON_CONFIG.run_cmd(code);
+    let mut cmd = PYTHON_CONFIG.run_cmd(code)?;
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {

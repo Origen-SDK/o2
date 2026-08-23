@@ -223,6 +223,15 @@ jobs:
       - name: Build PyAPI
         run: origen develop_origen build
 
+      - name: Run Poetry Migration Transaction Tests
+        if: matrix.python-version == '3.11'
+        working-directory: rust/origen
+        run: cargo test --locked -p cli migration
+
+      - name: Migrate Historical Poetry Application
+        if: contains(matrix.os, 'ubuntu') && matrix.python-version == '3.11'
+        run: python ci/test_poetry_migration.py
+
       - name: Setup App Env
         working-directory: test_apps/python_app
         run: origen env setup
