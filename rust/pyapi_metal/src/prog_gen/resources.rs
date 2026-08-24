@@ -24,14 +24,11 @@ impl Resources {
 
     fn __exit__(
         &mut self,
-        ty: Option<&PyType>,
+        _ty: Option<&PyType>,
         _value: Option<&PyAny>,
         _traceback: Option<&PyAny>,
-    ) -> bool {
-        if ty.is_none() {
-            flow_api::end_block(self.ref_id)
-                .expect("Something has gone wrong closing resources block");
-        }
-        false
+    ) -> PyResult<bool> {
+        flow_api::end_block(self.ref_id)?;
+        Ok(false)
     }
 }

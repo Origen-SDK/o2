@@ -1,5 +1,5 @@
-use origen_metal::prog_gen::{flow_api, FlowID, GroupType};
 use origen_metal::prog_gen::SupportedTester;
+use origen_metal::prog_gen::{flow_api, FlowID, GroupType};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyType};
 
@@ -48,24 +48,16 @@ impl Group {
 
     fn __exit__(
         &mut self,
-        ty: Option<&PyType>,
+        _ty: Option<&PyType>,
         _value: Option<&PyAny>,
         _traceback: Option<&PyAny>,
-    ) -> bool {
-        if ty.is_none() {
-            flow_api::end_block(self.ref_id).expect(&format!(
-                "Something has gone wrong closing group '{}'",
-                self.name
-            ));
-            if let Some(ref_ids) = &self.open_conditions {
-                for id in ref_ids {
-                    flow_api::end_block(*id).expect(&format!(
-                        "Something has gone wrong closing a condition that is wrapping group '{}'",
-                        self.name
-                    ));
-                }
+    ) -> PyResult<bool> {
+        flow_api::end_block(self.ref_id)?;
+        if let Some(ref_ids) = &self.open_conditions {
+            for id in ref_ids {
+                flow_api::end_block(*id)?;
             }
         }
-        false
+        Ok(false)
     }
 }

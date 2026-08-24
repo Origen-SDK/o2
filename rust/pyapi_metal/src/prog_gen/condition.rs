@@ -28,16 +28,11 @@ impl Condition {
 
     fn __exit__(
         &mut self,
-        ty: Option<&PyType>,
+        _ty: Option<&PyType>,
         _value: Option<&PyAny>,
         _traceback: Option<&PyAny>,
-    ) -> bool {
-        if let None = ty {
-            flow_api::end_block(self.ref_id).expect(&format!(
-                "Something has gone wrong closing condition '{:?}'",
-                self.kind
-            ));
-        }
-        false
+    ) -> PyResult<bool> {
+        flow_api::end_block(self.ref_id)?;
+        Ok(false)
     }
 }
