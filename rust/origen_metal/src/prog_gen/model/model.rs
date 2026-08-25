@@ -315,6 +315,8 @@ impl Model {
         let mut test = self.templates[library_name][template_name].clone();
         test.name = name;
         test.id = id;
+        test.template_library = Some(library_name.to_string());
+        test.template_name = Some(template_name.to_string());
         if self.tests.contains_key(&id) {
             bail!("Something has gone wrong, two tests have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {

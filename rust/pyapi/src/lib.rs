@@ -610,6 +610,12 @@ fn app_config(py: Python) -> PyResult<Option<PyObject>> {
             );
             let _ = ret.set_item("website_release_name", &config.website_release_name);
             let _ = ret.set_item("release", &config.release);
+            let program_generation = PyDict::new(py);
+            let _ = program_generation.set_item(
+                "flow_visualization",
+                config.program_generation.flow_visualization,
+            );
+            let _ = ret.set_item("program_generation", program_generation);
             Ok(())
         });
         Ok(Some(ret.into()))

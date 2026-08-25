@@ -68,6 +68,10 @@ pub struct Test {
     pub collections: IndexMap<String, Vec<usize>>,
     pub tester: SupportedTester,
     pub class_name: Option<String>,
+    /// The template library this test method was loaded from.
+    pub template_library: Option<String>,
+    /// The template name within `template_library`.
+    pub template_name: Option<String>,
     /// References an invocation and vice versa
     pub test_id: Option<usize>,
     pub sub_tests: Vec<usize>,
@@ -306,6 +310,8 @@ impl Test {
             collections: IndexMap::new(),
             tester: tester,
             class_name: None,
+            template_library: None,
+            template_name: None,
             // If the test is modelling an invocation then this will reflect the ID of the
             // test being invoked
             test_id: None,

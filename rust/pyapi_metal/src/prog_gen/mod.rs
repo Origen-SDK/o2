@@ -81,6 +81,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(set_namespace))?;
     subm.add_wrapped(wrap_pyfunction!(set_smt7_options))?;
     subm.add_wrapped(wrap_pyfunction!(set_smt8_options))?;
+    subm.add_wrapped(wrap_pyfunction!(set_flow_visualization))?;
     m.add_submodule(subm)?;
     Ok(())
 }
@@ -120,6 +121,12 @@ fn set_smt8_options(create_limits_file: bool, render_default_tm_params: bool) ->
 }
 
 #[pyfunction]
+fn set_flow_visualization(enabled: bool) -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.set_flow_visualization_enabled(enabled);
+    Ok(())
+}
+
+#[pyfunction]
 fn set_debugging(value: bool) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_debug_enabled(value);
     Ok(())
@@ -132,8 +139,13 @@ fn reset() -> PyResult<()> {
     Ok(())
 }
 
-#[pyfunction]
-fn render_program_for(tester: &str, output_dir: &str) -> PyResult<Vec<PathBuf>> {
+/// Render a tester program, optionally overriding flow visualization for this call.
+#[pyfunction(signature = (tester, output_dir, flow_visualization = None))]
+fn render_program_for(
+    tester: &str,
+    output_dir: &str,
+    flow_visualization: Option<bool>,
+) -> PyResult<Vec<PathBuf>> {
     let t = match origen_metal::prog_gen::SupportedTester::from_str(tester) {
         Ok(t) => t,
         Err(e) => {
@@ -144,8 +156,15 @@ fn render_program_for(tester: &str, output_dir: &str) -> PyResult<Vec<PathBuf>> 
         }
     };
     let output_dir = Path::new(output_dir).to_path_buf();
-    let r = origen_metal::prog_gen::render_program(t, &output_dir)?;
-    Ok(r.0)
+    let previous = origen_metal::PROG_GEN_CONFIG.flow_visualization_enabled();
+    if let Some(enabled) = flow_visualization {
+        origen_metal::PROG_GEN_CONFIG.set_flow_visualization_enabled(enabled);
+    }
+    let result = origen_metal::prog_gen::render_program(t, &output_dir);
+    if flow_visualization.is_some() {
+        origen_metal::PROG_GEN_CONFIG.set_flow_visualization_enabled(previous);
+    }
+    Ok(result?.0)
 }
 
 #[pyfunction]

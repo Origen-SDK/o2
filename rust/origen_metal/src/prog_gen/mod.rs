@@ -9,6 +9,7 @@ mod supported_testers;
 pub mod teradyne;
 pub mod test_ids;
 mod validators;
+pub mod visualization;
 
 use std::path::Path;
 use std::path::PathBuf;

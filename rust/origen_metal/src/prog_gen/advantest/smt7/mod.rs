@@ -1,8 +1,9 @@
 pub(crate) mod processors;
 
 use crate::prog_gen::supported_testers::SupportedTester;
+use crate::prog_gen::visualization::render_flow_visualization;
 use crate::prog_gen::{process_flow, Model, PatternReferenceType, PatternType, VariableType};
-use crate::{Result, FLOW};
+use crate::{Result, FLOW, PROG_GEN_CONFIG};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -29,6 +30,15 @@ pub fn render(output_dir: &Path) -> Result<(Vec<PathBuf>, Model)> {
         for (name, flow) in flows {
             log_debug!("Rendering flow '{}' for V93k SMT7", name);
             let (ast, m) = process_flow(flow, model, SupportedTester::V93KSMT7, true)?;
+            if PROG_GEN_CONFIG.flow_visualization_enabled() {
+                files.append(&mut render_flow_visualization(
+                    name,
+                    SupportedTester::V93KSMT7,
+                    &ast,
+                    &m,
+                    output_dir,
+                )?);
+            }
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Generate the main flow file
