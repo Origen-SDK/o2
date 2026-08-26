@@ -10,7 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os, sys, pathlib, subprocess
+import os, sys, pathlib, subprocess, importlib.util
 sys.path.insert(0, os.path.abspath('../../'))
 
 import origen
@@ -35,7 +35,7 @@ from web.source._conf import origen_extlinks, origen_shorthand_defs
 extensions = [
     'origen.web.origen_sphinx_extension', 'origen.web.shorthand',
     'origen.web.rustdoc', 'sphinx.ext.autodoc', 'sphinx.ext.autosectionlabel',
-    'origen_autoapi.sphinx', 'recommonmark', 'sphinx.ext.napoleon',
+    'origen_autoapi.sphinx', 'myst_parser', 'sphinx.ext.napoleon',
     'sphinx.ext.extlinks'
 ]
 
@@ -61,18 +61,24 @@ shorthand_defs = origen_shorthand_defs
 rustdoc_output_dir = origen.web.unmanaged_static_dir.joinpath('rustdoc')
 rustdoc_apply_svg_workarounds = True
 rustdoc_projects = {
+    'origen_metal': {
+        'source': origen.root.joinpath('../../rust/origen_metal'),
+        'build_options': {
+            'lib': None
+        }
+    },
     'pyapi': {
-        'source': origen.root.joinpath('../rust/pyapi'),
+        'source': origen.root.joinpath('../../rust/pyapi'),
         'build_options': {}
     },
     'origen': {
-        'source': origen.root.joinpath('../rust/origen'),
+        'source': origen.root.joinpath('../../rust/origen'),
         'build_options': {
             'lib': None
         }
     },
     'cli': {
-        'source': origen.root.joinpath('../rust/origen'),
+        'source': origen.root.joinpath('../../rust/origen'),
         'build_options': {
             'bin': 'origen'
         }
@@ -95,36 +101,57 @@ autoapi_output_dir = origen.web.interbuild_dir.joinpath('autoapi')
 # Build the example project's docs into this one.
 origen_subprojects = {
     'example': {
-        'source': origen.root.joinpath('../test_apps/python_app'),
+        'source': origen.root.joinpath('../../test_apps/python_app'),
     }
 }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# Theme customizations
-html_theme_options = {
-    'navbar_links': [
-        ('Github', 'https://github.com/Origen-SDK/o2', True),
-        # Took this out, it's good to keep the page around for O2 developers, but adds
-        # clutter that the majority of users will not care about
-        #('Example App',
-        # '_static/build/origen_sphinx_extension/example/sphinx_build/index',
-        # False),
-        ('Community', 'community', False)
-    ],
-}
+modern_theme = importlib.util.find_spec('pydata_sphinx_theme') is not None
+
+if modern_theme:
+    html_theme_options = {
+        'logo': {
+            'text': 'O2',
+            'image_light': '_static/origen-text.png',
+            'image_dark': '_static/origen-text.png',
+            'alt_text': 'Origen O2 documentation',
+        },
+        'navbar_align': 'left',
+        'navbar_end': ['theme-switcher', 'navbar-icon-links'],
+        'icon_links': [{
+            'name': 'GitHub',
+            'url': 'https://github.com/Origen-SDK/o2',
+            'icon': 'fa-brands fa-github',
+            'type': 'fontawesome',
+        }],
+        'show_nav_level': 2,
+        'navigation_depth': 4,
+        'collapse_navigation': True,
+        'show_toc_level': 2,
+        'navigation_with_keys': True,
+        'show_prev_next': True,
+        'header_links_before_dropdown': 6,
+    }
+else:
+    html_theme_options = {
+        'navbar_links': [
+            ('Github', 'https://github.com/Origen-SDK/o2', True),
+            ('Community', 'community', False)
+        ],
+    }
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = ['_static/build/**/*.md']
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'origen'
+html_theme = 'pydata_sphinx_theme' if modern_theme else 'origen'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

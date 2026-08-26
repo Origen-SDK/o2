@@ -1,74 +1,66 @@
-[tool.poetry]
-name = "origen_metal"
-#*****************************************************
-# Also update the version in  the [project] section below!!!!!
-#*****************************************************
+[project]
+name = "origen-metal"
 version = "1.5.0"
 description = "Bare metal APIs for the Origen SDK"
-homepage = "https://origen-sdk.org/o2"
-license = "MIT"
 readme = "README.md"
-authors = ["Origen-SDK"]
-# Need to explicity list these for Python 3.12 support under the version of Poetry we're using (since it predates Py 3.12 release),
-# otherwise it doesn't include 3.12 in the wheel METADATA and the package won't work on Python 3.12
-classifiers = [
-    "Programming Language :: Python :: 3.12",
+requires-python = ">=3.7,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Origen-SDK" }]
+classifiers = ["Programming Language :: Python :: 3.12"]
+dependencies = [
+    "pyreadline3>=3.3,<4; sys_platform == 'win32'",
+    "termcolor>=1.1.0",
+    "colorama>=0.4.4",
+    "importlib-metadata>=6.7.0",
 ]
-include = [
-    "origen_metal/_origen_metal.pyd",
-    "origen_metal/_origen_metal.so",
+
+[project.urls]
+Homepage = "https://origen-sdk.org/o2"
+Repository = "https://github.com/Origen-SDK/o2"
+
+[dependency-groups]
+dev = [
+    "pytest>=7",
+    "pytest-rerunfailures>=13",
+    "pdoc>=7,<8",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.7.0,<3.13"
-#*****************************************************
-# Any changes here must be mirrored in the [project] section below!!!!!
-#*****************************************************
-pyreadline3 = { version="^3.3", platform="win32" }
-termcolor = ">= 1.1.0"
-colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)
-importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
-
-# [project]
-# name = "origen-metal"
-# version = "1.5.0"
-# description = "Bare metal APIs for the Origen SDK"
-## UV doesn't like some of these, the author I think
-##license = "MIT"
-##readme = "README.md"
-##authors = ["Origen-SDK"]
-# requires-python = ">=3.7.0,<3.13"
-# dependencies = [
-#      "pyreadline3 >=3.3,<4.0; sys_platform == 'win32'",
-#      "termcolor >=1.1.0",
-#      "colorama >=0.4.4",
-#      "importlib-metadata >=6.7.0",
-# ]
-
-[tool.poetry.dev-dependencies]
-pytest-rerunfailures = "13.0" # Last version that supports Python 3.7
-pdoc = "^7"
-# maturin = "1.7.0"
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "origen_metal/**/*" },
+    { file = "../../rust/pyapi_metal/Cargo.toml" },
+    { file = "../../rust/pyapi_metal/**/*.rs" },
+    { file = "../../rust/origen_metal/Cargo.toml" },
+    { file = "../../rust/origen_metal/**/*.rs" },
+]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers"
-
-# Use '-m "not <mark>"' on the command line to bypass these tests
 markers = [
     "online: marks tests as requiring an internet connection",
-    "ldap: marks tests requiring/using the external ldap",
+    "ldap: marks tests requiring/using the external LDAP",
 ]
 
-[tool.poetry.build]
-script = "poetry_build.py"
-generate-setup-file = false
-
 [tool.maturin]
+manifest-path = "../../rust/pyapi_metal/Cargo.toml"
+python-source = "."
 module-name = "origen_metal._origen_metal"
+bindings = "pyo3"
+# maturin packages 'python-source' verbatim and does NOT honour .gitignore, so
+# any build debris sitting in the package directory is shipped in the wheel.
+# Without this, a wheel built from a working checkout carries the maintainer's
+# bytecode cache -- measured at 103 stale .pyc files spanning CPython 3.7-3.12.
+#
+# The staged development extension ('origen develop_origen build --metal' puts
+# _origen_metal.so/.pyd here) does NOT need excluding: maturin already drops any
+# file matching the configured 'module-name', on every platform.
+exclude = [
+    "origen_metal/**/__pycache__/**",
+    "origen_metal/**/*.py[co]",
+    "origen_metal/**/.session/**",
+]
 
-# This needs to be present to build for Linux, but does not work
-# for the current Windows build flow
-# This is currently added back in by the Linux Github actions job
-#[build-system]
-#requires = ["maturin>=1.0,<2.0"]
-#build-backend = "maturin"
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"

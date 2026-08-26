@@ -109,10 +109,11 @@ which pip
 python --version
 pip --version
 
-echo -e "\nInstall Poetry"
+echo -e "\nInstall UV"
 echo "========================================"
-pip install poetry==1.3.2
-poetry --version
+curl -LsSf https://astral.sh/uv/0.12.5/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv --version
 
 echo -e "\nInstall Auditwheel"
 echo "========================================"
@@ -124,7 +125,7 @@ if [[ "${PACKAGE_TO_BUILD}" == "origen_metal" ]]; then
 echo -e "\nBuild Origen Metal Python Package"
 echo "========================================"
 cd ${GIT_DIR}/python/origen_metal
-poetry build --format wheel
+uv build --wheel --clear --no-create-gitignore
 
 echo -e "\nDisplay OM Dist Directory="
 echo "========================================"
@@ -150,13 +151,16 @@ echo $OM_WHEEL
 echo -e "\nGet OM Python Package Version"
 echo "========================================"
 cd ${GIT_DIR}/python/origen_metal
-poetry version -s > $OM_VER_FILE
+python -c 'import pathlib,re; print(re.search(r"^version\s*=\s*\"([^\"]+)\"", pathlib.Path("pyproject.toml").read_text(), re.M).group(1))' > $OM_VER_FILE
 
 elif [[ "${PACKAGE_TO_BUILD}" == "origen" ]]; then
 echo -e "\nBuild Origen Python Package"
 echo "========================================"
+cd ${GIT_DIR}
+cargo build --manifest-path rust/origen/cli/Cargo.toml --release --bin origen
+cp rust/origen/target/release/origen python/origen/origen/__bin__/bin/origen
 cd ${GIT_DIR}/python/origen
-poetry build --format wheel
+uv build --wheel --clear --no-create-gitignore
 
 echo -e "\nDisplay Origen Dist Directory"
 echo "========================================"
@@ -185,5 +189,5 @@ echo $ORIGEN_WHEEL
 echo -e "\nGet Origen Python Package Version"
 echo "========================================"
 cd ${GIT_DIR}/python/origen
-poetry version -s > $ORIGEN_VER_FILE
+python -c 'import pathlib,re; print(re.search(r"^version\s*=\s*\"([^\"]+)\"", pathlib.Path("pyproject.toml").read_text(), re.M).group(1))' > $ORIGEN_VER_FILE
 fi

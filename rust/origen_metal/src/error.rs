@@ -260,7 +260,7 @@ impl std::convert::From<minijinja::Error> for Error {
 }
 
 fn unchain_error(err: &dyn std::error::Error) -> Vec<String> {
-    let mut msg = vec!();
+    let mut msg = vec![];
     let mut inner = err.source();
     loop {
         if let Some(s) = inner {

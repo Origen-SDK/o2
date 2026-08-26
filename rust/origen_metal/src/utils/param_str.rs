@@ -1,5 +1,5 @@
-use indexmap::IndexMap;
 use crate::Result;
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -19,7 +19,10 @@ pub struct ParamStr {
 }
 
 impl ParamStr {
-    pub fn new(allows_leading_str: bool, defaults: Option<(bool, IndexMap<String, Option<Vec<String>>>)>) -> Self {
+    pub fn new(
+        allows_leading_str: bool,
+        defaults: Option<(bool, IndexMap<String, Option<Vec<String>>>)>,
+    ) -> Self {
         Self {
             raw: None,
             parsed: None,
@@ -86,9 +89,13 @@ impl ParamStr {
             if input_inter.trim().starts_with(":") {
                 if leading.is_some() {
                     // Something like blah~: was given. Use empty key message
-                    bail!("ParamStr encountered a parameter with an empty key, which is not allowed");
+                    bail!(
+                        "ParamStr encountered a parameter with an empty key, which is not allowed"
+                    );
                 } else {
-                    bail!("ParamStr found value separator as first character, which is not allowed");
+                    bail!(
+                        "ParamStr found value separator as first character, which is not allowed"
+                    );
                 }
             }
 
@@ -107,9 +114,13 @@ impl ParamStr {
                     found_leading_colon = true;
                     continue;
                 } else if param_str.is_empty() {
-                    bail!("ParamStr encountered a parameter with an empty key, which is not allowed")
+                    bail!(
+                        "ParamStr encountered a parameter with an empty key, which is not allowed"
+                    )
                 } else if param_str.trim().is_empty() {
-                    bail!("ParamStr encountered a parameter of only whitespace, which is not allowed")
+                    bail!(
+                        "ParamStr encountered a parameter of only whitespace, which is not allowed"
+                    )
                 }
 
                 let k;
@@ -132,12 +143,16 @@ impl ParamStr {
                     check_key!();
                     parsed.insert(
                         k,
-                        split.1.split(":").map(|s| s.to_string()).collect::<Vec<String>>()
+                        split
+                            .1
+                            .split(":")
+                            .map(|s| s.to_string())
+                            .collect::<Vec<String>>(),
                     );
                 } else {
                     k = param_str.to_owned();
                     check_key!();
-                    parsed.insert(k, vec!());
+                    parsed.insert(k, vec![]);
                 }
             }
             if found_leading_colon {
@@ -174,11 +189,11 @@ impl ParamStr {
                 if let Some(v) = val {
                     params.insert(param, v);
                 } else {
-                    params.remove(&param);
+                    params.shift_remove(&param);
                 }
                 Ok(retn)
-            },
-            None => bail!(*NOT_PARSED_MSG)
+            }
+            None => bail!(*NOT_PARSED_MSG),
         }
     }
 
@@ -204,7 +219,9 @@ impl ParamStr {
         F: FnOnce(&mut (bool, IndexMap<String, Option<Vec<String>>>)) -> Result<T>,
     {
         if self.parsed.is_some() {
-            bail!("Attempted to update ParamStr's default values after parsing, which is not allowed")
+            bail!(
+                "Attempted to update ParamStr's default values after parsing, which is not allowed"
+            )
         }
         if self.defaults.is_none() {
             self.defaults = Some((false, IndexMap::new()));
@@ -213,16 +230,19 @@ impl ParamStr {
     }
 
     pub fn add_default(&mut self, def: String, value: Option<Vec<String>>) -> Result<bool> {
-        self.with_mut_defs( |defs| {
+        self.with_mut_defs(|defs| {
             let retn = defs.1.contains_key(&def);
             defs.1.insert(def, value);
             Ok(retn)
         })
     }
 
-    pub fn add_defaults(&mut self, to_add: IndexMap<String, Option<Vec<String>>>) -> Result<Vec<bool>> {
-        self.with_mut_defs( |defs| {
-            let mut retn = vec!();
+    pub fn add_defaults(
+        &mut self,
+        to_add: IndexMap<String, Option<Vec<String>>>,
+    ) -> Result<Vec<bool>> {
+        self.with_mut_defs(|defs| {
+            let mut retn = vec![];
             for (name, val) in to_add {
                 retn.push(defs.1.contains_key(&name));
                 defs.1.insert(name, val);
@@ -232,16 +252,17 @@ impl ParamStr {
     }
 
     pub fn remove_default(&mut self, to_remove: &str) -> Result<Option<Vec<String>>> {
-        self.with_mut_defs( |defs| {
-            match defs.1.shift_remove(to_remove) {
-                Some(value) => Ok(value),
-                None => bail!("No parameter '{}' to remove from ParamStr's defaults", to_remove)
-            }
+        self.with_mut_defs(|defs| match defs.1.shift_remove(to_remove) {
+            Some(value) => Ok(value),
+            None => bail!(
+                "No parameter '{}' to remove from ParamStr's defaults",
+                to_remove
+            ),
         })
     }
 
     pub fn remove_defaults(&mut self, to_remove: &Vec<String>) -> Result<Vec<Option<Vec<String>>>> {
-        self.with_mut_defs( |defs| {
+        self.with_mut_defs(|defs| {
             // Check that all keys are valid first
             for name in to_remove {
                 if !defs.1.contains_key(name) {
@@ -249,7 +270,7 @@ impl ParamStr {
                 }
             }
 
-            let mut retn = vec!();
+            let mut retn = vec![];
             for name in to_remove {
                 retn.push(defs.1.shift_remove(name).unwrap());
             }
@@ -269,7 +290,7 @@ impl ParamStr {
         if self.parsed.is_some() {
             bail!("Cannot set ParamStr's allows_non_defaults with no default parameters");
         }
-        self.with_mut_defs( |defs| {
+        self.with_mut_defs(|defs| {
             defs.0 = new_val;
             Ok(())
         })
@@ -342,13 +363,17 @@ impl ParamStr {
 
     pub fn to_string(&self) -> Result<String> {
         if let Some(args) = self.parsed.as_ref() {
-            let params = args.iter().map(|(k, v)| {
-                if v.is_empty() {
-                    k.clone()
-                } else {
-                    format!("{}:{}", k, v.join(":"))
-                }
-            }).collect::<Vec<String>>().join("~");
+            let params = args
+                .iter()
+                .map(|(k, v)| {
+                    if v.is_empty() {
+                        k.clone()
+                    } else {
+                        format!("{}:{}", k, v.join(":"))
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("~");
             if let Some(leading) = self.leading.as_ref() {
                 if params.is_empty() {
                     Ok(leading.clone())
@@ -392,7 +417,7 @@ pub struct MultiParamStr {
 impl MultiParamStr {
     pub fn new(allows_leading_str: bool) -> Self {
         Self {
-            param_strs: vec!(),
+            param_strs: vec![],
             allows_leading_str: allows_leading_str,
 
             raw: None,
@@ -403,7 +428,7 @@ impl MultiParamStr {
 
     pub fn new_with_leading() -> Self {
         Self {
-            param_strs: vec!(),
+            param_strs: vec![],
             allows_leading_str: true,
 
             raw: None,
@@ -414,7 +439,7 @@ impl MultiParamStr {
 
     pub fn new_without_leading() -> Self {
         Self {
-            param_strs: vec!(),
+            param_strs: vec![],
             allows_leading_str: false,
 
             raw: None,
@@ -426,7 +451,7 @@ impl MultiParamStr {
     pub fn parse(&mut self, input_str: String) -> Result<()> {
         let params: &str;
         let leading: Option<String>;
-        let mut parsed: Vec<ParamStr> = vec!();
+        let mut parsed: Vec<ParamStr> = vec![];
 
         if self.allows_leading_str {
             if let Some(split) = input_str.split_once(*MULTI_PARAM_SEP) {

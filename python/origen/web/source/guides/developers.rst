@@ -17,3 +17,5 @@ to the core.
   developers/architecture_overview
   developers/doc_gen_arch
   developers/documenting_the_core
+  developers/release_process
+  developers/releasing_origen

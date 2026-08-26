@@ -1,7 +1,7 @@
-use super::{to_limit_param_value, to_param_value};
-use super::Test;
-use crate::prog_gen::flow_options;
 use super::src_caller_meta;
+use super::Test;
+use super::{to_limit_param_value, to_param_value};
+use crate::prog_gen::flow_options;
 use origen_metal::prog_gen::{flow_api, Limit, LimitSelector, ParamValue, SupportedTester};
 use origen_metal::Result;
 use pyo3::exceptions::PyAttributeError;
@@ -121,7 +121,12 @@ impl TestInvocation {
         Ok(t)
     }
 
-    pub fn set_attr(&self, name: &str, value: Option<ParamValue>, allow_missing: bool) -> Result<()> {
+    pub fn set_attr(
+        &self,
+        name: &str,
+        value: Option<ParamValue>,
+        allow_missing: bool,
+    ) -> Result<()> {
         flow_api::set_test_attr(self.id, name, value, allow_missing, src_caller_meta())?;
         Ok(())
     }

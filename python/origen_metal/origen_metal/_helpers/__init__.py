@@ -17,12 +17,12 @@ class PipShowReturn:
             return self.fields[self._field_names[name]]
         return object.__getattribute__(self, name)
 
-def pip_show(package, *, no_parse=False, wrap_poetry=False):
-    if wrap_poetry:
-        cmd = ["poetry",  "run"]
+def pip_show(package, *, no_parse=False, wrap_uv=False):
+    if wrap_uv:
+        cmd = ["uv", "pip"]
     else:
-        cmd = []
-    cmd += ["pip", "show", package]
+        cmd = ["pip"]
+    cmd += ["show", package]
     result = sp.run(cmd, capture_output=True, text=True)
     if no_parse:
         return result

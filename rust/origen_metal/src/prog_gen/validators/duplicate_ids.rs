@@ -1,7 +1,7 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::FlowID;
 use crate::prog_gen::PGM;
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 pub struct DuplicateIDs {

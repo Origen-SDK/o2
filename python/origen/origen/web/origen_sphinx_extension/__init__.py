@@ -12,9 +12,10 @@ import origen, origen.web, shutil, copy, subprocess, pathlib, importlib
 from sphinx.util.logging import getLogger
 logger = getLogger('Origen Sphinx Extension')
 
-import sphinxbootstrap4theme
-from recommonmark.parser import CommonMarkParser
-from recommonmark.transform import AutoStructify
+try:
+    import sphinxbootstrap4theme
+except ImportError:
+    sphinxbootstrap4theme = None
 
 from . import templating, subprojects, misc, shorthand_defs
 
@@ -69,7 +70,7 @@ def setup(sphinx):
       * Register various config variables
       * Add the Origen and sphinxbootstrap4 themes
       * Set the theme to 'origen' (overridable by the user later)
-      * Configure :recommonmark_home:`recommonmark <>`
+      * Integrate MyST Parser for Markdown content
   
     Changes to the Sphinx environment here are benign though - that is,
     changes here either have no effect if not used (such as adding paths or adding markdown support)
@@ -90,8 +91,9 @@ def setup(sphinx):
 
     sphinx.connect("config-inited", apply_origen_config)
     sphinx.connect("builder-inited", subprojects.build_subprojects)
-    sphinx.config.html_theme_path += [sphinxbootstrap4theme.get_path()]
-    sphinx.add_html_theme('origen', str(theme_dir))
+    if sphinxbootstrap4theme is not None:
+        sphinx.config.html_theme_path += [sphinxbootstrap4theme.get_path()]
+        sphinx.add_html_theme('origen', str(theme_dir))
 
     sphinx.add_event("origen-preprocess-docstring")
 
@@ -102,33 +104,12 @@ def setup(sphinx):
         sphinx.add_source_suffix(f'.rst{ext}', 'restructuredtext')
         sphinx.add_source_suffix(f'.md{ext}', 'markdown')
 
-    # We'll set the theme here to Origen, but the user's config can override in their conf.py
-    sphinx.config.html_theme = 'origen'
-
-    # Note: Origen includes the recommonmark module, so even if the user removes it from the extensions list in their own config,
-    #  this will still be safe. It'll just have no usage.
-    # Setup taken from: https://recommonmark.readthedocs.io/en/latest/auto_structify.html
-    # Adding the config here so users get it for free - its not particularly obvious what this does so want to abstract this as much as possible.
-    # It can be overridden in the their own 'setup' method as well.
-    github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
-    sphinx.add_config_value(
-        'recommonmark_config', {
-            'url_resolver': lambda url: github_doc_root + url,
-            'enable_eval_rst:': True,
-        }, True)
-    sphinx.add_transform(AutoStructify)
-
-    # There a bug floating around in recommonmark that show links generating warning like:
-    #   '...\recommonmark\parser.py:75: UserWarning: Container node skipped: type=document'
-    # Some Tickets:
-    #   * https://github.com/readthedocs/recommonmark/issues/177
-    #   * https://github.com/readthedocs/recommonmark/pull/185
-    #   * https://github.com/readthedocs/recommonmark/issues/130
-    # Looks like fixes may have been merged from the first ticket, but not released.
-    # For now, monkeypatching the 'visit_document' definition based on this:
-    #   https://github.com/readthedocs/recommonmark/issues/177#issuecomment-555553053
-    # which just gets rid of the method body. Haven't noticed anything ill-effects yet.
-    setattr(CommonMarkParser, 'visit_document', lambda *args: None)
+    # Prefer the modern PyData theme when its Python/Sphinx requirements are
+    # available; retain the original theme for older supported Python versions.
+    if importlib.util.find_spec('pydata_sphinx_theme') is not None:
+        sphinx.config.html_theme = 'pydata_sphinx_theme'
+    else:
+        sphinx.config.html_theme = 'origen'
 
     sphinx.connect("source-read", templating.insert_header)
     sphinx.connect("source-read", templating.preprocess_src)
@@ -210,6 +191,12 @@ def apply_origen_config(sphinx, config):
             config.autoapi_modules.clear()
         if "autodoc_modules" in config.__dict__:
             config.autodoc_modules.clear()
+        # A previous full build may have left generated AutoAPI sources under
+        # interbuild. Sphinx discovers source files independently of the
+        # generator configuration, so exclude that tree explicitly for
+        # no-API/fast builds rather than rendering stale orphan documents.
+        if 'interbuild/autoapi/**' not in config.exclude_patterns:
+            config.exclude_patterns.append('interbuild/autoapi/**')
     if config.origen_bypass_rustdoc:
         if "rustdoc_projects" in config.__dict__:
             config.rustdoc_projects.clear()
@@ -227,6 +214,43 @@ def apply_origen_config(sphinx, config):
 
     if config.origen_releasing_build:
         config.shorthand_check_links = True
+
+    if ('html_theme' in config) and (config.html_theme == 'pydata_sphinx_theme'):
+        bundled_static = str(theme_dir.joinpath('static'))
+        if bundled_static not in config.html_static_path:
+            config.html_static_path.append(bundled_static)
+        sphinx.add_css_file('origen-modern.css')
+        options = dict(config.html_theme_options or {})
+        wordmark = str(theme_dir.joinpath('static/origen-text.png'))
+        for legacy_option in [
+                'navbar_links', 'logos', 'favicon', 'favicon_raw_src',
+                'bypass_main_logo'
+        ]:
+            options.pop(legacy_option, None)
+        options.setdefault('logo', {'text': origen.app.name or 'Origen'})
+        options['logo'] = {
+            **{
+                'text': 'O2',
+                'alt_text': 'Origen O2 documentation',
+            },
+            **options.get('logo', {}),
+            # PyData resolves logo images relative to the Sphinx source
+            # directory. Origen ships its brand assets from the installed
+            # package, so always provide their absolute source path here.
+            'image_light': wordmark,
+            'image_dark': wordmark,
+        }
+        options.setdefault('navbar_align', 'left')
+        options.setdefault('navbar_end', ['theme-switcher', 'navbar-icon-links'])
+        options.setdefault('show_nav_level', 2)
+        options.setdefault('navigation_depth', 4)
+        options.setdefault('collapse_navigation', True)
+        options.setdefault('show_toc_level', 2)
+        options.setdefault('navigation_with_keys', True)
+        options.setdefault('show_prev_next', True)
+        config.html_theme_options = options
+        config.html_favicon = str(theme_dir.joinpath('static/favicon-32x32.png'))
+        sphinx.config.html_context['origen_version'] = str(origen.version)
 
     # Theme specific setup - assuming Origen's theme is used (set by default, but overridable in their config)
     if ('html_theme' in config) and (config.html_theme == 'origen'):
@@ -265,7 +289,9 @@ def apply_origen_config(sphinx, config):
         sphinx.add_css_file('quote_card.css')
         sphinx.add_css_file('origen.css')
 
-        sphinx.config.html_context['origen_version'] = origen.version
+        # Sphinx pickles its build environment. The native Version object is
+        # displayable but not pickleable, so only expose its string form.
+        sphinx.config.html_context['origen_version'] = str(origen.version)
 
         # Merge the user's theme setup with Origen's
         if 'html_theme_options' in config:

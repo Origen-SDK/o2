@@ -36,10 +36,12 @@ mod plugins;
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use om::lazy_static::lazy_static;
-use origen::{Dut, Error, Operation, Result, Value, ORIGEN_CONFIG, STATUS, TEST, clean_target};
-use origen_metal::FLOW;
+use origen::core::status::DependencySrc;
+use origen::{clean_target, Dut, Error, Operation, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use origen_metal as om;
-use pyapi_metal::{runtime_error, pypath};
+use origen_metal::FLOW;
+use paste::paste;
+use pyapi_metal::{pypath, runtime_error};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::wrap_pyfunction;
@@ -47,8 +49,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
-use paste::paste;
-use origen::core::status::DependencySrc;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -368,12 +368,19 @@ fn initialize(
     fe_exe_loc: Option<PathBuf>,
     invocation: Option<(String, Option<PathBuf>)>,
 ) -> PyResult<()> {
-    origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc);
+    origen::initialize(
+        log_verbosity,
+        verbosity_keywords,
+        cli_location,
+        cli_version,
+        fe_pkg_loc,
+        fe_exe_loc,
+    );
     origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
     if let Some(invoc) = invocation {
         match DependencySrc::try_from(invoc) {
             Ok(d) => origen::STATUS.set_dependency_src(Some(d)),
-            Err(e) => log_error!("{}", e.to_string())
+            Err(e) => log_error!("{}", e.to_string()),
         }
     }
     origen::FRONTEND
@@ -554,7 +561,13 @@ fn config(py: Python) -> PyResult<PyObject> {
 fn config_metadata<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
     let m = origen::origen_config_metadata();
     let retn = PyDict::new(py);
-    retn.set_item("files", m.files.iter().map( |p| Ok(pypath!(py, p.display()))).collect::<PyResult<Vec<PyObject>>>()?)?;
+    retn.set_item(
+        "files",
+        m.files
+            .iter()
+            .map(|p| Ok(pypath!(py, p.display())))
+            .collect::<PyResult<Vec<PyObject>>>()?,
+    )?;
     Ok(retn)
 }
 
@@ -596,6 +609,7 @@ fn app_config(py: Python) -> PyResult<Option<PyObject>> {
                 },
             );
             let _ = ret.set_item("website_release_name", &config.website_release_name);
+            let _ = ret.set_item("release", &config.release);
             Ok(())
         });
         Ok(Some(ret.into()))
@@ -706,9 +720,12 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     if let Some(pw_cache_option) = &crate::ORIGEN_CONFIG.user__password_cache_option {
         match users.set_default_password_cache_option(Some(pw_cache_option)) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                om::log_error!("{}: Error encountered updating default password cache option", *BASE_MSG);
+                om::log_error!(
+                    "{}: Error encountered updating default password cache option",
+                    *BASE_MSG
+                );
                 om::log_error!("{}", e);
             }
         }
@@ -836,7 +853,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                     }
                 }
             }
-        }
+        };
     }
 
     // Add any default users
@@ -844,10 +861,20 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         match users.add(name, config.auto_populate) {
             Ok(u) => {
                 if let Some(s) = config.should_validate_passwords {
-                    log_error__set_field_for_default_user!(u, should_validate_passwords, Some(s), name)
+                    log_error__set_field_for_default_user!(
+                        u,
+                        should_validate_passwords,
+                        Some(s),
+                        name
+                    )
                 }
                 if let Some(uname) = &config.username {
-                    log_error__set_field_for_default_user!(u, username, Some(uname.to_owned()), name);
+                    log_error__set_field_for_default_user!(
+                        u,
+                        username,
+                        Some(uname.to_owned()),
+                        name
+                    );
                 }
                 if let Some(pw) = &config.password {
                     log_error__set_field_for_default_user!(u, password, Some(pw.to_owned()), name);
@@ -862,9 +889,13 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                 if let Some(l) = &config.last_name {
                     log_error__set_field_for_default_user!(u, last_name, Some(l.to_owned()), name);
                 }
-            },
+            }
             Err(e) => {
-                om::log_error!("{}: Failed to initialize default user '{}'", *BASE_MSG, name);
+                om::log_error!(
+                    "{}: Failed to initialize default user '{}'",
+                    *BASE_MSG,
+                    name
+                );
                 log_error!("{}", e);
             }
         }
@@ -872,29 +903,38 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     // See if the frontend provides a specific means to lookup the current user
     if let Some(func) = &crate::ORIGEN_CONFIG.user__current_user_lookup_function {
-        users.set_lookup_current_id_function(Some(pyapi_metal::_helpers::get_qualified_attr(&func)?.as_ref(py)))?;
+        users.set_lookup_current_id_function(Some(
+            pyapi_metal::_helpers::get_qualified_attr(&func)?.as_ref(py),
+        ))?;
     }
 
     // Initialize the current user
-    if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.initialize.unwrap_or(true)) {
+    if ORIGEN_CONFIG
+        .initial_user
+        .as_ref()
+        .map_or(true, |u| u.initialize.unwrap_or(true))
+    {
         match users.lookup_current_id(true) {
             Ok(_) => {
-                if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.init_home_dir.unwrap_or(true)) {
+                if ORIGEN_CONFIG
+                    .initial_user
+                    .as_ref()
+                    .map_or(true, |u| u.init_home_dir.unwrap_or(true))
+                {
                     match users.current_user() {
-                        Ok(usr) => {
-                            match usr {
-                                Some(u) => {
-                                    match u.set_home_dir(None) {
-                                        Ok(_) => {},
-                                        Err(e) => {
-                                            log_error!("{}: Failed to lookup current user's home directory", *BASE_MSG);
-                                            log_error!("{}", e);
-                                        }
-                                    }
-                                },
-                                None => {
-                                    log_error!("{}: Failed to lookup current user", *BASE_MSG);
+                        Ok(usr) => match usr {
+                            Some(u) => match u.set_home_dir(None) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    log_error!(
+                                        "{}: Failed to lookup current user's home directory",
+                                        *BASE_MSG
+                                    );
+                                    log_error!("{}", e);
                                 }
+                            },
+                            None => {
+                                log_error!("{}: Failed to lookup current user", *BASE_MSG);
                             }
                         },
                         Err(e) => {
@@ -903,7 +943,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                         }
                     }
                 }
-            },
+            }
             Err(e) => {
                 log_error!("{}: Failed to lookup current user", *BASE_MSG);
                 log_error!("{}", e);

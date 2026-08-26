@@ -171,7 +171,13 @@ pub fn vec_to_ppin_ids(dut: &origen::Dut, pins: Vec<&PyAny>) -> PyResult<Vec<usi
 #[pymethods]
 impl PyDUT {
     #[pyo3(signature=(model_id, name, **kwargs))]
-    fn add_pin(&self, py: Python, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn add_pin(
+        &self,
+        py: Python,
+        model_id: usize,
+        name: &str,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let (mut reset_action, mut width, mut offset, mut endianness): (
             Option<Vec<origen::core::model::pins::pin::PinAction>>,

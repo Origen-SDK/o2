@@ -1,8 +1,8 @@
 use super::RunResult;
 use crate::application::{get_pyapp, PyApplication};
 use crate::runtime_error;
+use origen_metal::{Outcome, Result};
 use pyo3::prelude::*;
-use origen_metal::{Result, Outcome};
 
 pub struct UnitTester {}
 

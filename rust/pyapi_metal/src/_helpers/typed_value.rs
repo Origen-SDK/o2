@@ -12,65 +12,63 @@ pub fn typed_value_to_pyobj(
     key: Option<&str>,
 ) -> PyResult<Option<PyObject>> {
     if let Some(d) = data {
-        Python::with_gil(|py| {
-            match d {
-                TypedValue::None => Ok(None),
-                TypedValue::String(s) => Ok(Some(s.to_object(py))),
-                TypedValue::Usize(u) => Ok(Some(u.to_object(py))),
-                TypedValue::BigInt(big) => Ok(Some(big.to_object(py))),
-                TypedValue::BigUint(big) => Ok(Some(big.to_object(py))),
-                TypedValue::Bool(b) => Ok(Some(b.to_object(py))),
-                TypedValue::Float(f) => Ok(Some(f.to_object(py))),
-                TypedValue::Serialized(bytes, serializer, _class) => {
-                    if let Some(s) = serializer {
-                        if s == "Python-Pickle" {
-                            let any = depickle(py, &bytes)?;
-                            Ok(Some(any.into()))
-                        } else if s == "Python-Frontend" {
-                            let bytes = PyBytes::new(py, &bytes);
-                            Ok(Some(bytes.into()))
-                        } else {
-                            crate::runtime_error!(if let Some(k) = key {
-                                format!(
+        Python::with_gil(|py| match d {
+            TypedValue::None => Ok(None),
+            TypedValue::String(s) => Ok(Some(s.to_object(py))),
+            TypedValue::Usize(u) => Ok(Some(u.to_object(py))),
+            TypedValue::BigInt(big) => Ok(Some(big.to_object(py))),
+            TypedValue::BigUint(big) => Ok(Some(big.to_object(py))),
+            TypedValue::Bool(b) => Ok(Some(b.to_object(py))),
+            TypedValue::Float(f) => Ok(Some(f.to_object(py))),
+            TypedValue::Serialized(bytes, serializer, _class) => {
+                if let Some(s) = serializer {
+                    if s == "Python-Pickle" {
+                        let any = depickle(py, &bytes)?;
+                        Ok(Some(any.into()))
+                    } else if s == "Python-Frontend" {
+                        let bytes = PyBytes::new(py, &bytes);
+                        Ok(Some(bytes.into()))
+                    } else {
+                        crate::runtime_error!(if let Some(k) = key {
+                            format!(
                                     "Unknown serializer {} for {}. \
                                         If this was manually serialized, use method 'get_serialized' \
                                         to get a byte-array and manually deserialize.",
                                     k, s
                                 )
-                            } else {
-                                format!(
+                        } else {
+                            format!(
                                     "Unknown serializer {}. \
                                         If this was manually serialized, use method 'get_serialized' \
                                         to get a byte-array and manually deserialize.",
                                     s
                                 )
-                            })
-                        }
-                    } else {
-                        crate::runtime_error!(if let Some(k) = key {
-                            format!(
-                                "No serializer provided for {}. \
-                                    If this was manually serialized, use method 'get_serialized' \
-                                    to get a byte-array and manually deserialize.",
-                                k
-                            )
-                        } else {
-                            "No serializer provided. \
-                                If this was manually serialized, use method 'get_serialized' \
-                                to get a byte-array and manually deserialize."
-                                .to_string()
                         })
                     }
+                } else {
+                    crate::runtime_error!(if let Some(k) = key {
+                        format!(
+                            "No serializer provided for {}. \
+                                    If this was manually serialized, use method 'get_serialized' \
+                                    to get a byte-array and manually deserialize.",
+                            k
+                        )
+                    } else {
+                        "No serializer provided. \
+                                If this was manually serialized, use method 'get_serialized' \
+                                to get a byte-array and manually deserialize."
+                            .to_string()
+                    })
                 }
-                TypedValue::Vec(list) => {
-                    let mut pylist: Vec<PyObject> = vec![];
-                    for l in list {
-                        pylist.push(typed_value_to_pyobj(Some(l), None)?.unwrap());
-                    }
-                    Ok(Some(pylist.to_object(py)))
-                }
-                TypedValue::Map(map) => Ok(Some(into_pydict(py, map)?.to_object(py))),
             }
+            TypedValue::Vec(list) => {
+                let mut pylist: Vec<PyObject> = vec![];
+                for l in list {
+                    pylist.push(typed_value_to_pyobj(Some(l), None)?.unwrap());
+                }
+                Ok(Some(pylist.to_object(py)))
+            }
+            TypedValue::Map(map) => Ok(Some(into_pydict(py, map)?.to_object(py))),
         })
     } else {
         Ok(None)
@@ -100,9 +98,7 @@ pub fn extract_as_typed_value(value: &PyAny) -> PyResult<TypedValue> {
     } else {
         // Serialize the data
         data = TypedValue::Serialized(
-            Python::with_gil(|py| {
-                pickle(py, value)
-            })?,
+            Python::with_gil(|py| pickle(py, value))?,
             Some("Python-Pickle".to_string()),
             Some(value.get_type().qualname()?),
         )
@@ -163,7 +159,10 @@ pub fn into_optional_pytuple<'a>(
 
 // TODO needed?
 #[allow(dead_code)]
-pub fn into_pylist<'a>(py: Python<'a>, typed_values: &mut dyn Iterator<Item = &TypedValue>) -> PyResult<&'a PyList> {
+pub fn into_pylist<'a>(
+    py: Python<'a>,
+    typed_values: &mut dyn Iterator<Item = &TypedValue>,
+) -> PyResult<&'a PyList> {
     Ok(PyList::new(
         py,
         typed_values
@@ -172,14 +171,16 @@ pub fn into_pylist<'a>(py: Python<'a>, typed_values: &mut dyn Iterator<Item = &T
     ))
 }
 
-pub fn option_into_pylist<'a>(py: Python<'a>, typed_values: Option<&mut dyn Iterator<Item = &TypedValue>>) -> PyResult<&'a PyList> {
+pub fn option_into_pylist<'a>(
+    py: Python<'a>,
+    typed_values: Option<&mut dyn Iterator<Item = &TypedValue>>,
+) -> PyResult<&'a PyList> {
     if let Some(l) = typed_values {
         into_pylist(py, l)
     } else {
         Ok(PyList::empty(py))
     }
 }
-
 
 pub fn from_optional_pydict(pydict: Option<&PyDict>) -> PyResult<Option<TypedValueMap>> {
     if let Some(pyd) = pydict {

@@ -1,32 +1,32 @@
-pub mod helps;
-pub mod extensions;
-pub mod plugins;
-pub mod aux_cmds;
 pub mod app_cmds;
-pub mod core_cmds;
+pub mod aux_cmds;
 pub mod cmd_gen_helpers;
+pub mod core_cmds;
+pub mod extensions;
+pub mod helps;
+pub mod plugins;
 
-use std::collections::HashMap;
 use origen_metal::indexmap::IndexMap;
+use std::collections::HashMap;
 
-pub use extensions::{Extensions, ExtensionTOML, Extension};
-pub use plugins::Plugins;
-pub use aux_cmds::AuxCmds;
 pub use app_cmds::AppCmds;
+pub use aux_cmds::AuxCmds;
+pub use extensions::{Extension, ExtensionTOML, Extensions};
 pub use helps::{CmdHelps, CmdSrc};
+pub use plugins::Plugins;
 use std::env;
 
-use clap::App;
-use clap::Command as ClapCommand;
-use clap::Arg as ClapArg;
-use origen::{Result, in_app_invocation};
 use crate::commands::_prelude::clap_arg_actions::*;
+use clap::Arg as ClapArg;
+use clap::Command as App;
+use clap::Command as ClapCommand;
+use origen::{in_app_invocation, Result};
 
 #[macro_export]
 macro_rules! uses_reserved_prefix {
     ($q:expr) => {{
         $q.starts_with(crate::framework::extensions::EXT_BASE_PREFIX)
-    }}
+    }};
 }
 
 #[macro_export]
@@ -47,6 +47,10 @@ macro_rules! log_err_processing_cmd {
 macro_rules! from_toml_args {
     ($toml_args: expr, $cmd_path: expr) => {{
         let mut current_names: Vec<Option<&str>> = vec!();
+        // Tracks a preceding multi-value positional. Clap cannot parse a
+        // following optional positional (the greedy arg consumes everything),
+        // and asserts rather than accepting the definition.
+        let mut variadic_arg: Option<&str> = None;
         $toml_args.as_ref()
             .map(|args| args.iter()
                 .filter_map( |a| {
@@ -68,13 +72,53 @@ macro_rules! from_toml_args {
                         );
                         current_names.push(None);
                         None
+                    } else if variadic_arg.is_some() && a.required != Some(true) {
+                        crate::log_err_processing_cmd!(
+                            $cmd_path,
+                            "Argument '{}' follows multi-value argument '{}' and is not required, so it could never receive a value. This argument will not be available; mark it as required, or declare it before '{}'.",
+                            &a.name,
+                            variadic_arg.unwrap(),
+                            variadic_arg.unwrap()
+                        );
+                        current_names.push(None);
+                        None
                     } else {
                         current_names.push(Some(&a.name));
+                        if a.multiple == Some(true) || a.use_delimiter == Some(true) {
+                            variadic_arg = Some(&a.name);
+                        }
                         Some(crate::framework::Arg::from_toml(a))
                     }
                 })
                 .collect::<Vec<crate::framework::Arg>>())
+            .map(|mut args| {
+                crate::framework::promote_leading_positionals(&mut args, $cmd_path);
+                args
+            })
     }}
+}
+
+/// Clap rejects a definition in which an optional positional precedes a
+/// required one, because filling positionals in order makes it impossible to
+/// tell which argument a lone value belongs to. Clap 3 silently accepted the
+/// definition and then always filled the earlier positional first, so it was
+/// effectively required regardless of how it was declared. Promote those
+/// arguments so the declaration matches the behavior users already had, and say
+/// so, rather than aborting on a parser assertion.
+pub(crate) fn promote_leading_positionals(args: &mut Vec<Arg>, cmd_path: &str) {
+    let last_required = args.iter().rposition(|a| a.required == Some(true));
+    if let Some(last_required) = last_required {
+        for arg in args[..last_required].iter_mut() {
+            if arg.required != Some(true) {
+                crate::log_err_processing_cmd!(
+                    cmd_path,
+                    "Argument '{}' is optional but precedes a required argument, which cannot be parsed unambiguously. It will be treated as required; declare it after the required arguments to keep it optional.",
+                    &arg.name
+                );
+                arg.required = Some(true);
+            }
+        }
+    }
 }
 
 #[macro_export]
@@ -164,7 +208,7 @@ pub trait Applies {
         if let Some(envs) = self.on_env() {
             for e in envs {
                 let mut s = e.splitn(1, '=');
-                let e_name= s.next().ok_or_else( || self.on_env_error_msg(e))?.trim();
+                let e_name = s.next().ok_or_else(|| self.on_env_error_msg(e))?.trim();
                 let e_val = s.next();
                 match env::var(e_name) {
                     Ok(val) => {
@@ -175,13 +219,13 @@ pub trait Applies {
                         } else {
                             return Ok(true);
                         }
-                    },
+                    }
                     Err(err) => match err {
-                        env::VarError::NotPresent => {},
+                        env::VarError::NotPresent => {}
                         _ => {
                             return Err(err.into());
                         }
-                    }
+                    },
                 }
             }
             Ok(false)
@@ -192,9 +236,9 @@ pub trait Applies {
 }
 
 #[derive(Debug, Deserialize)]
-pub (crate) struct CommandsToml {
+pub(crate) struct CommandsToml {
     pub command: Option<Vec<CommandTOML>>,
-    pub extension: Option<Vec<ExtensionTOML>>
+    pub extension: Option<Vec<ExtensionTOML>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -229,7 +273,11 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn from_toml_cmd(cmd: &CommandTOML, cmd_path: CmdSrc, parent_cmd: Option<&Self>) -> Result<Option<Self>> {
+    pub fn from_toml_cmd(
+        cmd: &CommandTOML,
+        cmd_path: CmdSrc,
+        parent_cmd: Option<&Self>,
+    ) -> Result<Option<Self>> {
         let mut slf = Self {
             name: cmd.name.to_owned(),
             help: cmd.help.to_owned(),
@@ -257,7 +305,7 @@ impl Command {
             on_env: cmd.on_env.to_owned(),
         };
         if !slf.applies()? {
-            return Ok(None)
+            return Ok(None);
         }
         let fp = slf.cmd_path.to_string();
         slf.args = from_toml_args!(cmd.arg, &fp);
@@ -279,9 +327,12 @@ impl Command {
                 });
             }
         }
-        slf.subcommands = cmd.subcommand.as_ref().map(|sub_cmds| 
-            sub_cmds.iter().map(|c| format!("{}.{}", &slf.offset_path(), &c.name.to_string())).collect::<Vec<String>>()
-        );
+        slf.subcommands = cmd.subcommand.as_ref().map(|sub_cmds| {
+            sub_cmds
+                .iter()
+                .map(|c| format!("{}.{}", &slf.offset_path(), &c.name.to_string()))
+                .collect::<Vec<String>>()
+        });
         Ok(Some(slf))
     }
 
@@ -312,7 +363,11 @@ impl Applies for Command {
     }
 
     fn on_env_error_msg(&self, e: &String) -> String {
-        format!("Failed to parse 'on_env' '{}', for command {}", e, self.offset_path())
+        format!(
+            "Failed to parse 'on_env' '{}', for command {}",
+            e,
+            self.offset_path()
+        )
     }
 }
 
@@ -329,13 +384,12 @@ pub struct CmdOptCache {
     cmd_path: String,
     last_needs_visible_full_name: bool,
     current: String,
-
 }
 
 macro_rules! processing_exts {
     ($slf:expr) => {{
         $slf.exts.len() > 0
-    }}
+    }};
 }
 
 macro_rules! conflict_err_msg {
@@ -345,7 +399,12 @@ macro_rules! conflict_err_msg {
                 // Conflict with the command itself
                 log_err_processing_cmd!(
                     $self.cmd_path,
-                    concat!($conflict_type, " '{}' for extension option '{}', from {}, conflicts with ", $with_type, " from command option '{}'"),
+                    concat!(
+                        $conflict_type,
+                        " '{}' for extension option '{}', from {}, conflicts with ",
+                        $with_type,
+                        " from command option '{}'"
+                    ),
                     $name,
                     $self.current,
                     $self.exts.last().unwrap(),
@@ -356,7 +415,12 @@ macro_rules! conflict_err_msg {
                 let e = $self.ext_opt_names.get_index($conflict.1).unwrap();
                 log_err_processing_cmd!(
                     $self.cmd_path,
-                    concat!($conflict_type, " '{}' for extension option '{}', from {}, conflicts with ", $with_type, " for extension '{}' provided by {}"),
+                    concat!(
+                        $conflict_type,
+                        " '{}' for extension option '{}', from {}, conflicts with ",
+                        $with_type,
+                        " for extension '{}' provided by {}"
+                    ),
                     $name,
                     $self.current,
                     $self.exts.last().unwrap(),
@@ -367,13 +431,18 @@ macro_rules! conflict_err_msg {
         } else {
             log_err_processing_cmd!(
                 $self.cmd_path,
-                concat!($conflict_type, " '{}' for command option '{}' conflicts with ", $with_type, " from option '{}'"),
+                concat!(
+                    $conflict_type,
+                    " '{}' for command option '{}' conflicts with ",
+                    $with_type,
+                    " from option '{}'"
+                ),
                 $name,
                 $self.current,
                 $self.opt_names[$conflict.1]
             );
         }
-    }}
+    }};
 }
 
 macro_rules! cache {
@@ -385,7 +454,7 @@ macro_rules! cache {
                 (true, $slf.opt_names.len() - 1)
             }
         });
-    }}
+    }};
 }
 
 impl CmdOptCache {
@@ -415,7 +484,11 @@ impl CmdOptCache {
                 push_arg = true;
             }
             if let Some(lns) = arg.get_all_aliases() {
-                slf.ln_aliases.extend(lns.iter().map( |ln| (ln.to_string(), (true, i))).collect::<Vec<(String, (bool, usize))>>());
+                slf.ln_aliases.extend(
+                    lns.iter()
+                        .map(|ln| (ln.to_string(), (true, i)))
+                        .collect::<Vec<(String, (bool, usize))>>(),
+                );
                 push_arg = true;
             }
             if let Some(sn) = arg.get_short() {
@@ -423,7 +496,11 @@ impl CmdOptCache {
                 push_arg = true;
             }
             if let Some(sns) = arg.get_all_short_aliases() {
-                slf.sn_aliases.extend(sns.iter().map( |sn| (*sn, (true, i))).collect::<Vec<(char, (bool, usize))>>());
+                slf.sn_aliases.extend(
+                    sns.iter()
+                        .map(|sn| (*sn, (true, i)))
+                        .collect::<Vec<(char, (bool, usize))>>(),
+                );
                 push_arg = true;
             }
 
@@ -440,7 +517,8 @@ impl CmdOptCache {
         if let Some(e) = ext {
             self.exts.push(e.source.to_string());
             if !self.ext_opt_names.contains_key(name) {
-                self.ext_opt_names.insert(name.to_string(), self.exts.len() - 1);
+                self.ext_opt_names
+                    .insert(name.to_string(), self.exts.len() - 1);
             }
         } else {
             self.opt_names.push(name.to_string());
@@ -456,7 +534,13 @@ impl CmdOptCache {
             conflict_err_msg!(self, conflict, iln, "Inferred long name", "long name");
             true
         } else if let Some(conflict) = self.ilns.get(iln) {
-            conflict_err_msg!(self, conflict, iln, "Inferred long name", "inferred long name");
+            conflict_err_msg!(
+                self,
+                conflict,
+                iln,
+                "Inferred long name",
+                "inferred long name"
+            );
             true
         } else {
             cache!(self, ilns, iln.to_owned());
@@ -497,36 +581,40 @@ impl CmdOptCache {
     }
 
     pub fn non_conflicting_snas(&mut self, snas: &Vec<char>) -> Vec<char> {
-        snas.iter().filter_map( |sna| {
-            if let Some(conflict) = self.sn_aliases.get(sna) {
-                conflict_err_msg!(self, conflict, sna, "Short name alias", "short name alias");
-                None
-            } else if let Some(conflict) = self.sns.get(sna) {
-                conflict_err_msg!(self, conflict, sna, "Short name alias", "short name");
-                None
-            } else {
-                cache!(self, sn_aliases, *sna);
-                Some(*sna)
-            }
-        }).collect::<Vec<char>>()
+        snas.iter()
+            .filter_map(|sna| {
+                if let Some(conflict) = self.sn_aliases.get(sna) {
+                    conflict_err_msg!(self, conflict, sna, "Short name alias", "short name alias");
+                    None
+                } else if let Some(conflict) = self.sns.get(sna) {
+                    conflict_err_msg!(self, conflict, sna, "Short name alias", "short name");
+                    None
+                } else {
+                    cache!(self, sn_aliases, *sna);
+                    Some(*sna)
+                }
+            })
+            .collect::<Vec<char>>()
     }
 
-    pub fn non_conflicting_lnas<'a>(&mut self, lnas: &'a Vec<String>) -> Vec<&'a str> {
-        lnas.iter().filter_map( |lna| {
-            if let Some(conflict) = self.ln_aliases.get(lna) {
-                conflict_err_msg!(self, conflict, lna, "Long name alias", "long name alias");
-                None
-            } else if let Some(conflict) = self.lns.get(lna) {
-                conflict_err_msg!(self, conflict, lna, "Long name alias", "long name");
-                None
-            } else if let Some(conflict) = self.ilns.get(lna) {
-                conflict_err_msg!(self, conflict, lna, "Long name alias", "inferred long name");
-                None
-            } else {
-                cache!(self, ln_aliases, lna.to_owned());
-                Some(lna.as_str())
-            }
-        }).collect::<Vec<&str>>()
+    pub fn non_conflicting_lnas(&mut self, lnas: &Vec<String>) -> Vec<String> {
+        lnas.iter()
+            .filter_map(|lna| {
+                if let Some(conflict) = self.ln_aliases.get(lna) {
+                    conflict_err_msg!(self, conflict, lna, "Long name alias", "long name alias");
+                    None
+                } else if let Some(conflict) = self.lns.get(lna) {
+                    conflict_err_msg!(self, conflict, lna, "Long name alias", "long name");
+                    None
+                } else if let Some(conflict) = self.ilns.get(lna) {
+                    conflict_err_msg!(self, conflict, lna, "Long name alias", "inferred long name");
+                    None
+                } else {
+                    cache!(self, ln_aliases, lna.to_owned());
+                    Some(lna.clone())
+                }
+            })
+            .collect::<Vec<String>>()
     }
 
     pub fn needs_visible_full_name(&mut self) -> bool {
@@ -631,7 +719,7 @@ impl Opt {
                     $name,
                     $name
                 );
-            }
+            };
         }
         macro_rules! res_opt_sn_msg {
             ($conflict:expr, $name:expr) => {
@@ -641,7 +729,7 @@ impl Opt {
                     $name,
                     $name
                 )
-            }
+            };
         }
         macro_rules! res_prefix_msg {
             ($conflict:expr, $name:expr) => {
@@ -652,10 +740,10 @@ impl Opt {
                     $name,
                     $name
                 )
-            }
+            };
         }
 
-        let ln = opt.long.as_ref().and_then ( |ln| {
+        let ln = opt.long.as_ref().and_then(|ln| {
             if RESERVED_OPT_NAMES.contains(&ln.as_str()) {
                 res_opt_ln_msg!("long name", ln);
                 None
@@ -667,7 +755,7 @@ impl Opt {
             }
         });
 
-        let sn = opt.short.as_ref().and_then ( |sn| {
+        let sn = opt.short.as_ref().and_then(|sn| {
             if RESERVED_OPT_SHORT_NAMES.contains(sn) {
                 res_opt_sn_msg!("short name", sn);
                 None
@@ -747,19 +835,24 @@ impl Opt {
     }
 }
 
-pub (crate) fn build_commands<'a, F, G, H>(cmd_def: &'a Command, exts: &G, cmd_container: &F, apply_helps: &H) -> App<'a>
+pub(crate) fn build_commands<'a, F, G, H>(
+    cmd_def: &'a Command,
+    exts: &G,
+    cmd_container: &F,
+    apply_helps: &H,
+) -> App
 where
     F: Fn(&str) -> &'a Command,
-    G: Fn(&str, App<'a>, &mut CmdOptCache) -> App<'a>,
-    H: Fn(&str, App<'a>) -> App<'a>
+    G: Fn(&str, App, &mut CmdOptCache) -> App,
+    H: Fn(&str, App) -> App,
 {
-    let mut cmd = ClapCommand::new(&cmd_def.name);
+    let mut cmd = ClapCommand::new(cmd_def.name.clone());
 
     cmd = add_app_opts(cmd, cmd_def.add_mode_opt(), cmd_def.add_target_opt());
 
     // TODO need test case for cmd alias
     if cmd_def.alias.is_some() {
-        cmd = cmd.visible_alias(cmd_def.alias.as_ref().unwrap().as_str());
+        cmd = cmd.visible_alias(cmd_def.alias.as_ref().unwrap().clone());
     }
 
     if let Some(args) = cmd_def.args.as_ref() {
@@ -773,12 +866,7 @@ where
 
     if let Some(subcommands) = &cmd_def.subcommands {
         for c in subcommands {
-            let subcmd = build_commands(
-                cmd_container(c),
-                exts,
-                cmd_container,
-                apply_helps,
-            );
+            let subcmd = build_commands(cmd_container(c), exts, cmd_container, apply_helps);
             cmd = cmd.subcommand(subcmd);
         }
         cmd = cmd.subcommand_negates_reqs(true);
@@ -789,24 +877,28 @@ where
     cmd
 }
 
-pub (crate) fn apply_args<'a>(args: &'a Vec<Arg>, mut cmd: App<'a>) -> App<'a> {
+pub(crate) fn apply_args<'a>(args: &'a Vec<Arg>, mut cmd: App) -> App {
     for arg_def in args {
-        let mut arg = clap::Arg::new(arg_def.name.as_str())
+        let mut arg = clap::Arg::new(arg_def.name.clone())
             .action(SetArg)
-            .help(arg_def.help.as_str());
+            .help(arg_def.help.clone());
 
         if let Some(vn) = arg_def.value_name.as_ref() {
-            arg = arg.value_name(vn);
+            arg = arg.value_name(vn.clone());
         } else {
-            arg = arg.value_name(arg_def.upcased_name.as_ref().unwrap());
+            arg = arg.value_name(arg_def.upcased_name.as_ref().unwrap().clone());
         }
 
         if let Some(d) = arg_def.use_delimiter {
             arg = arg.use_value_delimiter(d);
-            arg = arg.multiple_values(true).action(AppendArgs);
+            arg = arg.num_args(1..).action(AppendArgs);
         }
         if let Some(m) = arg_def.multiple {
-            arg = arg.multiple_values(m).action(AppendArgs);
+            arg = if m {
+                arg.num_args(1..).action(AppendArgs)
+            } else {
+                arg.num_args(1).action(SetArg)
+            };
         }
 
         if let Some(r) = arg_def.required {
@@ -817,31 +909,38 @@ pub (crate) fn apply_args<'a>(args: &'a Vec<Arg>, mut cmd: App<'a>) -> App<'a> {
     cmd
 }
 
-pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>, cache: &mut CmdOptCache, from_ext: Option<&Extension>) -> App<'a> {
+pub(crate) fn apply_opts<'a>(
+    opts: &'a Vec<Opt>,
+    mut cmd: App,
+    cache: &mut CmdOptCache,
+    from_ext: Option<&Extension>,
+) -> App {
     for opt_def in opts {
         cache.register(&opt_def.name, from_ext);
-        let mut opt = clap::Arg::new(opt_def.id()).action(CountArgs).help(opt_def.help.as_str());
+        let mut opt = clap::Arg::new(opt_def.id().to_string())
+            .action(CountArgs)
+            .help(opt_def.help.clone());
 
         if let Some(val_name) = opt_def.value_name.as_ref() {
-            opt = opt.value_name(val_name).action(SetArg);
+            opt = opt.value_name(val_name.clone()).action(SetArg);
         }
         if let Some(tv) = opt_def.takes_value {
             if tv {
-                opt = opt.action(AppendArgs);
+                opt = opt.action(SetArg);
             }
         }
         if let Some(ud) = opt_def.use_delimiter {
             if ud {
                 opt = opt.use_value_delimiter(ud);
             }
-            opt = opt.multiple_values(true);
+            opt = opt.num_args(1..);
             opt = opt.action(AppendArgs);
         }
         if let Some(m) = opt_def.multiple {
             if m {
-                opt = opt.multiple(m).action(AppendArgs);
+                opt = opt.num_args(1..).action(AppendArgs);
             } else {
-                opt = opt.multiple(m).action(SetArg);
+                opt = opt.num_args(1).action(SetArg);
             }
         }
 
@@ -849,15 +948,15 @@ pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>, cache: &mut 
             if cache.ln_conflicts(ln) {
                 // long name clashes - try inferred long name
                 if !cache.iln_conflicts(&opt_def.name) {
-                    opt = opt.long(&opt_def.name);
+                    opt = opt.long(opt_def.name.clone());
                 }
             } else {
-                opt = opt.long(ln);
+                opt = opt.long(ln.clone());
             }
         } else {
             if !opt_def.short.is_some() {
                 if !cache.iln_conflicts(&opt_def.name) {
-                    opt = opt.long(&opt_def.name);
+                    opt = opt.long(opt_def.name.clone());
                 }
             }
         }
@@ -867,7 +966,7 @@ pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>, cache: &mut 
             } else {
                 if !opt.get_long().is_some() {
                     if !cache.iln_conflicts(&opt_def.name) {
-                        opt = opt.long(&opt_def.name);
+                        opt = opt.long(opt_def.name.clone());
                     }
                 }
             }
@@ -878,31 +977,31 @@ pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>, cache: &mut 
         }
 
         if let Some(h) = opt_def.hidden {
-            opt = opt.hidden(h);
+            opt = opt.hide(h);
         }
 
         if opt.get_action().takes_values() && opt_def.value_name.is_none() {
-            opt = opt.value_name(opt_def.upcased_name.as_ref().unwrap().as_str());
+            opt = opt.value_name(opt_def.upcased_name.as_ref().unwrap().clone());
         }
 
         if let Some(lns) = opt_def.long_aliases.as_ref() {
             let v;
             v = cache.non_conflicting_lnas(lns);
-            opt = opt.visible_aliases(&v[..]);
+            opt = opt.visible_aliases(v);
         }
 
         if let Some(sns) = opt_def.short_aliases.as_ref() {
             let to_add;
             to_add = cache.non_conflicting_snas(sns);
-            opt = opt.visible_short_aliases(&to_add[..]);
+            opt = opt.visible_short_aliases(to_add);
         }
 
         if from_ext.is_some() {
             let full_name = opt_def.full_name.as_ref().unwrap();
             if cache.needs_visible_full_name() {
-                opt = opt.long(full_name);
+                opt = opt.long(full_name.clone());
             } else {
-                opt = opt.alias(full_name.as_str());
+                opt = opt.alias(full_name.clone());
             }
         } else {
             if cache.needs_visible_full_name() {
@@ -921,7 +1020,7 @@ pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>, cache: &mut 
 }
 
 pub fn build_path<'a>(mut matches: &'a clap::ArgMatches) -> Result<String> {
-    let mut path_pieces = vec!();
+    let mut path_pieces = vec![];
     while matches.subcommand_name().is_some() {
         let n = matches.subcommand_name().unwrap();
         matches = matches.subcommand_matches(&n).unwrap();
@@ -946,89 +1045,95 @@ pub const MODE_OPT_NAME: &str = "mode";
 
 pub const RESERVED_OPT_NAMES: &[&str] = &[
     HELP_OPT_NAME,
-    VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_KEYWORDS_OPT_LONG_NAME,
-    TARGET_OPT_NAME, TARGET_OPT_ALIAS,
-    NO_TARGET_OPT_NAME, NO_TARGET_OPT_ALIAS,
+    VERBOSITY_KEYWORDS_OPT_NAME,
+    VERBOSITY_KEYWORDS_OPT_LONG_NAME,
+    TARGET_OPT_NAME,
+    TARGET_OPT_ALIAS,
+    NO_TARGET_OPT_NAME,
+    NO_TARGET_OPT_ALIAS,
     MODE_OPT_NAME,
-    VERBOSITY_OPT_NAME, VERBOSITY_OPT_LNA,
+    VERBOSITY_OPT_NAME,
+    VERBOSITY_OPT_LNA,
 ];
 
-pub const RESERVED_OPT_SHORT_NAMES: &[char] = &[
-    HELP_OPT_SHORT_NAME, TARGET_OPT_SN, VERBOSITY_OPT_SHORT_NAME
-];
+pub const RESERVED_OPT_SHORT_NAMES: &[char] =
+    &[HELP_OPT_SHORT_NAME, TARGET_OPT_SN, VERBOSITY_OPT_SHORT_NAME];
 
 static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
 static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
 
 pub const VOV_OPT_NAME: &str = "version_or_verbosity";
 
-pub fn add_verbosity_opts<'a>(cmd: ClapCommand<'a>, split_v: bool) -> ClapCommand<'a> {
+pub fn add_verbosity_opts<'a>(cmd: ClapCommand, split_v: bool) -> ClapCommand {
     if split_v {
         cmd.arg(
             ClapArg::new(VERBOSITY_OPT_NAME)
-            .long(VERBOSITY_OPT_NAME)
-            .visible_alias(VERBOSITY_OPT_LNA)
-            .action(CountArgs)
+                .long(VERBOSITY_OPT_NAME)
+                .visible_alias(VERBOSITY_OPT_LNA)
+                .action(CountArgs),
         )
         .arg(
             ClapArg::new(VOV_OPT_NAME)
-            .short(VERBOSITY_OPT_SHORT_NAME)
-            .action(CountArgs)
+                .short(VERBOSITY_OPT_SHORT_NAME)
+                .action(CountArgs),
         )
     } else {
         cmd.arg(
             ClapArg::new(VERBOSITY_OPT_NAME)
-            .long(VERBOSITY_OPT_NAME)
-            .visible_alias(VERBOSITY_OPT_LNA)
-            .short(VERBOSITY_OPT_SHORT_NAME)
-            .action(CountArgs)
-            .global(true)
-            .help(VERBOSITY_HELP_STR),
+                .long(VERBOSITY_OPT_NAME)
+                .visible_alias(VERBOSITY_OPT_LNA)
+                .short(VERBOSITY_OPT_SHORT_NAME)
+                .action(CountArgs)
+                .global(true)
+                .help(VERBOSITY_HELP_STR),
         )
     }
     .arg(
         ClapArg::new(VERBOSITY_KEYWORDS_OPT_NAME)
-        .long(VERBOSITY_KEYWORDS_OPT_NAME)
-        .visible_alias(VERBOSITY_KEYWORDS_OPT_LONG_NAME)
-        .multiple(true)
-        .action(AppendArgs)
-        .global(true)
-        .help(VERBOSITY_KEYWORD_HELP_STR)
-        .number_of_values(1)
-        .use_value_delimiter(true)
+            .long(VERBOSITY_KEYWORDS_OPT_NAME)
+            .visible_alias(VERBOSITY_KEYWORDS_OPT_LONG_NAME)
+            .action(AppendArgs)
+            .num_args(1)
+            .global(true)
+            .help(VERBOSITY_KEYWORD_HELP_STR)
+            .use_value_delimiter(true),
     )
 }
 
 macro_rules! add_mode_opt {
     ($cmd:expr) => {
-        $cmd.arg(clap::Arg::new(crate::framework::MODE_OPT_NAME)
-            .long("mode")
-            .value_name("MODE")
-            .help("Override the default mode currently set by the workspace for this command")
-            .action(crate::framework::SetArg)
+        $cmd.arg(
+            clap::Arg::new(crate::framework::MODE_OPT_NAME)
+                .long("mode")
+                .value_name("MODE")
+                .help("Override the default mode currently set by the workspace for this command")
+                .action(crate::framework::SetArg),
         )
-    }
+    };
 }
 
 macro_rules! add_target_opt {
     ($cmd:expr) => {
-        $cmd.arg(clap::Arg::new(crate::framework::TARGET_OPT_NAME)
-            .short('t')
-            .long(crate::framework::TARGET_OPT_NAME)
-            .visible_alias(TARGET_OPT_ALIAS)
-            .help("Override the targets currently set by the workspace for this command")
-            .action(crate::commands::_prelude::AppendArgs)
-            .use_value_delimiter(true)
-            .multiple_values(true)
-            .value_name("TARGETS")
-            .conflicts_with(crate::framework::NO_TARGET_OPT_NAME)
-        ).arg(clap::Arg::new(crate::framework::NO_TARGET_OPT_NAME)
-            .long(crate::framework::NO_TARGET_OPT_NAME)
-            .visible_alias(NO_TARGET_OPT_ALIAS)
-            .help("Clear any targets currently set by the workspace for this command")
-            .action(crate::commands::_prelude::SetArgTrue)
+        $cmd.arg(
+            clap::Arg::new(crate::framework::TARGET_OPT_NAME)
+                .short('t')
+                .long(crate::framework::TARGET_OPT_NAME)
+                .visible_alias(TARGET_OPT_ALIAS)
+                .help("Override the targets currently set by the workspace for this command")
+                .action(crate::commands::_prelude::AppendArgs)
+                .use_value_delimiter(true)
+                .num_args(1..)
+                .value_name("TARGETS")
+                .conflicts_with(crate::framework::NO_TARGET_OPT_NAME),
         )
-    }
+        .arg(
+            clap::Arg::new(crate::framework::NO_TARGET_OPT_NAME)
+                .long(crate::framework::NO_TARGET_OPT_NAME)
+                .visible_alias(NO_TARGET_OPT_ALIAS)
+                .help("Clear any targets currently set by the workspace for this command")
+                .action(crate::commands::_prelude::SetArgTrue),
+        )
+    };
 }
 
 pub fn add_app_opts(mut cmd: ClapCommand, add_mode_opt: bool, add_target_opt: bool) -> ClapCommand {
@@ -1061,7 +1166,7 @@ macro_rules! output_dir_opt {
             .help("Override the default output directory (<APP ROOT>/output)")
             .action(SetArg)
             .value_name("OUTPUT_DIR")
-    }}
+    }};
 }
 
 pub const REF_DIR_OPT_LNAS: &[&str] = &["reference_dir", "ref_dir", "reference-dir"];
@@ -1072,9 +1177,9 @@ macro_rules! ref_dir_opt {
         Arg::new("reference_dir")
             .short('r')
             .long("ref-dir")
-            .visible_aliases(&crate::framework::REF_DIR_OPT_LNAS)
+            .visible_aliases(crate::framework::REF_DIR_OPT_LNAS.iter().copied())
             .help("Override the default reference directory (<APP ROOT>/.ref)")
             .action(SetArg)
             .value_name("REFERENCE_DIR")
-    }}
+    }};
 }

@@ -1,10 +1,10 @@
+use crate::prelude::users::*;
+use crate::prelude::{typed_value, PyOutcome};
 use origen_metal::utils::mailer::Mailer as OMailer;
-use origen_metal::utils::mailer::PASSWORD_MOTIVE as OM_PASSWORD_MOTIVE;
 use origen_metal::utils::mailer::MailerTOMLConfig;
+use origen_metal::utils::mailer::PASSWORD_MOTIVE as OM_PASSWORD_MOTIVE;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use crate::prelude::{PyOutcome, typed_value};
-use crate::prelude::users::*;
 
 // TEST_NEEDED
 pub const OM_MAILER_CLASS_QP: &str = "origen_metal.utils.mailer.Mailer";
@@ -19,9 +19,16 @@ pub struct Mailer {
 impl Mailer {
     #[new]
     #[pyo3(signature=(server, port=None, domain=None, auth_method=None, timeout=60, user=None))]
-    pub fn new(server: String, port: Option<u16>, domain: Option<String>, auth_method: Option<&str>, timeout: Option<u64>, user: Option<String>) -> PyResult<Self> {
+    pub fn new(
+        server: String,
+        port: Option<u16>,
+        domain: Option<String>,
+        auth_method: Option<&str>,
+        timeout: Option<u64>,
+        user: Option<String>,
+    ) -> PyResult<Self> {
         Ok(Self {
-            mailer: OMailer::new(server, port, domain, auth_method, timeout, user)?
+            mailer: OMailer::new(server, port, domain, auth_method, timeout, user)?,
         })
     }
 
@@ -140,14 +147,20 @@ impl Mailer {
 }
 
 impl Mailer {
-    pub fn toml_config_into_args<'py>(py: Python<'py>, config: &MailerTOMLConfig) -> PyResult<&'py PyTuple> {
-        Ok(PyTuple::new(py, [
-            config.server.to_object(py),
-            config.port.to_object(py),
-            config.domain.to_object(py),
-            config.auth_method.to_object(py),
-            config.timeout.to_object(py),
-            config.user.to_object(py)
-        ]))
+    pub fn toml_config_into_args<'py>(
+        py: Python<'py>,
+        config: &MailerTOMLConfig,
+    ) -> PyResult<&'py PyTuple> {
+        Ok(PyTuple::new(
+            py,
+            [
+                config.server.to_object(py),
+                config.port.to_object(py),
+                config.domain.to_object(py),
+                config.auth_method.to_object(py),
+                config.timeout.to_object(py),
+                config.user.to_object(py),
+            ],
+        ))
     }
 }

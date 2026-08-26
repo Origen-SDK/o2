@@ -1,4 +1,7 @@
-use std::{time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use super::bin_array::BinArray;
 #[cfg(feature = "python")]
@@ -26,7 +29,7 @@ impl Item {
             reserved: BinArray::new(),
             references: HashMap::new(),
             exhausted: false,
-            increment: 1
+            increment: 1,
         }
     }
 
@@ -34,7 +37,7 @@ impl Item {
         if size.is_none() {
             size = match self.increment {
                 1 => None,
-                _ => Some(self.increment)
+                _ => Some(self.increment),
             };
         }
         if !self.exhausted {
@@ -69,11 +72,11 @@ impl Item {
             }
         }
     }
-    
+
     fn is_valid(&self, num: u32) -> bool {
         !self.exclude.contains(num) && !self.reserved.contains(num)
     }
-    
+
     /// Records that the given number is being referenced now
     pub fn record_reference(&mut self, num: u32) {
         let now = SystemTime::now()
@@ -87,16 +90,16 @@ impl Item {
     pub fn oldest_reference(&mut self) -> Option<u32> {
         if self.references.is_empty() {
             return None;
-        }   
+        }
         // Find the entry with the smallest timestamp
-        let (&oldest_num, _) = self.references
-            .iter()
-            .min_by_key(|&(_, ts)| ts)?;
+        let (&oldest_num, _) = self.references.iter().min_by_key(|&(_, ts)| ts)?;
         Some(oldest_num)
     }
-    
+
     // Returns an iterator over all included numbers
     pub fn iter(&self) -> impl Iterator<Item = u32> + '_ {
-        self.include.iter().filter(move |&num| !self.exclude.contains(num) && !self.reserved.contains(num))
+        self.include
+            .iter()
+            .filter(move |&num| !self.exclude.contains(num) && !self.reserved.contains(num))
     }
 }

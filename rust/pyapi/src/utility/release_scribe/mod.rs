@@ -3,8 +3,8 @@ pub mod _frontend;
 use super::app_utility;
 use crate::runtime_error;
 use origen::utility::release_scribe::ReleaseScribe as OrigenRS;
-use origen_metal::utils::version::Version as OVersion;
 use origen::STATUS;
+use origen_metal::utils::version::Version as OVersion;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
@@ -90,7 +90,7 @@ impl ReleaseScribe {
     fn history_tracking_file(&self, py: Python) -> PyResult<PyObject> {
         Ok(crate::pypath!(
             py,
-            format!("{}", self.rs.history_toml.display())
+            format!("{}", self.rs.history_file.display())
         ))
     }
 
@@ -124,8 +124,7 @@ impl ReleaseScribe {
         Ok(())
     }
 
-    fn read_history(&self) -> PyResult<()> {
-        println!("{:?}", self.rs.read_history()?);
-        Ok(())
+    fn read_history(&self) -> PyResult<String> {
+        Ok(self.rs.read_history()?)
     }
 }

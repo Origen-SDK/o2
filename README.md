@@ -4,6 +4,19 @@
 
 See here for how to setup an Origen 2 development environment - https://origen-sdk.org/o2/guides/developers/installation.html
 
+To build or serve O2's own documentation from a source checkout, enter the
+embedded core application first:
+
+```text
+cd python/origen
+origen web build
+origen web serve
+```
+
+The repository root is an O2 development workspace, not itself an Origen
+application, so application-scoped ``web`` commands are not currently exposed
+there. The release coordinator is the exception and can be run from the root.
+
 
 ### Origen Metal Python Development
 
@@ -16,7 +29,7 @@ See here for how to setup an Origen 2 development environment - https://origen-s
    that was just compiled to this location available for execution
 3. Compile Origen Metal by running:
    ```text
-   origen origen build --metal
+   origen develop_origen build --metal
    ```
 
 Repeat step 3 after making any changes to `rust/origen_metal` (the Rust library) or
@@ -29,58 +42,38 @@ cargo test --manifest-path rust/pyapi/Cargo.toml --no-default-features
 cargo test --manifest-path rust/pyapi_metal/Cargo.toml --no-default-features
 ```
 
-To test out any updates in your application add `python/origen_metal` to your application's
-virtual environment.
-
-If using another venv manager than Poetry, you might need to uncomment the `[project]` section
-in `pyproject.toml`.
+To test local updates in an application, declare `python/origen_metal` as a
+`[tool.uv.sources]` path dependency and run `uv sync --no-editable`.
 
 
-### Publishing Origen Metal
+### Releasing Origen and Origen Metal
 
-Origen Metal's Python package and Rust crate are published with the
-[`Publish Origen Metal`](https://github.com/Origen-SDK/o2/actions/workflows/publish_metal.yml)
-GitHub Actions workflow. The workflow publishes directly to the production PyPI and crates.io
-registries; it does not publish test or prerelease packages.
+`origen rc tag` is the release coordinator for both independently versioned
+products. Run it from the O2 repository root. It calculates versions, updates
+all Python and Rust manifests and lockfiles atomically, writes the canonical
+history entry, validates packages and documentation, commits and tags through
+the configured revision-control driver, and dispatches the exact-tag GitHub
+Actions publication workflow. The website is deployed only after every
+selected package has been published successfully.
 
-Before starting a release:
+Always preview first; this changes no files or external state:
 
-1. Update and commit the Origen Metal version in the Python and Rust manifests, including the
-   Python-binding crate:
-   - `python/origen_metal/pyproject.toml`
-   - `rust/origen_metal/Cargo.toml`
-   - `rust/pyapi_metal/Cargo.toml`
-2. Regenerate and commit the corresponding Cargo lockfiles. In particular,
-   `rust/origen_metal/Cargo.lock` must record the same `origen_metal` version as
-   `rust/origen_metal/Cargo.toml`; the Rust publish validation uses `--locked` and will fail if
-   they differ.
-3. Ensure the version has not already been published to the selected registry. Published
-   versions cannot be overwritten.
-4. Push the release commit to the Git ref that will be selected when dispatching the workflow.
+```text
+origen rc tag --product origen-metal --type minor --dry-run
+origen rc tag --product origen --origen-type development \
+  --product origen-metal --metal-type minor --dry-run
+```
 
-To publish:
+For a local, reviewable preparation that may update files but never commits,
+tags, pushes, publishes, or deploys, use `--local`. Normal interactive releases
+can omit `--type`; the CLI prompts for development, patch, minor, major,
+production, or current. Do not manually bump manifests or directly dispatch
+`publish.yml`/`publish_metal.yml`; those workflows are exact-ref publication
+backends rather than release coordinators.
 
-1. Open **Actions > Publish Origen Metal > Run workflow**.
-2. Select the release branch or ref.
-3. Select `publish_python`, `publish_rust`, or both, then run the workflow. Selecting neither
-   intentionally fails the precheck.
-
-When Python is selected, the workflow builds and merges the supported Linux and Windows wheels
-before publishing them to PyPI. When Rust is selected, the workflow installs the current stable
-Rust toolchain and runs
-`cargo publish --dry-run --locked` before publishing the crate to crates.io. When both are
-selected, their manifest versions must match, all builds and validation must pass, and Python is
-published before Rust.
-
-If Python publication fails during a combined release, Rust is not published. If Python succeeds
-but Rust publication fails, correct the Rust issue and rerun the workflow with only
-`publish_rust` selected.
-
-The Python builds use these repository settings:
-
-- `PYTHON_VERSIONS_FOR_RELEASE` and `PYTHON_VERSIONS` variables
-
-Publishing uses these repository secrets:
-
-- `PYPI_OM_API_TOKEN` for PyPI authentication
-- `CARGO_ORIGEN_METAL` for crates.io authentication
+Canonical release notes live in `python/origen/doc/history` and
+`python/origen/doc/metal/history` and are rendered into the website. See the
+[complete release guide](https://origen-sdk.org/o2/guides/developers/releasing_origen.html)
+for combined releases, non-interactive automation, credentials, recovery, and
+verification. `origen web build --release` remains available for a docs-only
+deployment outside a product release.

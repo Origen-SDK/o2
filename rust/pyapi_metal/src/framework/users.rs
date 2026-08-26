@@ -1,5 +1,6 @@
 use crate::_helpers::{map_to_pydict, typed_value, with_new_pydict};
 use crate::framework::PyOutcome;
+use crate::frontend::LOOKUP_HOME_DIR_FUNC_KEY;
 use crate::pypath;
 use origen_metal as om;
 use pyo3::class::basic::CompareOp;
@@ -7,13 +8,12 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-use crate::frontend::{LOOKUP_HOME_DIR_FUNC_KEY};
 
 use super::file_permissions::FilePermissions;
 use std::path::PathBuf;
 
-use crate::prelude::sessions::*;
 use crate::_helpers::contextlib::wrap_instance_method;
+use crate::prelude::sessions::*;
 
 // TODO add a users prelude?
 use om::framework::users::DatasetConfig as OMDatasetConfig;
@@ -45,7 +45,10 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_submodule(subm)?;
 
     let users_class = subm.getattr("Users")?;
-    users_class.setattr("current_user_as", wrap_instance_method(py, "current_user_as", Some(vec!("new_current")), None)?)?;
+    users_class.setattr(
+        "current_user_as",
+        wrap_instance_method(py, "current_user_as", Some(vec!["new_current"]), None)?,
+    )?;
     crate::alias_method_apply_to_set!(subm, "Users", "data_lookup_hierarchy");
     Ok(())
 }
@@ -190,19 +193,29 @@ impl Users {
     // }
 
     #[allow(non_snake_case)]
-    pub fn __enter__current_user_as<'p>(&self, py: Python<'p>, u: &PyAny) -> PyResult<(Option<PyObject>, Option<String>)> {
+    pub fn __enter__current_user_as<'p>(
+        &self,
+        py: Python<'p>,
+        u: &PyAny,
+    ) -> PyResult<(Option<PyObject>, Option<String>)> {
         let current_id = om::get_current_user_id()?;
         self.set_current_user(u)?;
         let new_current = match om::get_current_user_id()? {
             Some(id) => Some(Py::new(py, User::new(&id)?)?),
-            None => None
+            None => None,
         };
         Ok((Some(new_current.to_object(py)), current_id))
     }
 
     #[allow(non_snake_case)]
     #[pyo3(signature=(_yield_retn, _yield_context, old_user))]
-    pub fn __exit__current_user_as(&self, _py: Python, _yield_retn: Option<&PyAny>, _yield_context: Option<PyRef<User>>, old_user: &PyAny) -> PyResult<()> {
+    pub fn __exit__current_user_as(
+        &self,
+        _py: Python,
+        _yield_retn: Option<&PyAny>,
+        _yield_context: Option<PyRef<User>>,
+        old_user: &PyAny,
+    ) -> PyResult<()> {
         self.set_current_user(old_user)?;
         Ok(())
     }
@@ -218,7 +231,7 @@ impl Users {
         if update_current {
             let r = om::try_lookup_and_set_current_user()?;
             if let Some(user_added) = r.1 {
-                if let Some(pop_retn) = user_added{
+                if let Some(pop_retn) = user_added {
                     if let Some(error_msg) = pop_retn.log(&r.0)? {
                         return runtime_error!(error_msg);
                     }
@@ -251,7 +264,7 @@ impl Users {
                 Some(f) => py_fe
                     ._users_
                     .insert("lookup_current_id_function".to_string(), f.to_object(py)),
-                None => py_fe._users_.remove("lookup_current_id_function"),
+                None => py_fe._users_.shift_remove("lookup_current_id_function"),
             };
             Ok(())
         })
@@ -271,8 +284,10 @@ impl Users {
     pub fn set_lookup_home_dir_function(&self, func: Option<&PyAny>) -> PyResult<()> {
         crate::frontend::with_mut_py_frontend(|py, mut py_fe| {
             match func {
-                Some(f) => py_fe._users_.insert(LOOKUP_HOME_DIR_FUNC_KEY.to_string(), f.to_object(py)),
-                None => py_fe._users_.remove(*LOOKUP_HOME_DIR_FUNC_KEY),
+                Some(f) => py_fe
+                    ._users_
+                    .insert(LOOKUP_HOME_DIR_FUNC_KEY.to_string(), f.to_object(py)),
+                None => py_fe._users_.shift_remove(*LOOKUP_HOME_DIR_FUNC_KEY),
             };
             Ok(())
         })
@@ -416,7 +431,10 @@ impl Users {
     }
 
     #[setter]
-    pub fn set_default_should_validate_passwords(&self, should_validate_passwords: Option<bool>) -> PyResult<()> {
+    pub fn set_default_should_validate_passwords(
+        &self,
+        should_validate_passwords: Option<bool>,
+    ) -> PyResult<()> {
         let mut users = om::users_mut();
         Ok(users.set_default_should_validate_passwords(should_validate_passwords))
     }
@@ -438,11 +456,13 @@ impl Users {
         if new.is_none() {
             users.clear_default_roles()?;
         } else if let Ok(role) = new.extract::<String>() {
-            users.set_default_roles(&vec!(role))?;
+            users.set_default_roles(&vec![role])?;
         } else if let Ok(roles) = new.extract::<Vec<String>>() {
             users.set_default_roles(&roles)?;
         } else {
-            return type_error!("Cannot interpret roles as either 'str', 'list of strs', or 'None'.");
+            return type_error!(
+                "Cannot interpret roles as either 'str', 'list of strs', or 'None'."
+            );
         }
         Ok(())
     }
@@ -458,7 +478,12 @@ impl Users {
         let users = om::users();
         let mut retn = HashMap::new();
         for (r, ids) in users.users_by_role(None)? {
-            retn.insert(r.to_owned(), ids.iter().map(|id| User::new(id)).collect::<PyResult<Vec<User>>>()?);
+            retn.insert(
+                r.to_owned(),
+                ids.iter()
+                    .map(|id| User::new(id))
+                    .collect::<PyResult<Vec<User>>>()?,
+            );
         }
         Ok(retn)
     }
@@ -466,26 +491,29 @@ impl Users {
     #[pyo3(signature=(role, exclusive = false, required = false))]
     pub fn for_role(&self, role: &str, exclusive: bool, required: bool) -> PyResult<Vec<User>> {
         let users = om::users();
-        let r = users.users_by_role(Some( &|_u, rn| rn == role ))?;
+        let r = users.users_by_role(Some(&|_u, rn| rn == role))?;
         if let Some(ids) = r.get(role) {
             if exclusive {
                 if ids.len() > 1 {
                     return runtime_error!(format!(
                         "Found multiple users matching exclusive role '{}': {}",
                         role,
-                        ids.iter().map(|id| format!("'{}'", id)).collect::<Vec<String>>().join(", ")
+                        ids.iter()
+                            .map(|id| format!("'{}'", id))
+                            .collect::<Vec<String>>()
+                            .join(", ")
                     ));
                 }
             }
-            Ok(ids.iter().map(|id| User::new(id)).collect::<PyResult<Vec<User>>>()?)
+            Ok(ids
+                .iter()
+                .map(|id| User::new(id))
+                .collect::<PyResult<Vec<User>>>()?)
         } else {
             if required {
-                runtime_error!(format!(
-                    "No users with role '{}' could be found",
-                    role
-                ))
+                runtime_error!(format!("No users with role '{}' could be found", role))
             } else {
-                Ok(vec!())
+                Ok(vec![])
             }
         }
     }
@@ -496,7 +524,10 @@ impl Users {
     }
 
     #[setter]
-    pub fn set_default_password_cache_option(&self, password_cache_option: Option<&str>) -> PyResult<()> {
+    pub fn set_default_password_cache_option(
+        &self,
+        password_cache_option: Option<&str>,
+    ) -> PyResult<()> {
         let mut users = om::users_mut();
         Ok(users.set_default_password_cache_option(password_cache_option)?)
     }
@@ -504,7 +535,10 @@ impl Users {
     #[getter]
     pub fn get_default_password_cache_option(&self) -> PyResult<Option<String>> {
         let users = om::users_mut();
-        Ok(users.default_password_cache_option().as_ref().map_or( None, |p| p.into()))
+        Ok(users
+            .default_password_cache_option()
+            .as_ref()
+            .map_or(None, |p| p.into()))
     }
 
     fn __getitem__(&self, id: &str) -> PyResult<User> {
@@ -795,13 +829,14 @@ impl UserDataset {
     }
 
     pub fn set_home_dir(&self, d: Option<PathBuf>) -> PyResult<()> {
-        self.home_dir_setter(
-            if d.is_some() {
-                d
-            } else {
-                origen_metal::framework::users::user::try_default_home_dir(Some(&self.user_id), Some(&self.dataset))?
-            }
-        )
+        self.home_dir_setter(if d.is_some() {
+            d
+        } else {
+            origen_metal::framework::users::user::try_default_home_dir(
+                Some(&self.user_id),
+                Some(&self.dataset),
+            )?
+        })
     }
 
     pub fn clear_home_dir(&self) -> PyResult<()> {
@@ -821,7 +856,7 @@ impl UserDataset {
         Ok(om::with_user_dataset(
             Some(&self.user_id),
             &self.dataset,
-            |d| Ok(d.password.as_ref().map( |s| s.to_string())),
+            |d| Ok(d.password.as_ref().map(|s| s.to_string())),
         )?)
     }
 
@@ -857,9 +892,16 @@ impl UserDataset {
     }
 
     fn validate_password(&self) -> PyResult<PyOutcome> {
-        Ok(PyOutcome::from_origen(om::with_user(&self.user_id, |u| {
-            u.validate_password(&u.password(Some(&self.dataset), false, None)?, Some(&self.dataset))
-        })?.outcome()?.clone()))
+        Ok(PyOutcome::from_origen(
+            om::with_user(&self.user_id, |u| {
+                u.validate_password(
+                    &u.password(Some(&self.dataset), false, None)?,
+                    Some(&self.dataset),
+                )
+            })?
+            .outcome()?
+            .clone(),
+        ))
     }
 
     #[getter]
@@ -1459,9 +1501,13 @@ impl User {
     }
 
     pub fn validate_password(&self) -> PyResult<PyOutcome> {
-        Ok(PyOutcome::from_origen(om::with_user(&self.user_id, |u| {
-            u.validate_password(&u.password(None, true, None)?, None)
-        })?.outcome()?.clone()))
+        Ok(PyOutcome::from_origen(
+            om::with_user(&self.user_id, |u| {
+                u.validate_password(&u.password(None, true, None)?, None)
+            })?
+            .outcome()?
+            .clone(),
+        ))
     }
 
     // Note: with regards to kwargs['default']:
@@ -1489,7 +1535,11 @@ impl User {
             default = None;
         }
         Ok(om::with_user(&self.user_id, |u| {
-            u.password(Some(motive), true, default.as_ref().map( |d| d.as_ref().map( |d2| d2.as_str())))
+            u.password(
+                Some(motive),
+                true,
+                default.as_ref().map(|d| d.as_ref().map(|d2| d2.as_str())),
+            )
         })?)
     }
 
@@ -1508,7 +1558,11 @@ impl User {
         replace_existing: bool,
     ) -> PyResult<Option<String>> {
         Ok(om::with_user_mut(&self.user_id, |u| {
-            Ok(u.add_motive(motive.to_string(), UserDataset::name_from_pyany(dataset)?, replace_existing)?)
+            Ok(u.add_motive(
+                motive.to_string(),
+                UserDataset::name_from_pyany(dataset)?,
+                replace_existing,
+            )?)
         })?)
     }
 
@@ -1544,7 +1598,10 @@ impl User {
     }
 
     #[setter]
-    pub fn set_should_validate_passwords(&self, should_validate_passwords: Option<bool>) -> PyResult<()> {
+    pub fn set_should_validate_passwords(
+        &self,
+        should_validate_passwords: Option<bool>,
+    ) -> PyResult<()> {
         Ok(om::with_user_mut(&self.user_id, |u| {
             Ok(u.set_should_validate_passwords(should_validate_passwords))
         })?)
@@ -1757,13 +1814,11 @@ impl User {
     }
 
     pub fn set_home_dir(&self, d: Option<PathBuf>) -> PyResult<()> {
-        self.home_dir_setter(
-            if d.is_some() {
-                d
-            } else {
-                origen_metal::framework::users::user::try_default_home_dir(Some(&self.user_id), None)?
-            }
-        )
+        self.home_dir_setter(if d.is_some() {
+            d
+        } else {
+            origen_metal::framework::users::user::try_default_home_dir(Some(&self.user_id), None)?
+        })
     }
 
     pub fn clear_home_dir(&self) -> PyResult<()> {
@@ -1773,9 +1828,10 @@ impl User {
     #[allow(non_snake_case)]
     #[getter]
     pub fn __dot_origen_dir__(&self, py: Python) -> PyResult<PyObject> {
-        Ok(pypath!(py, om::with_user(&self.user_id, |u| {
-            u.dot_origen_dir()
-        })?.display()))
+        Ok(pypath!(
+            py,
+            om::with_user(&self.user_id, |u| { u.dot_origen_dir() })?.display()
+        ))
     }
 
     #[getter]
@@ -1805,7 +1861,10 @@ impl User {
     #[getter]
     pub fn get_roles(&self) -> PyResult<Vec<String>> {
         Ok(om::with_user(&self.user_id, |u| {
-            Ok(u.roles()?.iter().map( |r| r.to_owned()).collect::<Vec<String>>())
+            Ok(u.roles()?
+                .iter()
+                .map(|r| r.to_owned())
+                .collect::<Vec<String>>())
         })?)
     }
 
@@ -1813,45 +1872,42 @@ impl User {
     pub fn add_roles(&self, roles: &PyAny) -> PyResult<Vec<bool>> {
         let v: Vec<String>;
         if let Ok(r) = roles.extract::<String>() {
-            v = vec!(r);
+            v = vec![r];
         } else if let Ok(r) = roles.extract::<Vec<String>>() {
             v = r;
         } else {
             return type_error!("Cannot interpret roles as either a 'str' or a 'list of strs'");
         }
 
-        Ok(om::with_user(&self.user_id, |u| {
-            u.add_roles(&v)
-        })?)
+        Ok(om::with_user(&self.user_id, |u| u.add_roles(&v))?)
     }
 
     #[pyo3(signature=(*roles))]
     pub fn remove_roles(&self, roles: &PyAny) -> PyResult<Vec<bool>> {
         let v: Vec<String>;
         if let Ok(r) = roles.extract::<String>() {
-            v = vec!(r);
+            v = vec![r];
         } else if let Ok(r) = roles.extract::<Vec<String>>() {
             v = r;
         } else {
             return type_error!("Cannot interpret roles as either a 'str' or a 'list of strs'");
         }
 
-        Ok(om::with_user(&self.user_id, |u| {
-            u.remove_roles(&v)
-        })?)
+        Ok(om::with_user(&self.user_id, |u| u.remove_roles(&v))?)
     }
 
     // The Python user only stores an ID - can just compare the IDs directly.
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<bool> {
         let o = other.extract::<PyRef<Self>>()?;
         Ok(match op {
-            CompareOp::Eq => {
-                self.user_id == o.user_id
+            CompareOp::Eq => self.user_id == o.user_id,
+            CompareOp::Ne => self.user_id != o.user_id,
+            _ => {
+                return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
+                    "Comparison operator '{:?}' is not applicable",
+                    op
+                )))
             }
-            CompareOp::Ne => {
-                self.user_id != o.user_id
-            }
-            _ => return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!("Comparison operator '{:?}' is not applicable", op))),
         })
     }
 }

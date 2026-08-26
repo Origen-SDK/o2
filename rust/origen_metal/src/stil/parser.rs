@@ -236,10 +236,9 @@ pub(crate) fn to_ast_with_options(
                 let n;
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
-                        Rule::name => node!(
-                            STIL::NameMaps,
-                            Some(unquote(p.next().unwrap().as_str()))
-                        ),
+                        Rule::name => {
+                            node!(STIL::NameMaps, Some(unquote(p.next().unwrap().as_str())))
+                        }
                         _ => node!(STIL::NameMaps, None),
                     };
                 } else {
@@ -253,15 +252,13 @@ pub(crate) fn to_ast_with_options(
                 ast.push(if vals.len() == 0 {
                     node!(STIL::NameMapsInherit, None, None)
                 } else if vals.len() == 1 {
-                    node!(
-                        STIL::NameMapsInherit, 
-                        Some(unquote(vals[0])), 
-                        None)
+                    node!(STIL::NameMapsInherit, Some(unquote(vals[0])), None)
                 } else {
                     node!(
-                        STIL::NameMapsInherit, 
+                        STIL::NameMapsInherit,
                         Some(unquote(vals[0])),
-                        Some(unquote(vals[1])))
+                        Some(unquote(vals[1]))
+                    )
                 })
             }
             Rule::nm_inherit_block => {
@@ -274,9 +271,9 @@ pub(crate) fn to_ast_with_options(
                             if let Some(nxt_nxt) = p.peek() {
                                 match nxt_nxt.as_rule() {
                                     Rule::name => node!(
-                                            STIL::NameMapsInherit,
-                                            opt1,
-                                            Some(p.next().unwrap().as_str().to_string())
+                                        STIL::NameMapsInherit,
+                                        opt1,
+                                        Some(p.next().unwrap().as_str().to_string())
                                     ),
                                     _ => node!(STIL::NameMapsInherit, opt1, None),
                                 }
@@ -292,8 +289,13 @@ pub(crate) fn to_ast_with_options(
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
             }
-            Rule::nm_prefix => ast.push(node!(STIL::NameMapsPrefix, inner_strs(pair)[0].to_string())),
-            Rule::nm_separator => ast.push(node!(STIL::NameMapsSeparator, inner_strs(pair)[0].to_string())),
+            Rule::nm_prefix => {
+                ast.push(node!(STIL::NameMapsPrefix, inner_strs(pair)[0].to_string()))
+            }
+            Rule::nm_separator => ast.push(node!(
+                STIL::NameMapsSeparator,
+                inner_strs(pair)[0].to_string()
+            )),
             Rule::nm_scan_cells => {
                 ids.push(ast.push_and_open(node!(STIL::NameMapsScanCells)));
                 pairs.push(pair.into_inner());
@@ -303,15 +305,13 @@ pub(crate) fn to_ast_with_options(
                 ast.push(if vals.len() == 0 {
                     node!(STIL::NameMapsScanCell, None, None)
                 } else if vals.len() == 1 {
-                    node!(
-                        STIL::NameMapsScanCell, 
-                        Some(unquote(vals[0])), 
-                        None)
+                    node!(STIL::NameMapsScanCell, Some(unquote(vals[0])), None)
                 } else {
                     node!(
-                        STIL::NameMapsScanCell, 
+                        STIL::NameMapsScanCell,
                         Some(unquote(vals[0])),
-                        Some(unquote(vals[1])))
+                        Some(unquote(vals[1]))
+                    )
                 })
             }
             Rule::nm_signals => {
@@ -323,15 +323,13 @@ pub(crate) fn to_ast_with_options(
                 ast.push(if vals.len() == 0 {
                     node!(STIL::NameMapsSignal, None, None)
                 } else if vals.len() == 1 {
-                    node!(
-                        STIL::NameMapsSignal, 
-                        Some(unquote(vals[0])), 
-                        None)
+                    node!(STIL::NameMapsSignal, Some(unquote(vals[0])), None)
                 } else {
                     node!(
-                        STIL::NameMapsSignal, 
+                        STIL::NameMapsSignal,
                         Some(unquote(vals[0])),
-                        Some(unquote(vals[1])))
+                        Some(unquote(vals[1]))
+                    )
                 })
             }
             Rule::nm_signal_groups => {
@@ -356,15 +354,13 @@ pub(crate) fn to_ast_with_options(
                 ast.push(if vals.len() == 0 {
                     node!(STIL::NameMapsSignalGroup, None, None)
                 } else if vals.len() == 1 {
-                    node!(
-                        STIL::NameMapsSignalGroup, 
-                        Some(unquote(vals[0])), 
-                        None)
+                    node!(STIL::NameMapsSignalGroup, Some(unquote(vals[0])), None)
                 } else {
                     node!(
-                        STIL::NameMapsSignalGroup, 
+                        STIL::NameMapsSignalGroup,
                         Some(unquote(vals[0])),
-                        Some(unquote(vals[1])))
+                        Some(unquote(vals[1]))
+                    )
                 })
             }
             Rule::nm_variables => {
@@ -376,15 +372,13 @@ pub(crate) fn to_ast_with_options(
                 ast.push(if vals.len() == 0 {
                     node!(STIL::NameMapsVariable, None, None)
                 } else if vals.len() == 1 {
-                    node!(
-                        STIL::NameMapsVariable, 
-                        Some(unquote(vals[0])), 
-                        None)
+                    node!(STIL::NameMapsVariable, Some(unquote(vals[0])), None)
                 } else {
                     node!(
-                        STIL::NameMapsVariable, 
+                        STIL::NameMapsVariable,
                         Some(unquote(vals[0])),
-                        Some(unquote(vals[1])))
+                        Some(unquote(vals[1]))
+                    )
                 })
             }
             Rule::nm_all_names => {
@@ -396,15 +390,13 @@ pub(crate) fn to_ast_with_options(
                 ast.push(if vals.len() == 0 {
                     node!(STIL::NameMapsName, None, None)
                 } else if vals.len() == 1 {
-                    node!(
-                        STIL::NameMapsName, 
-                        Some(vals[0].to_string()), 
-                        None)
+                    node!(STIL::NameMapsName, Some(vals[0].to_string()), None)
                 } else {
                     node!(
-                        STIL::NameMapsName, 
+                        STIL::NameMapsName,
                         Some(vals[0].to_string()),
-                        Some(vals[1].to_string()))
+                        Some(vals[1].to_string())
+                    )
                 })
             }
             Rule::include => {
@@ -739,28 +731,28 @@ pub(crate) fn to_ast_with_options(
                     match inner_pair.as_rule() {
                         Rule::event_char => {
                             let c = match inner_pair.as_str() {
-                                "ForceDown"          => 'D',
-                                "ForceUp"            => 'U',
-                                "ForceOff"           => 'Z',
-                                "ForcePrior"         => 'P',
-                                "ForceUnknown"       => 'N',
-                                "CompareLow"         => 'L',
-                                "CompareHigh"        => 'H',
-                                "CompareUnknown"     => 'X',
-                                "CompareOff"         => 'T',
-                                "CompareValid"       => 'V',
-                                "CompareLowWindow"   => 'l',
-                                "CompareHighWindow"  => 'h',
-                                "CompareOffWindow"   => 't',
+                                "ForceDown" => 'D',
+                                "ForceUp" => 'U',
+                                "ForceOff" => 'Z',
+                                "ForcePrior" => 'P',
+                                "ForceUnknown" => 'N',
+                                "CompareLow" => 'L',
+                                "CompareHigh" => 'H',
+                                "CompareUnknown" => 'X',
+                                "CompareOff" => 'T',
+                                "CompareValid" => 'V',
+                                "CompareLowWindow" => 'l',
+                                "CompareHighWindow" => 'h',
+                                "CompareOffWindow" => 't',
                                 "CompareValidWindow" => 'v',
-                                "LogicLow"           => 'A',
-                                "LogicHigh"          => 'B',
-                                "LogicZUnknown"      => 'F',
-                                "ExpectHigh"         => 'G',
-                                "ExpectLow"          => 'R',
-                                "ExpectOff"          => 'Q',
-                                "Marker"             => 'M',
-                                s                    => s.chars().next().unwrap(),
+                                "LogicLow" => 'A',
+                                "LogicHigh" => 'B',
+                                "LogicZUnknown" => 'F',
+                                "ExpectHigh" => 'G',
+                                "ExpectLow" => 'R',
+                                "ExpectOff" => 'Q',
+                                "Marker" => 'M',
+                                s => s.chars().next().unwrap(),
                             };
                             vals.push(c);
                         }
@@ -774,7 +766,10 @@ pub(crate) fn to_ast_with_options(
                 let n;
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
-                        Rule::name => node!(STIL::ProceduresBlock, Some(unquote(p.next().unwrap().as_str()))),
+                        Rule::name => node!(
+                            STIL::ProceduresBlock,
+                            Some(unquote(p.next().unwrap().as_str()))
+                        ),
                         _ => node!(STIL::ProceduresBlock, None),
                     };
                 } else {
@@ -785,9 +780,10 @@ pub(crate) fn to_ast_with_options(
             }
             Rule::procedures_def => {
                 let mut p = pair.into_inner();
-                ids.push(
-                    ast.push_and_open(node!(STIL::ProceduresDef, unquote(p.next().unwrap().as_str()))),
-                );
+                ids.push(ast.push_and_open(node!(
+                    STIL::ProceduresDef,
+                    unquote(p.next().unwrap().as_str())
+                )));
                 pairs.push(p);
             }
             Rule::macrodefs_block => {
@@ -795,7 +791,10 @@ pub(crate) fn to_ast_with_options(
                 let n;
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
-                        Rule::name => node!(STIL::MacroDefsBlock, Some(unquote(p.next().unwrap().as_str()))),
+                        Rule::name => node!(
+                            STIL::MacroDefsBlock,
+                            Some(unquote(p.next().unwrap().as_str()))
+                        ),
                         _ => node!(STIL::MacroDefsBlock, None),
                     };
                 } else {
@@ -972,7 +971,10 @@ pub(crate) fn to_ast_with_options(
                 ids.push(ast.push_and_open(node!(STIL::NonCyclizedData)));
                 pairs.push(pair.into_inner());
             }
-            Rule::repeat => ast.push(node!(STIL::Repeat, pair.as_str()[2..].parse::<u64>().unwrap())),
+            Rule::repeat => ast.push(node!(
+                STIL::Repeat,
+                pair.as_str()[2..].parse::<u64>().unwrap()
+            )),
             Rule::capture => ast.push(node!(STIL::WfcData, pair.as_str().to_string())),
             Rule::noop => ast.push(node!(STIL::WfcData, pair.as_str().to_string())),
             Rule::waveform_format => ast.push(node!(STIL::WaveformFormat)),
@@ -1039,9 +1041,7 @@ pub(crate) fn to_ast_with_options(
             }
             Rule::call => {
                 let mut p = pair.into_inner();
-                ids.push(
-                    ast.push_and_open(node!(STIL::Call, unquote(p.next().unwrap().as_str()))),
-                );
+                ids.push(ast.push_and_open(node!(STIL::Call, unquote(p.next().unwrap().as_str()))));
                 pairs.push(p);
             }
             Rule::macro_statement => {
@@ -1402,7 +1402,10 @@ mod tests {
         let txt = read("example9");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1411,7 +1414,10 @@ mod tests {
         let txt = read("example10");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1420,7 +1426,10 @@ mod tests {
         let txt = read("example11");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1429,7 +1438,10 @@ mod tests {
         let txt = read("example12");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1438,7 +1450,10 @@ mod tests {
         let txt = read("example13");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1447,7 +1462,10 @@ mod tests {
         let txt = read("example14");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1456,7 +1474,10 @@ mod tests {
         let txt = read("example15");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1465,7 +1486,10 @@ mod tests {
         let txt = read("example16");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1474,7 +1498,10 @@ mod tests {
         let txt = read("example17");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
-            Err(e) => { println!("{}", e); assert_eq!(1, 0); }
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
         }
     }
 
@@ -1487,9 +1514,14 @@ mod tests {
 
         fn find_vector_with_comment_child(node: &Node<STIL>) -> bool {
             if matches!(node.attrs, STIL::Vector) {
-                return node.children.iter().any(|c| matches!(c.attrs, STIL::Comment(_)));
+                return node
+                    .children
+                    .iter()
+                    .any(|c| matches!(c.attrs, STIL::Comment(_)));
             }
-            node.children.iter().any(|c| find_vector_with_comment_child(c))
+            node.children
+                .iter()
+                .any(|c| find_vector_with_comment_child(c))
         }
 
         assert!(
@@ -1519,9 +1551,14 @@ mod tests {
 
         fn find_vector_with_comment_child(node: &Node<STIL>) -> bool {
             if matches!(node.attrs, STIL::Vector) {
-                return node.children.iter().any(|c| matches!(c.attrs, STIL::Comment(_)));
+                return node
+                    .children
+                    .iter()
+                    .any(|c| matches!(c.attrs, STIL::Comment(_)));
             }
-            node.children.iter().any(|c| find_vector_with_comment_child(c))
+            node.children
+                .iter()
+                .any(|c| find_vector_with_comment_child(c))
         }
 
         assert!(

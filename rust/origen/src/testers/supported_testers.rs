@@ -1,7 +1,7 @@
 use crate::Result as OrigenResult;
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use std::fmt;
 use std::str::FromStr;
-use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
 pub enum SupportedTester {
@@ -49,7 +49,7 @@ impl SupportedTester {
         }
         s
     }
-    
+
     pub fn prog_gen_supported_tester(&self) -> OrigenResult<ProgGenSupportedTester> {
         match self {
             SupportedTester::ALL => Ok(ProgGenSupportedTester::ALL),

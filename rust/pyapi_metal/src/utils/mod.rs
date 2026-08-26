@@ -1,9 +1,9 @@
 mod differ;
 pub mod ldap;
-pub mod revision_control;
 pub mod mailer;
-pub mod version;
 pub mod param_str;
+pub mod revision_control;
+pub mod version;
 
 use pyo3::prelude::*;
 use version::Version;

@@ -181,7 +181,7 @@ impl Processor<PAT> for FlattenText {
                     Ok(Return::Unmodified)
                 }
             }
-            _ => Ok(Return::Unmodified) 
+            _ => Ok(Return::Unmodified),
         }
     }
 }
@@ -201,7 +201,10 @@ mod tests {
         text_line.add_child(node!(PAT::Text, "By: user".to_string()));
         text_lines.push(text_line);
         let mut text_line = node!(PAT::TextLine);
-        text_line.add_child(node!(PAT::Text, "Command: origen generate pattern".to_string()));
+        text_line.add_child(node!(
+            PAT::Text,
+            "Command: origen generate pattern".to_string()
+        ));
         text_lines.push(text_line);
         section.add_children(text_lines);
         header.add_child(section);
@@ -220,13 +223,16 @@ mod tests {
         text_line.add_child(node!(PAT::Text, "Version: 2.something".to_string()));
         text_lines.push(text_line);
         let mut text_line = node!(PAT::TextLine);
-        text_line.add_child(node!(PAT::Text, "Executable Path: /path/to/python/python.exe".to_string()));
+        text_line.add_child(node!(
+            PAT::Text,
+            "Executable Path: /path/to/python/python.exe".to_string()
+        ));
         text_lines.push(text_line);
         sub_section.add_children(text_lines);
         section.add_child(sub_section);
         header.add_child(section);
         header.add_child(node!(PAT::TextBoundaryLine));
- 
+
         let header_flat = FlattenText::run(&header).expect("Text flattened");
 
         let mut expect = node!(PAT::PatternHeader);

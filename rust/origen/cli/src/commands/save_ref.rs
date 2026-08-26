@@ -1,22 +1,22 @@
 use std::path::Path;
 
-use origen_metal::framework::reference_files;
 use crate::commands::_prelude::*;
+use origen_metal::framework::reference_files;
 
 pub const BASE_CMD: &'static str = "save_ref";
 
 gen_core_cmd_funcs!(
     BASE_CMD,
     "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated",
-    { |cmd: App<'a>| {
+    { |cmd: App| {
         cmd
             .arg(
                 Arg::new("files")
                     .help("The name of the file(s) to be saved")
-                    .action(SetArg)
+                    .action(AppendArgs)
                     .value_name("FILES")
-                    .multiple(true)
-                    .required_unless_one(&["new", "changed"]),
+                    .num_args(1..)
+                    .required_unless_present_any(["new", "changed"]),
             )
             .arg(
                 Arg::new("new")
@@ -34,7 +34,6 @@ gen_core_cmd_funcs!(
             )
     }}
 );
-
 
 pub fn run(matches: &clap::ArgMatches) -> Result<()> {
     let new = matches.contains_id("new");

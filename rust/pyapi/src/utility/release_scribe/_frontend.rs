@@ -1,6 +1,6 @@
 use crate::application::{get_pyapp, PyApplication};
-use origen_metal::utils::version::Version as OVersion;
 use origen::Result as OResult;
+use origen_metal::utils::version::Version as OVersion;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::path::PathBuf;

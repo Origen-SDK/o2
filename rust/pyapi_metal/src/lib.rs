@@ -3,14 +3,14 @@ pub mod _helpers;
 pub mod framework;
 pub mod frontend;
 pub mod prelude;
-pub mod utils;
 pub mod prog_gen;
+pub mod utils;
 
 #[macro_use]
 pub extern crate origen_metal_backend as origen_metal;
 
-use origen_metal::lazy_static::lazy_static;
 use origen_metal::cfg_if::cfg_if;
+use origen_metal::lazy_static::lazy_static;
 
 use pyo3::prelude::*;
 use pyo3::py_run;
@@ -70,7 +70,13 @@ where
     func(m)?;
     // py_run! is quick-and-dirty; should be replaced by PyO3 API calls in actual code
     py_run!(py, m, &format!("import sys; sys.modules['{}'] = m", path));
-    parent.add_submodule(m)?;
+    let leaf_name = path.rsplit('.').next().unwrap();
+    // Retain the fully-qualified sys.modules key, but expose the module from
+    // its parent under its leaf name. Using add_submodule() with a qualified
+    // __name__ creates an invalid dotted parent attribute and confuses normal
+    // Python introspection (including AutoAPI).
+    m.setattr("__name__", leaf_name)?;
+    parent.add(leaf_name, m)?;
     Ok(())
 }
 

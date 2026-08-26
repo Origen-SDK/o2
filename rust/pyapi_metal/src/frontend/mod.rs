@@ -25,7 +25,10 @@ use pyo3::prelude::*;
 pub use _frontend::Frontend;
 pub use py_data_stores::{PyDataStoreCategory, PyDataStores};
 pub use py_frontend::PyFrontend;
-pub use py_frontend::{with_mut_py_frontend, with_py_frontend, with_required_rc, with_py_data_stores, with_mut_py_data_stores, with_required_mut_py_category, with_required_py_category};
+pub use py_frontend::{
+    with_mut_py_data_stores, with_mut_py_frontend, with_py_data_stores, with_py_frontend,
+    with_required_mut_py_category, with_required_py_category, with_required_rc,
+};
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let fm = PyModule::new(py, "frontend")?;

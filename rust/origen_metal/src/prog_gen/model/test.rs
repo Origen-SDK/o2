@@ -249,7 +249,7 @@ impl TestCollectionItem {
                 )
             }
         } else {
-            self.values.remove(&param_name);
+            self.values.shift_remove(&param_name);
             Ok(())
         }
     }
@@ -443,7 +443,7 @@ impl Test {
                 bail!("The type of the given value for '{}' in test '{}' does not match the required type: expected {:?}, given {:?}", param_name, &self.name, kind, value)
             }
         } else {
-            self.values.remove(&param_name);
+            self.values.shift_remove(&param_name);
             Ok(())
         }
     }

@@ -1,7 +1,7 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::FlowID;
 use crate::prog_gen::{FlowCondition, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 /// This processor will apply the relationships between tests, e.g. if testB should only

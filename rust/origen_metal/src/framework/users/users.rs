@@ -1,6 +1,6 @@
 use super::data::DatasetConfig;
-use super::user::{PopulateUserReturn, SessionConfig, User};
 use super::password_cache_options::PasswordCacheOptions;
+use super::user::{PopulateUserReturn, SessionConfig, User};
 use crate::{Outcome, Result, USERS};
 use indexmap::IndexMap;
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
@@ -472,7 +472,7 @@ impl Users {
 
     pub fn remove(&mut self, id: &str) -> Result<bool> {
         // TODO need call unload on user
-        match self.users.remove(id) {
+        match self.users.shift_remove(id) {
             Some(user) => {
                 let mut retn = false;
                 if let Some(cid) = self.current_id.as_ref() {
@@ -713,7 +713,12 @@ impl Users {
     //     Ok(())
     // }
 
-    pub fn set_default_password_cache_option<P: TryInto<PasswordCacheOptions, Error=crate::Error>>(&mut self, set_to: P) -> Result<()> {
+    pub fn set_default_password_cache_option<
+        P: TryInto<PasswordCacheOptions, Error = crate::Error>,
+    >(
+        &mut self,
+        set_to: P,
+    ) -> Result<()> {
         self.default_password_cache_option = Some(set_to.try_into()?);
         Ok(())
     }

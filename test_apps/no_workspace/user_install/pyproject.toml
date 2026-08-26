@@ -1,13 +1,20 @@
-[tool.poetry]
-name = "TestUserInstall"
+[project]
+name = "test-user-install"
 version = "0.1.0"
-description = "Origen Installation Test"
-authors = ["Origen-SDK"]
+description = "Origen installation test environment"
+requires-python = ">=3.7,<3.13"
+dependencies = [
+    "origen",
+    "origen-metal",
+    "python-plugin",
+    "test-apps-shared-test-helpers",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.7.0,<3.13"
+[tool.uv]
+package = false
 
-origen = { path = "../../../python/origen", develop = true }
-origen_metal = { path = "../../../python/origen_metal", develop = true }
-python_plugin = { path = "../../python_plugin", develop = true }
-test_apps_shared_test_helpers = { path = "../../test_apps_shared_test_helpers", develop = true }
+[tool.uv.sources]
+origen = { path = "../../../python/origen" }
+origen-metal = { path = "../../../python/origen_metal" }
+python-plugin = { path = "../../python_plugin" }
+test-apps-shared-test-helpers = { path = "../../test_apps_shared_test_helpers" }

@@ -1,13 +1,13 @@
 pub mod _frontend;
 
-use pyapi_metal::_helpers::map_to_pydict;
 use crate::runtime_error;
 use origen::STATUS;
+use origen_metal::{Outcome, OutcomeSubtypes};
+use pyapi_metal::_helpers::map_to_pydict;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyType};
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-use origen_metal::{Outcome, OutcomeSubtypes};
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "unit_testers")?;

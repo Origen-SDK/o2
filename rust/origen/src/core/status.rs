@@ -2,9 +2,9 @@ extern crate time;
 use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
-use origen_metal::utils::version::Version;
 use crate::Result as OrigenResult;
 use origen_metal::utils::file::with_dir;
+use origen_metal::utils::version::Version;
 use regex::Regex;
 use std::collections::HashMap;
 use std::env;
@@ -56,11 +56,11 @@ impl FromStr for Operation {
 
 #[derive(Debug, Display)]
 pub enum DependencySrc {
-    // Dependencies resolve from... 
-    App(PathBuf), // the application
-    Workspace(PathBuf), // current directory tree (in workspace)
+    // Dependencies resolve from...
+    App(PathBuf),        // the application
+    Workspace(PathBuf),  // current directory tree (in workspace)
     UserGlobal(PathBuf), // explicitly given by user, no workspace
-    Global(PathBuf), // the origen CLI installation directory, no workspace
+    Global(PathBuf),     // the origen CLI installation directory, no workspace
     NoneFound, // None available. Use whatever is available in the same install environment as Origen itself
 }
 
@@ -74,14 +74,19 @@ impl DependencySrc {
 
     pub fn src_file(&self) -> Option<&PathBuf> {
         match self {
-            Self::App(path) | Self::Workspace(path) | Self::UserGlobal(path) | Self::Global(path) => Some(path),
+            Self::App(path)
+            | Self::Workspace(path)
+            | Self::UserGlobal(path)
+            | Self::Global(path) => Some(path),
             Self::NoneFound => None,
         }
     }
 }
 
 impl<S> TryFrom<(S, Option<PathBuf>)> for DependencySrc
-where S: AsRef<str> {
+where
+    S: AsRef<str>,
+{
     type Error = crate::Error;
 
     fn try_from(value: (S, Option<PathBuf>)) -> Result<Self, Self::Error> {
@@ -90,9 +95,13 @@ where S: AsRef<str> {
                 if let Some(path) = value.1 {
                     Self::$t(path)
                 } else {
-                    bail!(concat!("A path is required with dependency src type '", stringify!($t), "'"));
+                    bail!(concat!(
+                        "A path is required with dependency src type '",
+                        stringify!($t),
+                        "'"
+                    ));
                 }
-            }
+            };
         }
         Ok(match value.0.as_ref() {
             "App" => gen_case!(App),
@@ -100,7 +109,10 @@ where S: AsRef<str> {
             "UserGlobal" => gen_case!(UserGlobal),
             "Global" => gen_case!(Global),
             "NoneFound" => Self::NoneFound,
-            _ => bail!("Cannot convert value '{}' to dependency src type", value.0.as_ref())
+            _ => bail!(
+                "Cannot convert value '{}' to dependency src type",
+                value.0.as_ref()
+            ),
         })
     }
 }
@@ -476,13 +488,13 @@ impl Status {
         self.other_build_info.read().unwrap().to_owned()
     }
 
-    /// Set the base output dir to the given path, it is <APP ROOT>/output by default
+    /// Set the base output dir to the given path, it is `<APP ROOT>/output` by default
     pub fn set_output_dir(&self, path: &Path) {
         let mut dir = self.output_dir.write().unwrap();
         *dir = Some(clean_path(path));
     }
 
-    /// Set the base reference dir to the given path, it is <APP ROOT>/.ref by default
+    /// Set the base reference dir to the given path, it is `<APP ROOT>/.ref` by default
     pub fn set_reference_dir(&self, path: &Path) {
         let mut dir = self.reference_dir.write().unwrap();
         *dir = Some(clean_path(path));
@@ -533,7 +545,7 @@ impl Status {
         dir
     }
 
-    /// Execute the given function with a reference to the current output directory (<APP ROOT>/output by default).
+    /// Execute the given function with a reference to the current output directory (`<APP ROOT>/output` by default).
     /// Optionally, the current working directory can be switched to the output dir before executing
     /// the function and then restored at the end by setting change_to to True.
     /// If this is called when Origen is executing outside of an application workspace then it will
@@ -575,7 +587,7 @@ impl Status {
         }
     }
 
-    /// Execute the given function with a reference to the current reference directory (<APP ROOT>/.ref by default).
+    /// Execute the given function with a reference to the current reference directory (`<APP ROOT>/.ref` by default).
     /// Optionally, the current working directory can be switched to the reference dir before executing
     /// the function and then restored at the end by setting change_to to True.
     /// If this is called when Origen is executing outside of an application workspace then it will

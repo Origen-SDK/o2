@@ -121,10 +121,13 @@ class TestErrorCasesWithFallback():
             del os.environ["ORIGEN_PYPROJECT"]
 
         def test_error_message(self):
-            # Pyproject found but malformed should print the poetry errors as it tries to run.
+            # A malformed pyproject should report UV/TOML errors without falling back.
             # Should not fall back to global install, even if its available. Pyproject should be fixed.
             out = T_InvocationBaseTests.global_cmds.eval.gen_error("1==1", run_opts={"return_details": True}, return_full=True)
-            err = f"Invalid TOML file {self.malformed_pyproject.joinpath('pyproject.toml').as_posix()}"
-            assert err in out["stderr"]
+            assert "Failed to parse" in out["stderr"]
+            # UV reports the path in native form, so this is 'templates\pyproject.toml'
+            # on Windows. Compare with separators normalized rather than assuming
+            # posix, which is what the Poetry-era message happened to emit.
+            assert "templates/pyproject.toml" in out["stderr"].replace("\\", "/")
+            assert "TOML parse error" in out["stderr"]
             assert out["stdout"] == ''
-

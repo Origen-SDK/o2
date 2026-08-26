@@ -1,16 +1,16 @@
 #[macro_use]
 pub extern crate lazy_static;
 pub extern crate config;
-pub extern crate indexmap;
-pub extern crate glob;
-pub extern crate octocrab;
-pub extern crate tera;
-pub extern crate minijinja;
-pub extern crate toml_edit;
 pub extern crate dialoguer;
-pub extern crate reqwest;
 pub extern crate futures;
+pub extern crate glob;
+pub extern crate indexmap;
+pub extern crate minijinja;
+pub extern crate octocrab;
+pub extern crate reqwest;
 pub extern crate serde_json;
+pub extern crate tera;
+pub extern crate toml_edit;
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -31,9 +31,9 @@ pub mod ast;
 mod error;
 pub mod framework;
 pub mod frontend;
+pub mod prog_gen;
 pub mod stil;
 pub mod utils;
-pub mod prog_gen;
 use std::fmt::Display;
 use std::sync::Mutex;
 
@@ -118,8 +118,9 @@ where
 mod tests {
     #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     pub fn run_python(code: &str) -> crate::Result<()> {
-        let mut c = crate::new_cmd!("poetry");
+        let mut c = crate::new_cmd!("uv");
         c.arg("run");
+        c.arg("--no-editable");
         c.arg("python");
         c.arg("-c");
         c.arg(&format!("import origen_metal as om; {}", code));

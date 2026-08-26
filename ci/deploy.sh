@@ -38,7 +38,8 @@ main() {
     # This publishes the Python package (for the current Python version and platform) to PyPI
     else
         pip3 install maturin
-        pip3 install poetry
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
         pip3 install twine
 
         # Make the CLI available

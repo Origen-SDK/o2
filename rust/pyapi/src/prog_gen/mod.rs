@@ -5,10 +5,10 @@ use origen_metal::prog_gen::Model;
 use origen_metal::prog_gen::SupportedTester;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use std::collections::HashMap;
-use std::thread;
 use regex::Regex;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::thread;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
@@ -89,4 +89,3 @@ fn render(py: Python) -> PyResult<Vec<String>> {
         Ok(generated_files)
     })
 }
-

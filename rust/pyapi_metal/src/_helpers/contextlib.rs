@@ -1,24 +1,48 @@
 #![allow(non_snake_case)]
 
+use crate::{cfg_if, runtime_error};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 #[cfg(debug_assertions)]
 use pyo3::types::{PyList, PyModule};
-use crate::{runtime_error, cfg_if};
 
-pub fn wrap_function(py: Python, fn_name: &str, args: Option<Vec<&str>>, scope: Option<&str>, locals: Option<&PyDict>, define_scope: Option<&str>) -> PyResult<PyObject> {
+pub fn wrap_function(
+    py: Python,
+    fn_name: &str,
+    args: Option<Vec<&str>>,
+    scope: Option<&str>,
+    locals: Option<&PyDict>,
+    define_scope: Option<&str>,
+) -> PyResult<PyObject> {
     wrap_context_manager(py, fn_name, args, scope, locals, define_scope)
 }
 
-pub fn wrap_instance_method(py: Python, fn_name: &str, args: Option<Vec<&str>>, locals: Option<&PyDict>) -> PyResult<PyObject> {
+pub fn wrap_instance_method(
+    py: Python,
+    fn_name: &str,
+    args: Option<Vec<&str>>,
+    locals: Option<&PyDict>,
+) -> PyResult<PyObject> {
     wrap_context_manager(py, fn_name, args, Some("self"), locals, None)
 }
 
-pub fn wrap_class_method(py: Python, fn_name: &str, args: Option<Vec<&str>>, locals: Option<&PyDict>) -> PyResult<PyObject> {
+pub fn wrap_class_method(
+    py: Python,
+    fn_name: &str,
+    args: Option<Vec<&str>>,
+    locals: Option<&PyDict>,
+) -> PyResult<PyObject> {
     wrap_context_manager(py, fn_name, args, Some("cls"), locals, None)
 }
 
-pub fn wrap_context_manager(py: Python, fn_name: &str, args: Option<Vec<&str>>, scope: Option<&str>, locals: Option<&PyDict>, define_scope: Option<&str>) -> PyResult<PyObject> {
+pub fn wrap_context_manager(
+    py: Python,
+    fn_name: &str,
+    args: Option<Vec<&str>>,
+    scope: Option<&str>,
+    locals: Option<&PyDict>,
+    define_scope: Option<&str>,
+) -> PyResult<PyObject> {
     let locals_ = locals.unwrap_or(PyDict::new(py));
 
     let (mut wrapping_ins_method, mut wrapping_cls_method) = (false, false);
@@ -30,8 +54,8 @@ pub fn wrap_context_manager(py: Python, fn_name: &str, args: Option<Vec<&str>>, 
                 wrapping_cls_method = true;
             }
             format!("{}.", s)
-        },
-        None => "".to_string()
+        }
+        None => "".to_string(),
     };
 
     let (prototype_args, enter_args) = match args {
@@ -53,25 +77,24 @@ pub fn wrap_context_manager(py: Python, fn_name: &str, args: Option<Vec<&str>>, 
                 } else {
                     args_.clone()
                 },
-                args_
-            )
-        },
-        None => {
-            (
-                if wrapping_ins_method {
-                    "self".to_string()
-                } else if wrapping_cls_method {
-                    "cls".to_string()
-                } else {
-                    "".to_string()
-                },
-                "".to_string()
+                args_,
             )
         }
+        None => (
+            if wrapping_ins_method {
+                "self".to_string()
+            } else if wrapping_cls_method {
+                "cls".to_string()
+            } else {
+                "".to_string()
+            },
+            "".to_string(),
+        ),
     };
 
-    py.run(&format!(
-        r#"
+    py.run(
+        &format!(
+            r#"
 def __cm__{fn_name}({prototype_args}):
     {define_scope}
     yield_context, exit_context = {scope}__enter__{fn_name}({enter_args})
@@ -93,25 +116,26 @@ from contextlib import contextmanager
 if "{scope}" == "cls.":
     {fn_name} = classmethod({fn_name})
     "#,
-        fn_name=fn_name,
-        prototype_args=prototype_args,
-        enter_args=enter_args,
-        scope=scope_,
-        define_scope={
-            match define_scope {
-                Some(ds) => {
-                    ds.split("\n").collect::<Vec<&str>>().join("\n    ")
-                },
-                None => "".to_string()
+            fn_name = fn_name,
+            prototype_args = prototype_args,
+            enter_args = enter_args,
+            scope = scope_,
+            define_scope = {
+                match define_scope {
+                    Some(ds) => ds.split("\n").collect::<Vec<&str>>().join("\n    "),
+                    None => "".to_string(),
+                }
             }
-        }
         ),
         None,
         Some(locals_),
     )?;
     match locals_.get_item(fn_name)? {
         Some(f) => Ok(f.to_object(py)),
-        None => runtime_error!(format!("Unable to find wrapped context manager for {}", fn_name))
+        None => runtime_error!(format!(
+            "Unable to find wrapped context manager for {}",
+            fn_name
+        )),
     }
 }
 

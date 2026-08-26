@@ -1,5 +1,5 @@
-use pyo3::prelude::*;
 use pyapi_metal::PyOutcome;
+use pyo3::prelude::*;
 use std::collections::HashMap;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {

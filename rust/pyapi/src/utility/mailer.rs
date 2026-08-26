@@ -1,8 +1,8 @@
+use origen_metal::utils::mailer::MaillistsTOMLConfig;
+use pyapi_metal::_helpers::{new_py_obj, pytype_from_str};
+use pyapi_metal::utils::mailer::{Mailer, Maillists, OM_MAILER_CLASS_QP, OM_MAILLISTS_CLASS_QP};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use pyapi_metal::_helpers::{new_py_obj, pytype_from_str};
-use origen_metal::utils::mailer::MaillistsTOMLConfig;
-use pyapi_metal::utils::mailer::{Mailer, Maillists, OM_MAILER_CLASS_QP, OM_MAILLISTS_CLASS_QP};
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "mailer")?;
@@ -13,7 +13,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyfunction]
-pub (crate) fn boot_mailer(py: Python) -> PyResult<Option<PyObject>> {
+pub(crate) fn boot_mailer(py: Python) -> PyResult<Option<PyObject>> {
     init_mailer(py).or_else(|e| {
         log_error!("Unable to initialize mailer:");
         log_error!("{}", e.to_string());
@@ -21,12 +21,15 @@ pub (crate) fn boot_mailer(py: Python) -> PyResult<Option<PyObject>> {
     })
 }
 
-pub (crate) fn init_mailer(py: Python) -> PyResult<Option<PyObject>> {
+pub(crate) fn init_mailer(py: Python) -> PyResult<Option<PyObject>> {
     if let Some(mc) = &origen::ORIGEN_CONFIG.mailer {
         log_trace!("Booting Mailer from Origen config...");
         let mailer_obj = new_py_obj(
             py,
-            pytype_from_str(py, mc.class.as_ref().map_or(OM_MAILER_CLASS_QP, |c| c.as_str()))?,
+            pytype_from_str(
+                py,
+                mc.class.as_ref().map_or(OM_MAILER_CLASS_QP, |c| c.as_str()),
+            )?,
             Some(Mailer::toml_config_into_args(py, mc)?),
             None,
         )?;
@@ -39,7 +42,7 @@ pub (crate) fn init_mailer(py: Python) -> PyResult<Option<PyObject>> {
 }
 
 #[pyfunction]
-pub (crate) fn boot_maillists(py: Python) -> PyResult<Option<PyObject>> {
+pub(crate) fn boot_maillists(py: Python) -> PyResult<Option<PyObject>> {
     match init_maillists(py) {
         Ok(mls_obj) => Ok(Some(mls_obj)),
         Err(e) => {
@@ -50,7 +53,7 @@ pub (crate) fn boot_maillists(py: Python) -> PyResult<Option<PyObject>> {
     }
 }
 
-pub (crate) fn init_maillists(py: Python) -> PyResult<PyObject> {
+pub(crate) fn init_maillists(py: Python) -> PyResult<PyObject> {
     let mut default_dirs: Vec<String> = vec![];
     let mut mls_config: MaillistsTOMLConfig;
 
@@ -83,16 +86,17 @@ pub (crate) fn init_maillists(py: Python) -> PyResult<PyObject> {
     }
     mls_config.directories = Some(default_dirs);
 
-    let args_kwargs = Maillists::toml_config_into_args(
-        py,
-        "origen",
-        Some(true),
-        &mls_config
-    )?;
+    let args_kwargs = Maillists::toml_config_into_args(py, "origen", Some(true), &mls_config)?;
 
     let mls_obj = new_py_obj(
         py,
-        pytype_from_str(py, mls_config.class.as_ref().map_or(OM_MAILLISTS_CLASS_QP, |c| c.as_str()))?,
+        pytype_from_str(
+            py,
+            mls_config
+                .class
+                .as_ref()
+                .map_or(OM_MAILLISTS_CLASS_QP, |c| c.as_str()),
+        )?,
         Some(args_kwargs.0),
         Some(args_kwargs.1),
     )?;

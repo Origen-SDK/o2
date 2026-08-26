@@ -1,25 +1,25 @@
 pub mod advantest;
+pub mod config;
 pub mod flow_api;
 mod flow_manager;
 mod model;
 mod nodes;
 mod processors;
-pub mod teradyne;
-mod validators;
-pub mod config;
 mod supported_testers;
+pub mod teradyne;
 pub mod test_ids;
+mod validators;
 
 use std::path::Path;
 use std::path::PathBuf;
 
 pub use flow_manager::FlowManager;
+use model::load_test_from_lib;
 pub use model::Bin;
 pub use model::BinType;
 pub use model::FlowCondition;
 pub use model::FlowID;
 pub use model::GroupType;
-pub use model::{IGXLResource, IGXLResourceKind};
 pub use model::Limit;
 pub use model::LimitSelector;
 pub use model::LimitType;
@@ -36,10 +36,10 @@ pub use model::TestCollectionItem;
 pub use model::Variable;
 pub use model::VariableOperation;
 pub use model::VariableType;
+pub use model::{IGXLResource, IGXLResourceKind};
+pub use model::{TestTemplate, TestTemplateCollection, TestTemplateParameter};
 pub use nodes::PGM;
 pub use supported_testers::SupportedTester;
-pub use model::{TestTemplate, TestTemplateCollection, TestTemplateParameter};
-use model::load_test_from_lib;
 
 use crate::ast::AST;
 use crate::ast::{Attrs, Node};
@@ -95,9 +95,7 @@ impl std::str::FromStr for UniquenessOption {
     }
 }
 
-pub trait ProgramGenerator {
-    
-}
+pub trait ProgramGenerator {}
 
 pub fn trace_error<T: Attrs>(node: &Node<T>, error: crate::Error) -> crate::Result<()> {
     let help = {
@@ -117,7 +115,10 @@ pub fn trace_error<T: Attrs>(node: &Node<T>, error: crate::Error) -> crate::Resu
     bail!("{}\n{}", error, &help)
 }
 
-pub fn render_program(tester: SupportedTester, output_dir: &Path) -> crate::Result<(Vec<PathBuf>, Model)> {
+pub fn render_program(
+    tester: SupportedTester,
+    output_dir: &Path,
+) -> crate::Result<(Vec<PathBuf>, Model)> {
     match tester {
         SupportedTester::V93KSMT7 => advantest::smt7::render(output_dir),
         SupportedTester::V93KSMT8 => advantest::smt8::render(output_dir),
@@ -131,11 +132,7 @@ pub fn render_program(tester: SupportedTester, output_dir: &Path) -> crate::Resu
 pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<String>> {
     match tester {
         SupportedTester::V93KSMT7 | SupportedTester::V93KSMT8 => {
-            let t = load_test_from_lib(
-                &tester,
-                "_internal",
-                "test_suite",
-            )?;
+            let t = load_test_from_lib(&tester, "_internal", "test_suite")?;
             let mut options = vec![];
             if let Some(params) = t.parameter_list {
                 for param in params.keys() {
@@ -155,13 +152,13 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 
 /// Processes the given flow AST so that it is ready to generate the flow for the given tester,
 /// optionally validating it first
-/// 
+///
 /// ```no_run
 /// use origen_metal::FLOW;
 /// use origen_metal::prog_gen::Model;
 /// use origen_metal::prog_gen::SupportedTester;
 /// use origen_metal::prog_gen::process_flow;
-/// 
+///
 /// FLOW.with_all_flows(|flows| {
 ///     let mut model = Model::new(SupportedTester::V93KSMT7);
 ///     for (name, flow) in flows {
@@ -171,12 +168,15 @@ pub fn test_invocation_options(tester: SupportedTester) -> crate::Result<Vec<Str
 ///     Ok(())
 /// });
 /// ```
-pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, validate: bool) -> crate::Result<(Node<PGM>, Model)> {
+pub fn process_flow(
+    flow: &AST<PGM>,
+    model: Model,
+    tester: SupportedTester,
+    validate: bool,
+) -> crate::Result<(Node<PGM>, Model)> {
     log_debug!("Screening flow for tester {:?}", tester);
     //flow.to_file("unprocessed_ast.txt")?;
-    let mut ast = flow.process(&mut |n| {
-        processors::target_tester::run(n, tester)
-    })?;
+    let mut ast = flow.process(&mut |n| processors::target_tester::run(n, tester))?;
 
     if validate {
         log_debug!("Validating flow for tester {:?}", tester);
@@ -192,11 +192,7 @@ pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, vali
     let mut m;
     log_debug!("Extracting initial model from flow for tester {:?}", tester);
     //ast.to_file("pre_initial_model_extract_ast.txt")?;
-    (ast, m) = processors::initial_model_extract::run(
-        &ast,
-        tester,
-        model,
-    )?;
+    (ast, m) = processors::initial_model_extract::run(&ast, tester, model)?;
 
     //ast.to_file("unprocesed_ast.txt")?;
     log_debug!("Processing flow for tester {:?}", tester);
@@ -216,7 +212,7 @@ pub fn process_flow(flow: &AST<PGM>, model: Model, tester: SupportedTester, vali
         SupportedTester::V93KSMT8 => {
             ast = advantest::smt8::processors::create_flow_data::run(&ast)?;
         }
-        _ => { }
+        _ => {}
     }
 
     //ast.to_file("ast.txt")?;

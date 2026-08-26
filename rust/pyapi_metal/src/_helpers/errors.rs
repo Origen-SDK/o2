@@ -42,10 +42,7 @@ macro_rules! key_error {
 #[macro_export]
 macro_rules! key_exception {
     ($message:expr) => {
-        pyo3::exceptions::PyKeyError::new_err(format!(
-            "{}",
-            $message
-        ))
+        pyo3::exceptions::PyKeyError::new_err(format!("{}", $message))
     };
 }
 

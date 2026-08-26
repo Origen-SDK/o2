@@ -22,7 +22,7 @@ fn app_publisher() -> PyResult<Option<PyObject>> {
             app_utility(
                 "publisher",
                 c.publisher.as_ref(),
-                Some("origen.utility.publishers.poetry.Poetry"),
+                Some("origen.utility.publishers.uv.UV"),
                 true,
             )
         }

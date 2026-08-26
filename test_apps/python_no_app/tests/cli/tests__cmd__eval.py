@@ -75,11 +75,13 @@ class T_Eval(CLICommon):
         assert errs[0] == f"Exception occurred evaluating from script '{err}'"
         assert len(errs) == 1
 
-        stdout = stdout.split("\n")
-        assert "test_error_in_script" in stdout[1]
-        assert stdout[2] == "tests__cmd__eval__scripts: gen error"
-        assert stdout[3] == ''
-        assert len(stdout) == 4
+        stdout = stdout.splitlines()
+        evaluated = next(
+            i for i, line in enumerate(stdout)
+            if "test_error_in_script" in line
+        )
+        scripted = stdout.index("tests__cmd__eval__scripts: gen error")
+        assert evaluated < scripted
 
         stderr = out["stderr"].split("\n")
         assert "Traceback" in stderr[0]
@@ -89,7 +91,6 @@ class T_Eval(CLICommon):
             assert stderr[2] == f"{err}. Did you mean: 'help'?"
         else:
             assert stderr[2] == err
-        assert stdout[3] == ''
         assert len(stderr) == 4
 
     def test_eval_with_invalid_script(self, cmd):

@@ -2,10 +2,10 @@ mod bin_array;
 mod item;
 
 use crate::Result;
-use std::collections::HashMap;
 use item::Item;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
+use std::collections::HashMap;
 
 #[cfg(feature = "python")]
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
@@ -77,7 +77,7 @@ impl TestIDs {
             Pool::NumberExclude => self.numbers.exclude.push(value),
         }
     }
-    
+
     #[cfg(feature = "python")]
     pub fn push_range(&mut self, pool: Pool, start: u32, end: u32) {
         match pool {
@@ -98,13 +98,17 @@ impl TestIDs {
             Pool::NumberInclude | Pool::NumberExclude => self.numbers.increment = size,
         }
     }
-    
+
     pub fn allocate(&mut self, test_name: &str) -> Result<Allocation> {
         let opts = AllocationOptions::default();
         self.allocate_with_options(test_name, opts)
     }
 
-    pub fn allocate_with_options(&mut self, test_name: &str, options: AllocationOptions) -> Result<Allocation> {
+    pub fn allocate_with_options(
+        &mut self,
+        test_name: &str,
+        options: AllocationOptions,
+    ) -> Result<Allocation> {
         let key = test_name.to_lowercase();
         let key = key.trim();
         if !self.allocations.contains_key(key) || !options.is_default() {
@@ -112,7 +116,8 @@ impl TestIDs {
                 if let Some(a) = self.allocations.get_mut(key) {
                     a
                 } else {
-                    self.allocations.insert(key.to_string(), Allocation::default());
+                    self.allocations
+                        .insert(key.to_string(), Allocation::default());
                     self.allocations.get_mut(key).unwrap()
                 }
             };
@@ -181,7 +186,7 @@ impl TestIDs {
         }
         Ok(allocation)
     }
-    
+
     pub fn save(&self, file: &str) -> Result<()> {
         let json = serde_json::to_string_pretty(self)?;
         std::fs::write(file, json)?;
@@ -255,7 +260,7 @@ impl AllocationOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn is_alive() {
         let mut tids = TestIDs::new();
@@ -310,7 +315,7 @@ mod tests {
         assert_eq!(tids.allocate("t3").unwrap().bin, Some(2));
         assert_eq!(tids.allocate("t4").unwrap().bin, Some(4));
     }
-    
+
     #[test]
     fn assignments_can_be_inhibited() {
         let mut tids = TestIDs::new();
@@ -343,17 +348,17 @@ mod tests {
         assert_eq!(tids.allocate("t1").unwrap().bin, Some(1));
         assert_eq!(tids.allocate("t2").unwrap().bin, Some(2));
         assert_eq!(tids.allocate("t3").unwrap().bin, Some(4));
-        
+
         tids.save("tids.json").unwrap();
 
         let mut tids = TestIDs::from_file("tids.json").unwrap();
-        
+
         assert_eq!(tids.allocate("t2").unwrap().bin, Some(2));
         assert_eq!(tids.allocate("t4").unwrap().bin, Some(10));
         // remove the file
         std::fs::remove_file("tids.json").unwrap();
     }
-    
+
     #[test]
     fn tests_can_reserve_multiple_bins() {
         let mut tids = TestIDs::new();
@@ -364,11 +369,14 @@ mod tests {
             ..Default::default()
         };
 
-        assert_eq!(tids.allocate_with_options("t1", opts).unwrap().bin, Some(10));
-        assert_eq!(tids.allocate("t2").unwrap().bin, Some(12));  // Incremented by 2
-        assert_eq!(tids.allocate("t3").unwrap().bin, Some(17));  // Incremented by 5 by default
-        assert_eq!(tids.allocate("t4").unwrap().bin, Some(22));  
-        assert_eq!(tids.allocate("t5").unwrap().bin, Some(10));  // Reusing the oldest
+        assert_eq!(
+            tids.allocate_with_options("t1", opts).unwrap().bin,
+            Some(10)
+        );
+        assert_eq!(tids.allocate("t2").unwrap().bin, Some(12)); // Incremented by 2
+        assert_eq!(tids.allocate("t3").unwrap().bin, Some(17)); // Incremented by 5 by default
+        assert_eq!(tids.allocate("t4").unwrap().bin, Some(22));
+        assert_eq!(tids.allocate("t5").unwrap().bin, Some(10)); // Reusing the oldest
         assert_eq!(tids.allocate("t6").unwrap().bin, Some(15));
     }
 }

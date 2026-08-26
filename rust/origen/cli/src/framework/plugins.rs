@@ -1,12 +1,12 @@
-use origen::{Result, ORIGEN_CONFIG};
-use crate::python;
-use std::path::PathBuf;
-use indexmap::IndexMap;
-use crate::commands::_prelude::*;
-use super::{ClapCommand, Command, CommandsToml, CommandTOML, Extensions, build_path};
 use super::helps::NOT_EXTENDABLE_MSG;
+use super::{build_path, ClapCommand, Command, CommandTOML, CommandsToml, Extensions};
+use crate::commands::_prelude::*;
+use crate::python;
+use indexmap::IndexMap;
+use origen::{Result, ORIGEN_CONFIG};
+use std::path::PathBuf;
 
-pub (crate) fn add_pl_ns_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
+pub(crate) fn add_pl_ns_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
     if let Some(pls) = plugins {
         for (pl_name, pl) in pls.plugins.iter() {
             for (n, c) in pl.commands.iter() {
@@ -16,24 +16,33 @@ pub (crate) fn add_pl_ns_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) 
     }
 }
 
-pub (crate) fn add_pl_ns_subcmds<'a>(mut pl_sub: App<'a>, helps: &'a CmdHelps, plugins: &'a Plugins, exts: &'a Extensions) -> Result<App<'a>> {
+pub(crate) fn add_pl_ns_subcmds<'a>(
+    mut pl_sub: App,
+    helps: &'a CmdHelps,
+    plugins: &'a Plugins,
+    exts: &'a Extensions,
+) -> Result<App> {
     for (pl_name, pl) in plugins.plugins.iter() {
-        let mut pl_sub_sub = ClapCommand::new(pl_name.as_str()).setting(AppSettings::ArgRequiredElseHelp).after_help(NOT_EXTENDABLE_MSG);
+        let mut pl_sub_sub = ClapCommand::new(pl_name.clone())
+            .arg_required_else_help(true)
+            .after_help(NOT_EXTENDABLE_MSG);
         for n in pl.top_commands.iter() {
-            pl_sub_sub = pl_sub_sub.subcommand(
-                super::build_commands(
-                    &pl.commands.get(n).unwrap(),
-                    &|cmd, app, opt_cache| {
-                        exts.apply_to_pl_cmd(&pl_name, cmd, app, opt_cache)
-                    },
-                    &|cmd| {
-                        plugins.plugins.get(pl_name).unwrap().commands.get(cmd).unwrap()
-                    },
-                    &|cmd, app| {
-                        helps.apply_helps(&CmdSrc::Plugin(pl_name.to_string(), cmd.to_string()), app)
-                    }
-                )
-            );
+            pl_sub_sub = pl_sub_sub.subcommand(super::build_commands(
+                &pl.commands.get(n).unwrap(),
+                &|cmd, app, opt_cache| exts.apply_to_pl_cmd(&pl_name, cmd, app, opt_cache),
+                &|cmd| {
+                    plugins
+                        .plugins
+                        .get(pl_name)
+                        .unwrap()
+                        .commands
+                        .get(cmd)
+                        .unwrap()
+                },
+                &|cmd, app| {
+                    helps.apply_helps(&CmdSrc::Plugin(pl_name.to_string(), cmd.to_string()), app)
+                },
+            ));
         }
         pl_sub = pl_sub.subcommand(pl_sub_sub)
     }
@@ -41,7 +50,7 @@ pub (crate) fn add_pl_ns_subcmds<'a>(mut pl_sub: App<'a>, helps: &'a CmdHelps, p
 }
 
 pub struct Plugins {
-    pub plugins: IndexMap<String, Plugin>
+    pub plugins: IndexMap<String, Plugin>,
 }
 
 impl Plugins {
@@ -96,15 +105,29 @@ pub struct Plugin {
     pub root: PathBuf,
     // TODO see about making this indices instead of duplicating string
     pub top_commands: Vec<String>,
-    pub commands: IndexMap::<String, Command>,
+    pub commands: IndexMap<String, Command>,
 }
 
 impl Plugin {
-    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML, parent_cmd: Option<&Command>) -> Result<bool> {
-        if let Some(c) = Command::from_toml_cmd(current_cmd, CmdSrc::Plugin(slf.name.to_owned(), current_path.to_string()), parent_cmd)? {
+    fn _add_cmd(
+        slf: &mut Self,
+        current_path: String,
+        current_cmd: &mut CommandTOML,
+        parent_cmd: Option<&Command>,
+    ) -> Result<bool> {
+        if let Some(c) = Command::from_toml_cmd(
+            current_cmd,
+            CmdSrc::Plugin(slf.name.to_owned(), current_path.to_string()),
+            parent_cmd,
+        )? {
             if let Some(ref mut sub_cmds) = current_cmd.subcommand {
                 for mut sub in sub_cmds {
-                    Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub, Some(&c))?;
+                    Self::_add_cmd(
+                        slf,
+                        format!("{}.{}", current_path, &sub.name),
+                        &mut sub,
+                        Some(&c),
+                    )?;
                 }
             }
             slf.commands.insert(current_path.clone(), c);
@@ -118,7 +141,7 @@ impl Plugin {
         let mut slf = Self {
             name: name.to_string(),
             root: path,
-            top_commands: vec!(),
+            top_commands: vec![],
             commands: IndexMap::new(),
         };
 
@@ -145,26 +168,40 @@ impl Plugin {
                 if let Some(extensions) = command_config.extension {
                     for ext in extensions {
                         match exts.add_from_pl_toml(&slf, ext) {
-                            Ok(_) => {},
-                            Err(e) => log_error!("Failed to add extensions from plugin '{}': {}", slf.name, e)
+                            Ok(_) => {}
+                            Err(e) => log_error!(
+                                "Failed to add extensions from plugin '{}': {}",
+                                slf.name,
+                                e
+                            ),
                         }
                     }
                 }
-            },
+            }
             None => log_trace!("No commands.toml file found in plugin '{}'", name),
         };
 
         Ok(slf)
     }
 
-    pub fn dispatch(&self, cmd: &clap::ArgMatches, mut app: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> Result<()> {
+    pub fn dispatch(
+        &self,
+        cmd: &clap::ArgMatches,
+        mut app: &clap::Command,
+        exts: &crate::Extensions,
+        plugins: Option<&crate::Plugins>,
+    ) -> Result<()> {
         if cmd.subcommand().is_some() {
             let path = build_path(&cmd)?;
 
             let mut matches = cmd;
-            let mut path_pieces: Vec<String> = vec!();
+            let mut path_pieces: Vec<String> = vec![];
             let mut overrides = IndexMap::new();
-            app = app.find_subcommand("plugin").unwrap().find_subcommand(&self.name).unwrap();
+            app = app
+                .find_subcommand("plugin")
+                .unwrap()
+                .find_subcommand(&self.name)
+                .unwrap();
             while matches.subcommand_name().is_some() {
                 let n = matches.subcommand_name().unwrap();
                 matches = matches.subcommand_matches(&n).unwrap();
@@ -172,13 +209,25 @@ impl Plugin {
                 path_pieces.push(n.to_string());
             }
 
-            launch_as("_plugin_dispatch_", Some(&path_pieces), matches, app, exts.get_pl_ext(&self.name, &path), plugins, Some(
-                {
-                    overrides.insert("dispatch_root".to_string(), Some(format!("r'{}/commands'", &self.root.display())));
-                    overrides.insert("dispatch_src".to_string(), Some(format!("r'{}'", &self.name)));
+            launch_as(
+                "_plugin_dispatch_",
+                Some(&path_pieces),
+                matches,
+                app,
+                exts.get_pl_ext(&self.name, &path),
+                plugins,
+                Some({
+                    overrides.insert(
+                        "dispatch_root".to_string(),
+                        Some(format!("r'{}/commands'", &self.root.display())),
+                    );
+                    overrides.insert(
+                        "dispatch_src".to_string(),
+                        Some(format!("r'{}'", &self.name)),
+                    );
                     overrides
-                }
-            ));
+                }),
+            );
 
             Ok(())
         } else {

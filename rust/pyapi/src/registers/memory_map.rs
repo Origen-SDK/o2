@@ -219,7 +219,6 @@ pub struct MemoryMap {
 /// User API methods, available to both Rust and Python
 #[pymethods]
 impl MemoryMap {
-
     fn __getattr__(&self, py: Python, query: &str) -> PyResult<PyObject> {
         let dut = origen::dut();
 

@@ -2,8 +2,8 @@ use crate::Result;
 
 pub mod callbacks;
 use origen_metal::utils::version::Version;
+use origen_metal::{Outcome, TypedValueMap, TypedValueVec};
 use std::path::PathBuf;
-use origen_metal::{Outcome, TypedValueVec, TypedValueMap};
 
 use origen_metal::prelude::frontend::*;
 
@@ -290,4 +290,3 @@ pub trait ReleaseScribe {
         self.rc_files()
     }
 }
-

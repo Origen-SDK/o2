@@ -1,16 +1,18 @@
-[tool.poetry]
+[project]
 name = "{{name}}"
 version = "0.1.0"
 description = "{{desc}}"
-authors = ["{{author}}"]
+requires-python = "{{python_version}}"
+authors = [{ name = "{{author}}" }]
+dependencies = [
+    "origen=={{origen_version}}",
+]
 
-[tool.poetry.dependencies]
-python = "{{python_version}}"
-origen = "{{origen_version}}"
-
-[tool.poetry.dev-dependencies]
-pytest = "{{pytest_version}}"
+[dependency-groups]
+# Uncapped, matching every project in the O2 workspace. Resolution already
+# keeps Python 3.7 on pytest 7.x because pytest 8 requires Python >= 3.8.
+dev = ["pytest>=7"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

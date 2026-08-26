@@ -5,12 +5,16 @@ pub const BASE_CMD: &'static str = "plugins";
 gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
     "Interface with the Origen plugin manager",
-    { |cmd: App<'a>| {
-        cmd.visible_alias("pl_mgr").visible_alias("pls").arg_required_else_help(true)
-    }},
-    core_subcmd__no_exts__no_app_opts!("list", "List the available plugins", { |cmd: App| {
-        cmd.visible_alias("ls")
-    }})
+    {
+        |cmd: App| {
+            cmd.visible_alias("pl_mgr")
+                .visible_alias("pls")
+                .arg_required_else_help(true)
+        }
+    },
+    core_subcmd__no_exts__no_app_opts!("list", "List the available plugins", {
+        |cmd: App| cmd.visible_alias("ls")
+    })
 );
 
 pub fn run(cmd: RunInput, plugins: Option<&Plugins>) -> Result<()> {
@@ -29,8 +33,8 @@ pub fn run(cmd: RunInput, plugins: Option<&Plugins>) -> Result<()> {
                 } else {
                     displayln!("The plugin manager is not available or there was an error populating plugins!");
                 }
-            },
-            _ => unreachable_invalid_subc!(subcmd.0)
+            }
+            _ => unreachable_invalid_subc!(subcmd.0),
         }
     }
     Ok(())

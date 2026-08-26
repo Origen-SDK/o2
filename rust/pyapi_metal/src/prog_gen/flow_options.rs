@@ -225,20 +225,17 @@ pub fn get_number(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
             if let Ok(v) = n.extract::<usize>() {
                 return Ok(Some(v));
             } else {
-                bail!(
-                    "Illegal 'number' value, expected an Integer, got: '{}'",
-                    n
-                );
+                bail!("Illegal 'number' value, expected an Integer, got: '{}'", n);
             }
         }
     }
     Ok(None)
-}   
+}
 
 pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
     if let Some(kwargs) = kwargs {
-        let cont =
-            kwargs.get_item("continue")?.is_some() || kwargs.get_item("continue_on_fail")?.is_some();
+        let cont = kwargs.get_item("continue")?.is_some()
+            || kwargs.get_item("continue_on_fail")?.is_some();
         if let Some(on_fail) = kwargs.get_item("on_fail")? {
             let ref_id = flow_api::start_on_failed(fid.to_owned(), None)?;
             if cont {

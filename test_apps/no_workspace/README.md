@@ -20,20 +20,11 @@ For some reason, this confuses `pip`, but is an easy workaround:
 rm python/origen_metal/tmp -r
 ~~~
 
-### Remove Origen-Metal Dependency from Origen
-Origen Metal version will likely not be checked in during development. Get around this by removing it as a dependency from Origen
-Origen Metal can be installed manually afterwards.
-
-~~~
-cd python/origen
-poetry remove origen_metal
-~~~
-
 ### Install Origen & Origen Metal
 
 ~~~
-pip install python/origen
-pip install python/origen_metal
+cd test_apps/no_workspace/user_install
+uv sync --all-groups --no-editable
 ~~~
 
 ### Install Pytest

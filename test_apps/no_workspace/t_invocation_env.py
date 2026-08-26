@@ -8,7 +8,7 @@ sys.path.append(str(p.parent.joinpath("origen_metal")))
 
 import origen, _origen, origen_metal
 
-import pytest, pip, jinja2, shutil, subprocess
+import pytest, jinja2, shutil, subprocess, sysconfig
 from origen.helpers.regressions.cli import CLI
 from types import ModuleType
 from pathlib import Path, PosixPath, WindowsPath
@@ -20,14 +20,13 @@ from dirs import o2_root, cli_dir
 
 PyProjectSrc = _origen.infrastructure.pyproject.PyProjectSrc
 toml = "pyproject.toml"
-lockfile = "poetry.lock"
+lockfile = "uv.lock"
 no_workspace_test_dir = pathlib.Path(__file__).parent
 eval_scripts_dir = no_workspace_test_dir.joinpath("eval_scripts")
 status_eval_script = eval_scripts_dir.joinpath("print_status.py")
 pl_names_eval_script = eval_scripts_dir.joinpath("print_pl_names.py")
 
-# Assume pip is installed in 'site-packages'
-site_packages_dir =  pathlib.Path(pip.__file__).parent.parent
+site_packages_dir = pathlib.Path(sysconfig.get_paths()["purelib"])
 site_cli_dir = site_packages_dir.joinpath("origen/__bin__/bin")
 
 class T_InvocationBaseTests(CLI):
@@ -43,10 +42,10 @@ class T_InvocationBaseTests(CLI):
         cls.set_params()
         if cls.target_pyproj_dir:
             cls.target_pyproj_toml = cls.target_pyproj_dir.joinpath(toml)
-            cls.target_poetry_lock = cls.target_pyproj_dir.joinpath(lockfile)
+            cls.target_uv_lock = cls.target_pyproj_dir.joinpath(lockfile)
         else:
             cls.target_pyproj_toml = None
-            cls.target_poetry_lock = None
+            cls.target_uv_lock = None
 
         if not hasattr(cls, "file_based_evals"):
             cls.file_based_evals = False
@@ -99,8 +98,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
                 cls.move_pyproject = True
             else:
                 cls.move_pyproject = False
-        # TODO clear any existing pyproject/poetry.locks ?
-        # cls._pyproj_lock = cls._pyproj_file.parent.joinpath("poetry.lock")
+        # TODO clear any existing pyproject/uv.lock files?
         # for d in origen_exe_loc.parents:
         #     f = d.joinpath(toml)
         #     if f.exists():
@@ -113,13 +111,13 @@ class T_InvocationEnv(T_InvocationBaseTests):
             shutil.copy(cls._pyproj_src_file, target)
         if cls.target_pyproj_dir:
             subprocess.run(["pip", "--version"], check=True, cwd=cls.target_pyproj_dir)
-            subprocess.run(["poetry", "--version"], check=True, cwd=cls.target_pyproj_dir)
+            subprocess.run(["uv", "--version"], check=True, cwd=cls.target_pyproj_dir)
             install_tries = 0
             while True:
                 print(ta_helpers.is_gh_regressions)
                 print(_origen.utility.revision_control.github.get_current_workflow_name())
                 try:
-                    subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
+                    subprocess.run(["uv", "sync", "--no-editable"], check=True, cwd=cls.target_pyproj_dir)
                     break
                 except subprocess.CalledProcessError as e:
                     if ta_helpers.is_gh_regressions:
@@ -133,9 +131,9 @@ class T_InvocationEnv(T_InvocationBaseTests):
     @classmethod
     def teardown_method(cls):
         if cls.move_pyproject:
-            print(f"Cleaning pyproject and lockfile {cls.target_pyproj_toml}, {cls.target_poetry_lock}")
+            print(f"Cleaning pyproject and lockfile {cls.target_pyproj_toml}, {cls.target_uv_lock}")
             cls.target_pyproj_toml.unlink()
-            cls.target_poetry_lock.unlink()
+            cls.target_uv_lock.unlink()
 
     @classmethod
     def gen_pyproj(cls):

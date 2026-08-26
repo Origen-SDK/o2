@@ -1,9 +1,9 @@
 use crate::with_pycallbacks;
 use origen::Result;
+use pyapi_metal::prelude::typed_value;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
-use pyapi_metal::prelude::typed_value;
-use typed_value::{TypedValueVec, TypedValueMap};
+use typed_value::{TypedValueMap, TypedValueVec};
 
 pub struct Frontend {}
 
@@ -34,14 +34,13 @@ impl origen::core::frontend::Frontend for Frontend {
                     callback.to_object(py),
                     {
                         if let Some(l) = args {
-                            typed_value::into_pylist(py, &mut l.typed_values().iter())?.to_object(py)
+                            typed_value::into_pylist(py, &mut l.typed_values().iter())?
+                                .to_object(py)
                         } else {
                             PyList::empty(py).to_object(py)
                         }
                     },
-                    {
-                        typed_value::option_into_pydict(py, kwargs)?.to_object(py)
-                    },
+                    { typed_value::option_into_pydict(py, kwargs)?.to_object(py) },
                 ],
             );
             let pykwargs = PyDict::new(py);

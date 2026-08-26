@@ -1,6 +1,6 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::{GroupType, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 
 /// Implements continue on a fail branch for V93K by removing any bin nodes that are
 /// siblings of continue nodes. The continue nodes are also removed in the process since

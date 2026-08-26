@@ -1,3 +1,1 @@
-import _origen
-
-Mailer = _origen.utility.mailer.Mailer
+from origen_metal.utils.mailer import Mailer

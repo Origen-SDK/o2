@@ -1,8 +1,8 @@
+use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 use crate::prog_gen::config::SMT8Config;
-use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, PGM, ParamValue};
+use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamValue, PGM};
 use crate::Result;
-use crate::ast::{Node, Processor, Return};
 use indexmap::IndexMap;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
@@ -43,7 +43,7 @@ struct FlowFile {
     existing_test_counter: HashMap<String, usize>,
     existing_flow_counter: HashMap<String, usize>,
     sub_flows: Vec<String>,
-    flow_data: FlowData
+    flow_data: FlowData,
 }
 
 impl FlowFile {
@@ -267,7 +267,11 @@ impl FlowGenerator {
                 writeln!(f, "{}{} = {};", indent, name, v)?;
             }
             ParamValue::List(values) => {
-                let values = values.iter().map(Self::format_list_item).collect::<Result<Vec<String>>>()?.join(", ");
+                let values = values
+                    .iter()
+                    .map(Self::format_list_item)
+                    .collect::<Result<Vec<String>>>()?
+                    .join(", ");
                 writeln!(f, "{}{} = #[{}];", indent, name, values)?;
             }
             ParamValue::Int(v) => {
@@ -280,19 +284,49 @@ impl FlowGenerator {
                 writeln!(f, "{}{} = {};", indent, name, Self::format_plain_float(*v))?;
             }
             ParamValue::Current(v) => {
-                writeln!(f, "{}{} = \"{}[A]\";", indent, name, Self::format_number(*v))?;
+                writeln!(
+                    f,
+                    "{}{} = \"{}[A]\";",
+                    indent,
+                    name,
+                    Self::format_number(*v)
+                )?;
             }
             ParamValue::Voltage(v) => {
-                writeln!(f, "{}{} = \"{}[V]\";", indent, name, Self::format_number(*v))?;
+                writeln!(
+                    f,
+                    "{}{} = \"{}[V]\";",
+                    indent,
+                    name,
+                    Self::format_number(*v)
+                )?;
             }
             ParamValue::Time(v) => {
-                writeln!(f, "{}{} = \"{}[s]\";", indent, name, Self::format_number(*v))?;
+                writeln!(
+                    f,
+                    "{}{} = \"{}[s]\";",
+                    indent,
+                    name,
+                    Self::format_number(*v)
+                )?;
             }
             ParamValue::Frequency(v) => {
-                writeln!(f, "{}{} = \"{}[Hz]\";", indent, name, Self::format_number(*v))?;
+                writeln!(
+                    f,
+                    "{}{} = \"{}[Hz]\";",
+                    indent,
+                    name,
+                    Self::format_number(*v)
+                )?;
             }
             ParamValue::Bool(v) => {
-                writeln!(f, "{}{} = {};", indent, name, if *v { "true" } else { "false" })?;
+                writeln!(
+                    f,
+                    "{}{} = {};",
+                    indent,
+                    name,
+                    if *v { "true" } else { "false" }
+                )?;
             }
         }
         Ok(())
@@ -326,7 +360,9 @@ impl FlowGenerator {
             .iter()
             .filter_map(|(name, value)| {
                 if !self.options.render_default_tmparams
-                    && default_values.get(name).is_some_and(|default| default == value)
+                    && default_values
+                        .get(name)
+                        .is_some_and(|default| default == value)
                 {
                     None
                 } else {
@@ -351,7 +387,9 @@ impl FlowGenerator {
         for name in names {
             if let Some(value) = values.get(&name) {
                 if !self.options.render_default_tmparams
-                    && default_values.get(&name).is_some_and(|default| default == value)
+                    && default_values
+                        .get(&name)
+                        .is_some_and(|default| default == value)
                 {
                     continue;
                 }
@@ -413,10 +451,14 @@ impl FlowGenerator {
         if let Some(current_flow) = self.flow_stack.last_mut() {
             if current_flow.existing_flow_counter.contains_key(&name) {
                 let count = current_flow.existing_flow_counter.get(&name).unwrap() + 1;
-                current_flow.existing_flow_counter.insert(name.to_owned(), count);
+                current_flow
+                    .existing_flow_counter
+                    .insert(name.to_owned(), count);
                 name = format!("{}_{}", name, count);
             } else {
-                current_flow.existing_flow_counter.insert(name.to_owned(), 0);
+                current_flow
+                    .existing_flow_counter
+                    .insert(name.to_owned(), 0);
             }
         }
         let flow_path = match self.flow_stack.last() {
@@ -466,12 +508,12 @@ impl FlowGenerator {
         }
         //// If not the top-level flow itself
         //if !self.flow_stack.is_empty() {
-            for v in flow_file.flow_data.sorted_output_flags() {
-                writeln!(&mut f, "    out {} = -1;", v)?;
-            }
-            if !flow_file.flow_data.output_flags.is_empty() {
-                writeln!(&mut f, "")?;
-            }
+        for v in flow_file.flow_data.sorted_output_flags() {
+            writeln!(&mut f, "    out {} = -1;", v)?;
+        }
+        if !flow_file.flow_data.output_flags.is_empty() {
+            writeln!(&mut f, "")?;
+        }
         //}
         writeln!(&mut f, "    setup {{")?;
         // sort the test suites by the name to ensure consistent ordering in the setup section
@@ -486,12 +528,25 @@ impl FlowGenerator {
                 //if flow_file.name == "ERASE_VFY" {
                 //    dbg!(test);
                 //}
-                writeln!(&mut f, "        suite {} calls {} {{", test_name, test.class_name.as_ref().unwrap())?;
+                writeln!(
+                    &mut f,
+                    "        suite {} calls {} {{",
+                    test_name,
+                    test.class_name.as_ref().unwrap()
+                )?;
                 if let Some(pattern) = test_invocation.get("pattern")?.map(|p| p.to_string()) {
-                    writeln!(&mut f, "            measurement.pattern = setupRef({}patterns.{});", &namespace, pattern)?;
+                    writeln!(
+                        &mut f,
+                        "            measurement.pattern = setupRef({}patterns.{});",
+                        &namespace, pattern
+                    )?;
                 }
                 if let Some(spec) = test_invocation.get("spec")?.map(|p| p.to_string()) {
-                    writeln!(&mut f, "            measurement.specification = setupRef({}specs.{});", &namespace, spec)?;
+                    writeln!(
+                        &mut f,
+                        "            measurement.specification = setupRef({}specs.{});",
+                        &namespace, spec
+                    )?;
                 }
                 self.render_sorted_contents(
                     &mut f,
@@ -505,8 +560,25 @@ impl FlowGenerator {
             writeln!(&mut f, "")?;
         }
         for sub_flow in &flow_file.sub_flows {
-            let relative_path = flow_file.path.strip_prefix(&self.output_dir).unwrap().parent().unwrap().join(flow_file.name.to_lowercase());
-            writeln!(&mut f, "        flow {} calls {}flows.{}.{} {{ }}", sub_flow, &namespace, relative_path.to_str().unwrap().replace("\\", ".").replace("/", "."), sub_flow)?;
+            let relative_path = flow_file
+                .path
+                .strip_prefix(&self.output_dir)
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join(flow_file.name.to_lowercase());
+            writeln!(
+                &mut f,
+                "        flow {} calls {}flows.{}.{} {{ }}",
+                sub_flow,
+                &namespace,
+                relative_path
+                    .to_str()
+                    .unwrap()
+                    .replace("\\", ".")
+                    .replace("/", "."),
+                sub_flow
+            )?;
         }
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
@@ -552,7 +624,10 @@ impl Processor<PGM> for FlowGenerator {
 
                     let mut f = std::fs::File::create(&limits_file)?;
                     self.generated_files.push(limits_file.clone());
-                    writeln!(&mut f, "Test Suite,Test,Test Number,Test Text,Low Limit,High Limit,Unit,Soft Bin")?;
+                    writeln!(
+                        &mut f,
+                        "Test Suite,Test,Test Number,Test Text,Low Limit,High Limit,Unit,Soft Bin"
+                    )?;
                     writeln!(&mut f, ",,,,default,default")?;
                     self.limits_file = Some(f);
                 }
@@ -602,14 +677,16 @@ impl Processor<PGM> for FlowGenerator {
                 node.process_children(self)?;
                 self.sub_flow_open = orig;
                 let flow = self.close_flow_file(self.namespaces.last().cloned())?;
-                let current_flow = self.flow_stack.last_mut().unwrap(); 
+                let current_flow = self.flow_stack.last_mut().unwrap();
                 for v in flow.flow_data.sorted_input_vars() {
                     current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
                 }
                 current_flow.execute_line(format!("{}.execute();", flow.name));
                 current_flow.sub_flows.push(flow.name.clone());
                 for v in flow.flow_data.sorted_output_flags() {
-                    if current_flow.flow_data.output_flags.contains(&v) || current_flow.flow_data.referenced_flags.contains(&v) {
+                    if current_flow.flow_data.output_flags.contains(&v)
+                        || current_flow.flow_data.referenced_flags.contains(&v)
+                    {
                         current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                     }
                 }
@@ -626,14 +703,16 @@ impl Processor<PGM> for FlowGenerator {
                     self.open_flow_file(name, flow_data)?;
                     node.process_children(self)?;
                     let flow = self.close_flow_file(self.namespaces.last().cloned())?;
-                    let current_flow = self.flow_stack.last_mut().unwrap(); 
+                    let current_flow = self.flow_stack.last_mut().unwrap();
                     for v in flow.flow_data.sorted_input_vars() {
                         current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
                     }
                     current_flow.execute_line(format!("{}.execute();", flow.name));
                     current_flow.sub_flows.push(flow.name.clone());
                     for v in flow.flow_data.sorted_output_flags() {
-                        if current_flow.flow_data.output_flags.contains(&v) || current_flow.flow_data.referenced_flags.contains(&v) {
+                        if current_flow.flow_data.output_flags.contains(&v)
+                            || current_flow.flow_data.referenced_flags.contains(&v)
+                        {
                             current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                         }
                     }
@@ -644,7 +723,10 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             PGM::Log(msg) => {
-                self.flow_stack.last_mut().unwrap().execute_line(format!("println(\"{}\");", msg));
+                self.flow_stack
+                    .last_mut()
+                    .unwrap()
+                    .execute_line(format!("println(\"{}\");", msg));
                 Return::None
             }
             PGM::Test(id, _flow_id) => {
@@ -662,9 +744,16 @@ impl Processor<PGM> for FlowGenerator {
                             test_name = format!(
                                 "{}_{}",
                                 test_name,
-                                current_flow.existing_test_counter.get(&orig_test_name).unwrap()
+                                current_flow
+                                    .existing_test_counter
+                                    .get(&orig_test_name)
+                                    .unwrap()
                             );
-                            let count = current_flow.existing_test_counter.get(&orig_test_name).unwrap() + 1;
+                            let count = current_flow
+                                .existing_test_counter
+                                .get(&orig_test_name)
+                                .unwrap()
+                                + 1;
                             current_flow
                                 .existing_test_counter
                                 .insert(orig_test_name, count);
@@ -691,16 +780,15 @@ impl Processor<PGM> for FlowGenerator {
                         (
                             test_name,
                             test_invocation.get("pattern")?.map(|p| p.to_string()),
-                            test_invocation.tname.clone()
+                            test_invocation.tname.clone(),
                         )
                     }
-
                 };
                 if !self.resources_block && self.options.create_limits_file {
                     let test_path = match self.current_flow_path() {
                         Some(p) => format!("{}.{}", p, &test_name),
                         None => test_name.clone(),
-                    };  
+                    };
                     let b = if let Some(softbin) = softbin {
                         softbin.to_string()
                     } else if let Some(bin) = bin {
@@ -731,7 +819,10 @@ impl Processor<PGM> for FlowGenerator {
                     self.model.record_pattern_reference(pattern, None, None);
                 }
                 if !self.resources_block {
-                    self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", &test_name));
+                    self.flow_stack
+                        .last_mut()
+                        .unwrap()
+                        .execute_line(format!("{}.execute();", &test_name));
                     self.render_result_branches(&node.children, &test_name, true)?;
                 }
                 Return::ProcessChildren
@@ -741,7 +832,7 @@ impl Processor<PGM> for FlowGenerator {
                     let test_path = match self.current_flow_path() {
                         Some(p) => format!("{}.{}", p, &name),
                         None => name.clone(),
-                    };  
+                    };
                     writeln!(
                         self.limits_file.as_mut().unwrap(),
                         "{},{},{},{},0,0,,{}",
@@ -752,7 +843,10 @@ impl Processor<PGM> for FlowGenerator {
                         softbin.as_ref().map(|b| b.to_string()).unwrap_or_default()
                     )?;
                 }
-                self.flow_stack.last_mut().unwrap().execute_line(format!("{}.execute();", name));
+                self.flow_stack
+                    .last_mut()
+                    .unwrap()
+                    .execute_line(format!("{}.execute();", name));
                 self.render_result_branches(&node.children, name, true)?;
                 Return::ProcessChildren
             }
@@ -766,8 +860,7 @@ impl Processor<PGM> for FlowGenerator {
                         let current_flow = self.flow_stack.last_mut().unwrap();
                         current_flow.execute_line(format!(
                             "if ({}) {{",
-                            jobs
-                                .iter()
+                            jobs.iter()
                                 .map(|j| {
                                     if jobs.len() > 1 {
                                         format!("(JOB == \"{}\")", j.to_uppercase())
@@ -819,7 +912,7 @@ impl Processor<PGM> for FlowGenerator {
                                     } else {
                                         format!("{} == 1", f.to_uppercase())
                                     }
-                                })  
+                                })
                                 .collect::<Vec<String>>()
                                 .join(" || ")
                         ));
@@ -914,18 +1007,12 @@ impl Processor<PGM> for FlowGenerator {
                 match kind {
                     BinType::Bad => {
                         if current_flow.render_bins {
-                            current_flow.execute_line(format!(
-                                "addBin({});",
-                                softbin.unwrap_or(*bin)
-                            ));
+                            current_flow
+                                .execute_line(format!("addBin({});", softbin.unwrap_or(*bin)));
                         }
-
-                    },
+                    }
                     BinType::Good => {
-                        current_flow.execute_line(format!(
-                            "addBin({});",
-                            softbin.unwrap_or(*bin)
-                        ));
+                        current_flow.execute_line(format!("addBin({});", softbin.unwrap_or(*bin)));
                     }
                 };
                 Return::None
@@ -964,7 +1051,9 @@ impl Processor<PGM> for FlowGenerator {
 #[cfg(test)]
 mod tests {
     use super::{run, FlowGenerator};
-    use crate::prog_gen::{process_flow, FlowCondition, FlowID, Model, ParamValue, PGM, SupportedTester};
+    use crate::prog_gen::{
+        process_flow, FlowCondition, FlowID, Model, ParamValue, SupportedTester, PGM,
+    };
     use std::cmp::Ordering;
     use std::fs;
     use tempfile::tempdir;
@@ -973,7 +1062,10 @@ mod tests {
     fn natural_sort_orders_numeric_suffixes() {
         let mut ids = vec!["param10", "param2", "param1", "param11", "param3"];
         ids.sort_by(|a, b| FlowGenerator::natural_cmp(a, b));
-        assert_eq!(ids, vec!["param1", "param2", "param3", "param10", "param11"]);
+        assert_eq!(
+            ids,
+            vec!["param1", "param2", "param3", "param10", "param11"]
+        );
     }
 
     #[test]
@@ -984,7 +1076,14 @@ mod tests {
             ParamValue::Bool(true),
             ParamValue::Int(3),
         ];
-        assert_eq!(values.iter().map(FlowGenerator::format_list_item).collect::<crate::Result<Vec<String>>>().unwrap(), vec!["\"SLC, SDA\"", "DEFECT_SCREEN", "true", "3"]);
+        assert_eq!(
+            values
+                .iter()
+                .map(FlowGenerator::format_list_item)
+                .collect::<crate::Result<Vec<String>>>()
+                .unwrap(),
+            vec!["\"SLC, SDA\"", "DEFECT_SCREEN", "true", "3"]
+        );
     }
 
     #[test]
@@ -992,10 +1091,23 @@ mod tests {
         let output_dir = tempdir()?;
         let path = output_dir.path().join("params.txt");
         let mut file = std::fs::File::create(&path)?;
-        FlowGenerator::write_param_value(&mut file, 0, "decodingType", &ParamValue::Class("SMU14".to_string()))?;
-        FlowGenerator::write_param_value(&mut file, 0, "categories", &ParamValue::List(vec![ParamValue::Class("DEFECT_SCREEN".to_string())]))?;
+        FlowGenerator::write_param_value(
+            &mut file,
+            0,
+            "decodingType",
+            &ParamValue::Class("SMU14".to_string()),
+        )?;
+        FlowGenerator::write_param_value(
+            &mut file,
+            0,
+            "categories",
+            &ParamValue::List(vec![ParamValue::Class("DEFECT_SCREEN".to_string())]),
+        )?;
         drop(file);
-        assert_eq!(fs::read_to_string(path)?, "decodingType = SMU14;\ncategories = #[DEFECT_SCREEN];\n");
+        assert_eq!(
+            fs::read_to_string(path)?,
+            "decodingType = SMU14;\ncategories = #[DEFECT_SCREEN];\n"
+        );
         Ok(())
     }
 
@@ -1017,8 +1129,14 @@ mod tests {
 
     #[test]
     fn alpha_sort_is_case_insensitive() {
-        assert_eq!(FlowGenerator::alpha_cmp("testName", "testerState"), Ordering::Greater);
-        assert_eq!(FlowGenerator::alpha_cmp("Y1Variable", "zDataDeltaLimit"), Ordering::Less);
+        assert_eq!(
+            FlowGenerator::alpha_cmp("testName", "testerState"),
+            Ordering::Greater
+        );
+        assert_eq!(
+            FlowGenerator::alpha_cmp("Y1Variable", "zDataDeltaLimit"),
+            Ordering::Less
+        );
     }
 
     #[test]
@@ -1044,8 +1162,7 @@ mod tests {
         let flow_path = files
             .iter()
             .find(|path| {
-                path.file_name().and_then(|name| name.to_str())
-                    == Some("CONDITIONAL_RENDER.flow")
+                path.file_name().and_then(|name| name.to_str()) == Some("CONDITIONAL_RENDER.flow")
             })
             .expect("expected generated SMT8 flow file");
         let flow = fs::read_to_string(flow_path)?;
@@ -1078,8 +1195,7 @@ mod tests {
         let flow_path = files
             .iter()
             .find(|path| {
-                path.file_name().and_then(|name| name.to_str())
-                    == Some("MULTILINE_RENDER.flow")
+                path.file_name().and_then(|name| name.to_str()) == Some("MULTILINE_RENDER.flow")
             })
             .expect("expected generated SMT8 flow file");
         let flow = fs::read_to_string(flow_path)?;
@@ -1116,7 +1232,9 @@ mod tests {
         let (_model, files) = run(&ast, output_dir.path(), model)?;
         let flow_path = files
             .iter()
-            .find(|path| path.file_name().and_then(|name| name.to_str()) == Some("IF_FAILED_RETEST.flow"))
+            .find(|path| {
+                path.file_name().and_then(|name| name.to_str()) == Some("IF_FAILED_RETEST.flow")
+            })
             .expect("expected generated SMT8 flow file");
         let flow = fs::read_to_string(flow_path)?;
 
@@ -1124,13 +1242,12 @@ mod tests {
         assert!(flow.contains("if (!primary_check.pass) {"));
         assert!(flow.contains("primary_check_retest.execute();"));
         assert!(flow.contains("if (!primary_check_retest.pass) {"));
-        assert!(!flow.contains(
-            "primary_check.execute();\n        if (!primary_check_retest.pass) {"
-        ));
+        assert!(
+            !flow.contains("primary_check.execute();\n        if (!primary_check_retest.pass) {")
+        );
         Ok(())
     }
 }
-
 
 fn extract_bin(nodes: &Vec<Box<Node<PGM>>>) -> (Option<usize>, Option<usize>) {
     for n in nodes {

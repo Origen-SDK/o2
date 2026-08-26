@@ -1,8 +1,8 @@
+use super::extensions::Extensions;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use super::extensions::Extensions;
-use std::path::PathBuf;
 use std::fmt;
+use std::path::PathBuf;
 
 pub const ATTR_NAME: &str = "_current_command_";
 
@@ -19,7 +19,9 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyfunction]
 pub fn get_command(py: Python) -> PyResult<PyRef<CurrentCommand>> {
-    _origen!(py).getattr(ATTR_NAME)?.extract::<PyRef<CurrentCommand>>()
+    _origen!(py)
+        .getattr(ATTR_NAME)?
+        .extract::<PyRef<CurrentCommand>>()
 }
 
 #[pyfunction]
@@ -42,7 +44,10 @@ fn set_command(
         args: args,
         arg_indices: arg_indices,
         exts: Py::new(py, Extensions::new(py, exts, ext_args, ext_arg_indices)?)?,
-        source: Py::new(py, CommandSource::new(source_type, source_path, source_plugin))?,
+        source: Py::new(
+            py,
+            CommandSource::new(source_type, source_path, source_plugin),
+        )?,
     };
     _origen!(py).setattr(ATTR_NAME, Py::new(py, cmd)?)
 }
@@ -50,7 +55,10 @@ fn set_command(
 #[pyclass]
 #[derive(Clone)]
 pub enum SourceType {
-    Core, Plugin, Aux, App
+    Core,
+    Plugin,
+    Aux,
+    App,
 }
 
 #[pymethods]
@@ -119,7 +127,7 @@ impl CommandSource {
         Self {
             source_type: source_type,
             path: path,
-            plugin: plugin
+            plugin: plugin,
         }
     }
 }
@@ -227,15 +235,27 @@ impl CurrentCommand {
             &src_type,
         );
         match src_type {
-            SourceType::Core => {},
+            SourceType::Core => {}
             SourceType::App | SourceType::Aux | SourceType::Plugin => {
-                s += &format!("\n source-path: {}", self.source.as_ref(py).borrow().path.as_ref().unwrap().display())
+                s += &format!(
+                    "\n source-path: {}",
+                    self.source
+                        .as_ref(py)
+                        .borrow()
+                        .path
+                        .as_ref()
+                        .unwrap()
+                        .display()
+                )
             }
         }
         match src_type {
-            SourceType::Core | SourceType::App => {},
+            SourceType::Core | SourceType::App => {}
             SourceType::Aux | SourceType::Plugin => {
-                s += &format!("\n source-plugin: {}", self.source.as_ref(py).borrow().plugin.as_ref().unwrap())
+                s += &format!(
+                    "\n source-plugin: {}",
+                    self.source.as_ref(py).borrow().plugin.as_ref().unwrap()
+                )
             }
         }
         Ok(s)

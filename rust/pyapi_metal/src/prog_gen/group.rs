@@ -1,5 +1,5 @@
-use origen_metal::prog_gen::{flow_api, FlowID, GroupType};
 use origen_metal::prog_gen::SupportedTester;
+use origen_metal::prog_gen::{flow_api, FlowID, GroupType};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyType};
 

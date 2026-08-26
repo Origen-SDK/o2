@@ -1,5 +1,3 @@
-:orphan:
-
 Community
 =========
 
@@ -30,7 +28,7 @@ Feature Requests
 ----------------
 
 New feature request or expansion on existing features can be requested and discussed on
-:origen_issues_home:`the same page` by applying the ``feature`` tag.
+:origen_issues_home:`the same page <>` by applying the ``feature`` tag.
 
 When requesting a new or expanded feature, please include:
 

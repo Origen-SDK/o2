@@ -32,6 +32,22 @@ cli.InAppCommands.Names.develop_origen = develop_origen
 cli.InAppCommands.develop_origen = develop_origen_cmd()
 cli.InAppCommands.commands.insert(4, cli.InAppCommands.develop_origen)
 
+rc = "rc"
+def rc_cmd():
+    return Cmd(
+        rc,
+        help="Revision-control and release operations",
+        subcmds=[Cmd("tag")],
+    )
+
+cli.GlobalCommands.Names.rc = rc
+cli.GlobalCommands.rc = rc_cmd()
+cli.GlobalCommands.commands.append(cli.GlobalCommands.rc)
+
+cli.InAppCommands.Names.rc = rc
+cli.InAppCommands.rc = rc_cmd()
+cli.InAppCommands.commands.append(cli.InAppCommands.rc)
+
 def apply_ext_output_args(mod):
     from origen.boot import before_cmd, after_cmd, clean_up
     from .ext_helpers import do_action

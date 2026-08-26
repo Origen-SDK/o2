@@ -1,12 +1,12 @@
+use crate::core::model::pins::pin::{PinAction, Resolver};
+use crate::core::model::timesets::timeset::default_resolver;
 use crate::core::tester::Interceptor;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::{Result, DUT};
-use crate::core::model::pins::pin::{PinAction, Resolver};
-use crate::core::model::timesets::timeset::default_resolver;
 
 /// Base trait for IGXL-based testers (J750, UltraFlex).
-/// 
+///
 /// This trait provides common pattern generation behavior via a blanket VectorBased impl.
 pub trait IGXLBase: VectorBased + Interceptor {
     /// Returns true if this tester requires the end_module statement
@@ -47,7 +47,7 @@ impl<T: IGXLBase> VectorBased for T {
     }
 
     /// Generates IGXL vector statements with format: [repeat N] > timeset states ;
-    /// 
+    ///
     /// Capture vectors use 'stv' (store vector) and cannot be compressed with repeat.
     /// Non-capture vectors use repeat statement when count > 1 for pattern compactness.
     fn print_vector(
@@ -58,8 +58,8 @@ impl<T: IGXLBase> VectorBased for T {
     ) -> Option<Result<String>> {
         let states = renderer.states.as_ref().unwrap();
         let tname = renderer.timeset_name().unwrap();
-        
-         // IGXL requires individual 'stv' statements for each capture cycle
+
+        // IGXL requires individual 'stv' statements for each capture cycle
         if states.contains_action(PinAction::capture()) {
             return Some(Ok(vec![
                 format!(
@@ -99,18 +99,18 @@ impl<T: IGXLBase> VectorBased for T {
             "vector ($tset, {})",
             renderer.states(&dut).names().join(", ")
         );
-        
+
         let mut lines = vec![];
-        
+
         // Add tester-specific header lines if any (before vector declaration)
         if let Some(additional) = self.additional_header_lines() {
             lines.extend(additional);
         }
-        
+
         lines.push(pins);
         lines.push("{".to_string());
         lines.push("start_label pattern_st:".to_string());
-        
+
         Some(Ok(lines.join("\n")))
     }
 

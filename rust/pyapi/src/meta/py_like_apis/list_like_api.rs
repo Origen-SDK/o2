@@ -42,9 +42,7 @@ pub trait ListLikeAPI {
             _idx = ((item_ids.len() as isize) + idx) as usize;
         }
 
-        Python::with_gil(|py| {
-            Ok(self.new_pyitem(py, _idx)?)
-        })
+        Python::with_gil(|py| Ok(self.new_pyitem(py, _idx)?))
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
@@ -138,9 +136,7 @@ pub trait GeneralizedListLikeAPI {
             _idx = ((self.items().len() as isize) + idx) as usize;
         }
 
-        Python::with_gil(|py| {
-            Ok(self.new_pyitem(py, &self.items()[_idx], _idx)?)
-        })
+        Python::with_gil(|py| Ok(self.new_pyitem(py, &self.items()[_idx], _idx)?))
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
