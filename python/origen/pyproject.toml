@@ -1,13 +1,13 @@
 [project]
 name = "origen"
-version = "2.0.0.dev8"
+version = "2.0.0.dev9"
 description = "Semiconductor Developer's Kit"
 readme = "README.md"
 requires-python = ">=3.7,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Origen-SDK" }]
 dependencies = [
-    "origen-metal~=1.5.0",
+    "origen-metal~=1.5.1",
     "termcolor>=1.1.0",
     "colorama>=0.4",
     "bs4==0.0.1",

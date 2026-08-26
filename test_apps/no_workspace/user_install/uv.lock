@@ -737,7 +737,7 @@ wheels = [
 
 [[package]]
 name = "origen"
-version = "2.0.0.dev8"
+version = "2.0.0.dev9"
 source = { directory = "../../../python/origen" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -804,7 +804,7 @@ wheels = [
 
 [[package]]
 name = "origen-metal"
-version = "1.5.0"
+version = "1.5.1"
 source = { directory = "../../../python/origen_metal" }
 dependencies = [
     { name = "colorama" },

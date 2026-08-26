@@ -1,3 +1,23 @@
+(release-origen-2-0-0-dev9)=
+# Origen 2.0.0.dev9
+
+- **Released:** 2026-08-26
+- **Author:** Priyavadan Kumar
+- **Tag:** `origen-v2.0.0.dev9`
+
+This release modernizes the O2 development, documentation, CI, and release stack and improves program-generation exception handling.
+
+- Migrated the workspace from Poetry to UV, including committed lockfiles, assisted application migration, rollback protection, and compatibility handling across supported Python versions.
+- Added migration commands that preview and convert existing Poetry applications while preserving the original files if validation fails.
+- Modernized the documentation stack with current Sphinx, MyST, and PyData tooling, refreshed authored documentation, and improved local web development with build, watch, serve, and live-reload support.
+- Added coordinated Origen and Origen Metal releases with atomic version and history updates, exact-reference publication workflows, package verification, resumable releases, and website deployment only after all selected products publish successfully.
+- Updated the Rust workspace and command-line infrastructure, including the Clap migration and stricter command validation.
+- Improved CI performance and coverage with caching, superseded-run cancellation, lockfile validation, wheel ABI verification, and Linux and Windows package checks.
+- Preserved Python 3.7 support by handling the UV Windows launcher incompatibility while keeping dependency resolution sourced from the committed lockfile.
+- Fixed program-generation context cleanup when exceptions occur inside Group, Condition, or Resources blocks. The original exception now propagates without leaving child AST nodes open or being replaced by a secondary closure error. Contributed by Stephen in #238.
+
+---
+
 (release-origen-2-0-0-dev8)=
 # O2 2.0.0.dev8
 
