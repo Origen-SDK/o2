@@ -252,7 +252,7 @@ jobs:
 
       - name: Publish Origen Metal to PyPI
         if: ${{ inputs.publish_python }}
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           packages-dir: om_wheels
           password: ${{ secrets.PYPI_OM_API_TOKEN }}

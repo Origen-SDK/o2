@@ -743,47 +743,25 @@ impl Git {
             let username;
             let password;
             {
-                password = {
-                    if self.credentials.is_some()
-                        && self.credentials.as_ref().unwrap().password.is_some()
-                    {
-                        self.credentials
-                            .as_ref()
-                            .unwrap()
-                            .password
-                            .as_ref()
-                            .unwrap()
-                            .clone()
-                    } else {
-                        // TODO Restore password from current user
-                        todo!("Git: Password from current user");
-                        // crate::with_current_user(|u| {
-                        //     u.password(
-                        //         Some(&format!("to access repository '{}'", url)),
-                        //         true,
-                        //         Some(None),
-                        //     )
-                        // })
-                        // .expect("Couldn't prompt for password")
-                    }
+                password = if let Some(password) = self
+                    .credentials
+                    .as_ref()
+                    .and_then(|credentials| credentials.password.clone())
+                {
+                    password
+                } else {
+                    std::env::var("github_pat").map_err(|_| {
+                        git2::Error::from_str(
+                            "Git HTTPS authentication requires credentials or github_pat",
+                        )
+                    })?
                 };
-                username = {
-                    if self.credentials.is_some()
-                        && self.credentials.as_ref().unwrap().username.is_some()
-                    {
-                        self.credentials
-                            .as_ref()
-                            .unwrap()
-                            .username
-                            .as_ref()
-                            .unwrap()
-                            .clone()
-                    } else {
-                        // crate::core::user::get_current_id().unwrap()
-                        // TODO Restore password from current user
-                        todo!("Git: Add support for current user ID");
-                    }
-                };
+                username = self
+                    .credentials
+                    .as_ref()
+                    .and_then(|credentials| credentials.username.clone())
+                    .or_else(|| std::env::var("github_username").ok())
+                    .unwrap_or_else(|| "x-access-token".to_string());
             }
             self.last_password_attempt
                 .replace(Some(password.to_string()));
@@ -1007,6 +985,17 @@ fn ssh_keys() -> Vec<PathBuf> {
             return vec![];
         }
     };
+    if let Some(key) = std::env::var_os("ORIGEN_GIT_SSH_KEY") {
+        let key = PathBuf::from(key);
+        if key.is_file() {
+            return vec![key];
+        }
+        log_warning!(
+            "ORIGEN_GIT_SSH_KEY points to a missing private key: {}",
+            key.display()
+        );
+        return vec![];
+    }
     let mut keys: Vec<PathBuf> = vec![];
     let dir = home.join(".ssh");
     if dir.exists() {

@@ -16,6 +16,7 @@ local = '../..'
 
 [release]
 provider = 'github_actions'
+orchestrator_workflow = 'release.yml'
 origen_workflow = 'publish.yml'
 origen_metal_workflow = 'publish_metal.yml'
 

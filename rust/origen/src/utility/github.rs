@@ -112,7 +112,7 @@ impl WorkflowRun {
 
     pub fn refresh(&self) -> Result<Self> {
         Ok(serde_json::from_str(&send_get_request(
-            || new_crab(None),
+            || new_crab(Some(GithubAuth::PersonalAccessToken)),
             &self.url,
         )?)?)
     }
@@ -214,14 +214,14 @@ pub fn get_latest_workflow_dispatch(
         uri = format!("{}/{}/{}/actions/runs", uri, owner, repo);
     }
     uri += "?per_page=1";
-    let body = send_get_request(|| new_crab(None), &uri)?;
+    let body = send_get_request(|| new_crab(Some(GithubAuth::PersonalAccessToken)), &uri)?;
     let runs = serde_json::from_str::<WorkflowRuns>(&body)?;
     runs.get_only()
 }
 
 pub fn get_workflow_run_by_id(owner: &str, repo: &str, run_id: u64) -> Result<WorkflowRun> {
     Ok(serde_json::from_str(&send_get_request(
-        || new_crab(None),
+        || new_crab(Some(GithubAuth::PersonalAccessToken)),
         &format!(
             "https://api.github.com/repos/{}/{}/actions/runs/{}",
             owner, repo, run_id
@@ -239,19 +239,23 @@ pub fn dispatch_workflow<H>(
 where
     H: serde::Serialize + Sized,
 {
-    with_blocking_calls(|| {
-        let crab = new_crab(Some(GithubAuth::PersonalAccessToken))?;
-        let actions = crab.actions();
-        let mut workflow = actions.create_workflow_dispatch(owner, repo, workflow, git_ref);
-        if let Some(ins) = inputs.as_ref() {
-            workflow = workflow.inputs(serde_json::json!(ins));
-        }
-        // TODO PublishingO2 Add checks for errors in response
-        block_on!(workflow.send())?;
-        Ok(())
-    })?;
-    let res = Outcome::new_success();
-    Ok(res)
+    let uri = format!(
+        "https://api.github.com/repos/{}/{}/actions/workflows/{}/dispatches",
+        owner, repo, workflow
+    );
+    let payload = match inputs {
+        Some(inputs) => serde_json::json!({
+            "ref": git_ref,
+            "inputs": inputs,
+        }),
+        None => serde_json::json!({ "ref": git_ref }),
+    };
+    send_post_request(
+        || new_crab(Some(GithubAuth::PersonalAccessToken)),
+        &uri,
+        Some(payload),
+    )?;
+    Ok(Outcome::new_success())
 }
 
 pub fn get_branch_protections(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {

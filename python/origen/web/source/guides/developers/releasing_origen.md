@@ -20,8 +20,8 @@ curl -LsSf https://astral.sh/uv/0.12.5/install.sh | sh
 uv --version
 ```
 
-Configure your Git name and credentials, plus the GitHub token used to dispatch
-the configured publication workflow:
+Configure your Git identity and export a GitHub token for the short local
+commit, tag, and workflow-dispatch phase:
 
 ```console
 git config user.name "Your Name"
@@ -29,10 +29,17 @@ git config user.email "you@example.com"
 export github_pat=...
 ```
 
-The command reads the source remote and release branch from
-`config/application.toml`, verifies each package's repository metadata, and
-uses O2's configured revision-control driver. It does not assume a GitHub owner,
-repository, branch, workflow filename, or website checkout.
+Set `ORIGEN_GIT_SSH_KEY` when the checkout uses SSH and more than one GitHub
+identity exists locally. The release workflow itself uses the
+`O2_RELEASE_APP_ID` and `O2_RELEASE_APP_PRIVATE_KEY` repository secrets to
+create a short-lived GitHub App token. The app must have Actions and Contents
+write access to both `Origen-SDK/o2` and
+`Origen-SDK/Origen-SDK.github.io`. Package registry credentials remain in
+their existing GitHub Actions secrets.
+
+The command reads the source remote, release branch, and orchestrator workflow
+from `config/application.toml`, verifies each package's repository metadata,
+and uses O2's configured revision-control driver.
 
 Prepare a release note in `release_note.txt`, pass another file with `--file`,
 or enter the note when prompted. Empty notes are rejected.
@@ -86,19 +93,25 @@ origen rc tag --product origen --product origen-metal
 ```
 
 The command displays the versions, tags, dependency update, configured source,
-workflows, author, and provider, then asks for final confirmation. It performs:
+workflow, author, and provider, then asks for final confirmation. Locally it:
 
-1. workspace, branch, upstream, registry-version, and tag checks;
-2. Rust and Python tests;
-3. atomic Python/Rust manifest and history updates;
-4. wheel, crate, and strict full-documentation validation;
-5. one release commit through the configured RC driver;
-6. product-qualified tags such as `origen-v2.0.0.dev9` and
-   `origen-metal-v1.6.0`;
-7. exact-tag GitHub Actions publication and monitoring;
-8. PyPI verification, plus crates.io verification for Metal;
-9. GitHub Releases rendered from the canonical history entry; and
-10. website build and deployment after every selected package succeeds.
+1. validates the workspace, branch, upstream, registry versions, and tags;
+2. runs Rust and Python tests;
+3. updates Python/Rust manifests, lockfiles, and release histories atomically;
+4. validates wheels, the Metal crate, and strict full documentation;
+5. creates one release commit and product-qualified tags;
+6. pushes the commit and tags;
+7. dispatches the combined GitHub Actions release workflow; and
+8. records the workflow run ID and URL before returning.
+
+GitHub Actions then publishes and verifies Metal before publishing dependent
+Origen packages, creates GitHub Releases, and deploys the website. The local
+terminal does not wait by default. Add `--wait` to retain synchronous
+monitoring:
+
+```console
+origen rc tag --product origen --product origen-metal --wait
+```
 
 The canonical histories are:
 
@@ -135,27 +148,36 @@ origen rc tag \
   --yes
 ```
 
-Missing product, type, note, or `--yes` is an error. A future GA preparation
-workflow can use this interface to open a reviewable release PR; publication
-workflows never calculate versions or edit history themselves.
+Missing product, type, note, or `--yes` is an error. Publication workflows
+consume exact prepared tags; they never calculate versions or edit history.
 
-## Resuming a release
+## Monitoring and resuming a release
 
-Release phase state is stored under `.origen/releases/`. If a commit, tag,
-workflow, registry verification, or website phase fails, retain the checkout and
-resume with the ID printed in the release plan/error output:
+Release state, including the remote workflow run ID and URL, is stored under
+`.origen/releases/`. Check it without redispatching:
 
 ```console
-origen rc tag --resume origen-v2.0.0.dev9
+origen rc tag --status origen-v2.0.0.dev9__origen-metal-v1.6.0
 ```
 
-For a combined release the ID joins both tags with `__`. Resume loads the frozen
-versions and workflows instead of recalculating them. Completed phases are
-skipped. Existing commits and tags are pushed idempotently, and an existing or
-running publication workflow is reused rather than dispatched again.
+Add `--wait` to block until the combined workflow completes:
 
-Do not delete the release state or move tags to recover a failed release. Fix
-the reported credential, registry, workflow, or website problem and resume.
+```console
+origen rc tag \
+  --status origen-v2.0.0.dev9__origen-metal-v1.6.0 \
+  --wait
+```
+
+If preparation, commit, tagging, or dispatch fails, retain the checkout and
+resume with the release ID. Completed local phases are skipped. A queued or
+running combined workflow is reused; a failed combined workflow is
+redispatched:
+
+```console
+origen rc tag --resume origen-v2.0.0.dev9__origen-metal-v1.6.0
+```
+
+Do not delete release state or move published tags to recover a failed release.
 
 ## Verification
 

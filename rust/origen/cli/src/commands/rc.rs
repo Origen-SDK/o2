@@ -50,7 +50,9 @@ gen_core_cmd_funcs__no_exts__no_app_opts!(
             .arg(Arg::new("local").long("local").action(SetArgTrue).conflicts_with("dry-run").help("Prepare versions and histories locally without commit, tag, push, publication, or deployment"))
             .arg(Arg::new("non-interactive").long("non-interactive").action(SetArgTrue).help("Fail instead of prompting when required release inputs are absent"))
             .arg(Arg::new("yes").long("yes").short('y').action(SetArgTrue).help("Accept the final release plan"))
-            .arg(Arg::new("resume").long("resume").action(SetArg).value_name("RELEASE_ID").help("Resume a prepared release by its displayed release ID"))
+            .arg(Arg::new("resume").long("resume").action(SetArg).value_name("RELEASE_ID").conflicts_with("status").help("Resume or redispatch a prepared release by its displayed release ID"))
+            .arg(Arg::new("status").long("status").action(SetArg).value_name("RELEASE_ID").conflicts_with_all(&["resume", "dry-run", "local"]).help("Display the remote workflow status for a prepared release"))
+            .arg(Arg::new("wait").long("wait").action(SetArgTrue).help("Wait for the remote release workflow to finish"))
             .arg(Arg::new("allow-local-changes").long("allow-local-changes").action(SetArgTrue).help("Allow a dirty workspace for local or dry-run simulation only"))
         }
     })
@@ -106,9 +108,11 @@ trait ReleaseEffects {
     fn validate(&mut self) -> Result<()>;
     fn commit(&mut self) -> Result<()>;
     fn tag(&mut self, request: &PublishRequest) -> Result<()>;
-    fn publish(&mut self, request: &PublishRequest) -> Result<()>;
-    fn verify(&mut self, request: &PublishRequest) -> Result<()>;
-    fn deploy_website(&mut self) -> Result<()>;
+    fn dispatch_release(
+        &mut self,
+        release_id: &str,
+        requests: &[PublishRequest],
+    ) -> Result<WorkflowRun>;
 }
 
 struct ProductionEffects<'a> {
@@ -117,52 +121,30 @@ struct ProductionEffects<'a> {
     release_branch: String,
     requests: Vec<PublishRequest>,
     paths: Vec<PathBuf>,
-    app_root: PathBuf,
+    workflow: String,
 }
 
 impl ProductionEffects<'_> {
-    fn workflow<'a>(&self, request: &'a PublishRequest) -> Result<&'a str> {
-        request
-            .workflow
-            .as_deref()
-            .ok_or_else(|| origen::Error::new("A GitHub Actions workflow was not configured"))
-    }
-
-    fn monitor_run(&self, mut run: WorkflowRun) -> Result<()> {
-        for _ in 0..120 {
-            if run.completed() {
-                if run.conclusion.as_deref() == Some("success") {
-                    return Ok(());
-                }
-                bail!(
-                    "Publication workflow failed: {} ({:?})",
-                    run.html_url,
-                    run.conclusion
-                )
-            }
-            thread::sleep(Duration::from_secs(5));
-            run = run.refresh()?;
-        }
-        bail!(
-            "Timed out waiting for publication workflow {}",
-            run.html_url
-        )
-    }
-
-    fn wait_for_dispatched_run(&self, workflow: &str, previous_id: Option<u64>) -> Result<()> {
-        for _ in 0..120 {
-            if let Ok(run) =
-                get_latest_workflow_dispatch(&self.repo.owner, &self.repo.name, Some(workflow))
-            {
-                if previous_id.map_or(true, |id| run.id != id) {
-                    return self.monitor_run(run);
+    fn find_dispatched_run(
+        &self,
+        previous_id: Option<u64>,
+        expected_ref: &str,
+    ) -> Result<WorkflowRun> {
+        for _ in 0..30 {
+            if let Ok(run) = get_latest_workflow_dispatch(
+                &self.repo.owner,
+                &self.repo.name,
+                Some(&self.workflow),
+            ) {
+                if run.head_branch == expected_ref && previous_id.map_or(true, |id| run.id != id) {
+                    return Ok(run);
                 }
             }
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_secs(2));
         }
         bail!(
-            "Timed out waiting for dispatched workflow '{}' to start",
-            workflow
+            "Timed out waiting for release workflow '{}' to start",
+            self.workflow
         )
     }
 }
@@ -191,90 +173,50 @@ impl ReleaseEffects for ProductionEffects<'_> {
         )
     }
 
-    fn publish(&mut self, request: &PublishRequest) -> Result<()> {
-        let workflow = self.workflow(request)?;
+    fn dispatch_release(
+        &mut self,
+        release_id: &str,
+        requests: &[PublishRequest],
+    ) -> Result<WorkflowRun> {
         let latest =
-            get_latest_workflow_dispatch(&self.repo.owner, &self.repo.name, Some(workflow)).ok();
+            get_latest_workflow_dispatch(&self.repo.owner, &self.repo.name, Some(&self.workflow))
+                .ok();
         if let Some(run) = latest.as_ref() {
-            if run.head_branch == request.tag {
-                if run.completed() && run.conclusion.as_deref() == Some("success") {
-                    return Ok(());
-                }
-                if !run.completed() {
-                    return self.monitor_run(run.refresh()?);
-                }
-            } else if !run.completed() {
-                bail!(
-                    "Another '{}' publication workflow is already running at {}; resume after it completes",
-                    workflow,
-                    run.html_url
-                )
+            if requests
+                .iter()
+                .any(|request| request.tag == run.head_branch)
+                && !run.completed()
+            {
+                return Ok(run.refresh()?);
             }
         }
-        let before = latest.map(|r| r.id);
-        let inputs = match request.product {
-            Product::Origen => serde_json::json!({
-                "release_ref": request.tag,
-                "version": request.version,
-                "publish_pypi": true,
-                "publish_pypi_test": false,
-                "publish_github_release": true,
-                "prerelease": request.version.contains("dev") || request.version.contains("alpha") || request.version.contains("beta"),
-            }),
-            Product::Metal => serde_json::json!({
-                "release_ref": request.tag,
-                "version": request.version,
-                "publish_python": true,
-                "publish_rust": true,
-                "publish_github_release": true,
-            }),
-        };
+        let previous_id = latest.map(|run| run.id);
+        let origen = requests
+            .iter()
+            .find(|request| request.product == Product::Origen);
+        let metal = requests
+            .iter()
+            .find(|request| request.product == Product::Metal);
+        let workflow_ref = metal
+            .or(origen)
+            .ok_or_else(|| origen::Error::new("A release requires at least one product"))?
+            .tag
+            .clone();
+        let inputs = serde_json::json!({
+            "release_id": release_id,
+            "origen_ref": origen.map(|request| request.tag.as_str()).unwrap_or(""),
+            "origen_version": origen.map(|request| request.version.as_str()).unwrap_or(""),
+            "metal_ref": metal.map(|request| request.tag.as_str()).unwrap_or(""),
+            "metal_version": metal.map(|request| request.version.as_str()).unwrap_or(""),
+        });
         dispatch_workflow(
             &self.repo.owner,
             &self.repo.name,
-            workflow,
-            &request.tag,
+            &self.workflow,
+            &workflow_ref,
             Some(inputs),
         )?;
-        self.wait_for_dispatched_run(workflow, before)
-    }
-
-    fn verify(&mut self, request: &PublishRequest) -> Result<()> {
-        let package = match request.product {
-            Product::Origen => "origen",
-            Product::Metal => "origen-metal",
-        };
-        // Reads backwards, so to be explicit: 'is_package_version_available'
-        // answers "is this version number still free on the registry?". After a
-        // successful publication it must be taken, so a 'true' here means the
-        // upload did not land.
-        if is_package_version_available(package, &request.version)? {
-            bail!(
-                "{} {} was not found on PyPI after publication",
-                package,
-                request.version
-            )
-        }
-        if request.product == Product::Metal
-            && is_crate_version_available("origen_metal", &request.version)?
-        {
-            bail!(
-                "origen_metal {} was not found on crates.io after publication",
-                request.version
-            )
-        }
-        Ok(())
-    }
-
-    fn deploy_website(&mut self) -> Result<()> {
-        let status = Command::new(std::env::current_exe()?)
-            .current_dir(&self.app_root)
-            .args(["web", "build", "--release"])
-            .status()?;
-        if !status.success() {
-            bail!("Website build/deployment failed")
-        }
-        Ok(())
+        self.find_dispatched_run(previous_id, &workflow_ref)
     }
 }
 
@@ -321,6 +263,10 @@ struct ReleaseState {
     release_branch: String,
     provider: String,
     completed: Vec<String>,
+    #[serde(default)]
+    workflow_run_id: Option<u64>,
+    #[serde(default)]
+    workflow_url: Option<String>,
     requests: Vec<PublishRequest>,
 }
 
@@ -338,6 +284,8 @@ impl ReleaseState {
             release_branch,
             provider,
             completed: Vec::new(),
+            workflow_run_id: None,
+            workflow_url: None,
             requests,
         }
     }
@@ -396,23 +344,69 @@ fn execute_remote_phases<E: ReleaseEffects>(
             || effects.tag(request),
         )?;
     }
-    for request in requests {
-        run_phase(
-            state,
-            state_path,
-            &format!("published:{}", request.tag),
-            || effects.publish(request),
-        )?;
-        run_phase(
-            state,
-            state_path,
-            &format!("verified:{}", request.tag),
-            || effects.verify(request),
-        )?;
+    if state.workflow_run_id.is_none() {
+        displayln!("Running release phase: dispatched");
+        let run = effects.dispatch_release(&state.release_id, requests)?;
+        state.workflow_run_id = Some(run.id);
+        state.workflow_url = Some(run.html_url.clone());
+        state.complete("dispatched");
+        state.save(state_path)?;
+    } else {
+        displayln!("Skipping completed release phase: dispatched");
     }
-    run_phase(state, state_path, "website_deployed", || {
-        effects.deploy_website()
+    displayln!(
+        "Release workflow dispatched: {}",
+        state.workflow_url.as_deref().unwrap_or("URL unavailable")
+    );
+    Ok(())
+}
+
+fn monitor_release_workflow(
+    repo: &GithubRepository,
+    state: &mut ReleaseState,
+    state_path: &Path,
+    wait: bool,
+) -> Result<()> {
+    let run_id = state.workflow_run_id.ok_or_else(|| {
+        origen::Error::new(&format!(
+            "Release '{}' has not dispatched a workflow",
+            state.release_id
+        ))
     })?;
+    let mut run = origen::utility::github::get_workflow_run_by_id(&repo.owner, &repo.name, run_id)?;
+    if wait {
+        for _ in 0..1440 {
+            if run.completed() {
+                break;
+            }
+            thread::sleep(Duration::from_secs(5));
+            run = run.refresh()?;
+        }
+    }
+    if wait && !run.completed() {
+        bail!("Timed out waiting for release workflow {}", run.html_url)
+    }
+    displayln!(
+        "Release workflow: {} ({})",
+        run.html_url,
+        if run.completed() {
+            run.conclusion.as_deref().unwrap_or("completed")
+        } else {
+            &run.status
+        }
+    );
+    if !run.completed() {
+        return Ok(());
+    }
+    if run.conclusion.as_deref() != Some("success") {
+        bail!(
+            "Release workflow failed: {} ({:?})",
+            run.html_url,
+            run.conclusion
+        )
+    }
+    state.complete("workflow_succeeded");
+    state.save(state_path)?;
     Ok(())
 }
 
@@ -441,6 +435,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     let non_interactive = *args.get_one::<bool>("non-interactive").unwrap();
     let dry_run = *args.get_one::<bool>("dry-run").unwrap();
     let local = *args.get_one::<bool>("local").unwrap();
+    let wait = *args.get_one::<bool>("wait").unwrap();
 
     let app =
         origen::app().ok_or_else(|| origen::Error::new("rc tag requires an Origen application"))?;
@@ -467,6 +462,10 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         .get("provider")
         .cloned()
         .ok_or_else(|| origen::Error::new("release.provider is required"))?;
+    let release_workflow = release_config
+        .get("orchestrator_workflow")
+        .cloned()
+        .ok_or_else(|| origen::Error::new("release.orchestrator_workflow is required"))?;
     let rc = app.rc()?;
     let actual_remote = rc.remote_url()?;
     if normalize_repository(&actual_remote) != normalize_repository(&configured_remote) {
@@ -477,6 +476,19 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         )
     }
     let root = origen::STATUS.origen_wksp_root.clone();
+    if let Some(release_id) = args.get_one::<String>("status") {
+        let state_path = app
+            .root
+            .join(".origen/releases")
+            .join(format!("{}.toml", release_id));
+        if !state_path.is_file() {
+            bail!("No release state exists at {}", state_path.display())
+        }
+        let mut state = ReleaseState::load(&state_path)?;
+        let repository = GithubRepository::from_remote(&configured_remote)?;
+        monitor_release_workflow(&repository, &mut state, &state_path, wait)?;
+        return Ok(());
+    }
     if let Some(release_id) = args.get_one::<String>("resume") {
         if dry_run || local {
             bail!("--resume continues a prepared remote release and cannot be combined with --dry-run or --local")
@@ -514,6 +526,24 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             bail!("Resume currently requires the github_actions release provider")
         }
         let repository = GithubRepository::from_remote(&configured_remote)?;
+        if state.workflow_run_id.is_some() {
+            let run = origen::utility::github::get_workflow_run_by_id(
+                &repository.owner,
+                &repository.name,
+                state.workflow_run_id.unwrap(),
+            )?;
+            if !run.completed() || run.conclusion.as_deref() == Some("success") {
+                monitor_release_workflow(&repository, &mut state, &state_path, wait)?;
+                return Ok(());
+            }
+            displayln!("Redispatching failed release workflow: {}", run.html_url);
+            state.workflow_run_id = None;
+            state.workflow_url = None;
+            state
+                .completed
+                .retain(|phase| phase != "dispatched" && phase != "workflow_succeeded");
+            state.save(&state_path)?;
+        }
         let paths = release_paths(&root, &state.requests)?;
         let requests = state.requests.clone();
         let mut effects = ProductionEffects {
@@ -522,9 +552,12 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             release_branch: state.release_branch.clone(),
             requests: requests.clone(),
             paths,
-            app_root: app.root.clone(),
+            workflow: release_workflow.clone(),
         };
         execute_remote_phases(&mut effects, &requests, &mut state, &state_path)?;
+        if wait {
+            monitor_release_workflow(&repository, &mut state, &state_path, true)?;
+        }
         displayln!("Release '{}' resumed successfully", release_id);
         return Ok(());
     }
@@ -660,7 +693,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         })
         .collect::<Vec<String>>()
         .join("__");
-    let requests: Vec<PublishRequest> = plans
+    let mut requests: Vec<PublishRequest> = plans
         .iter()
         .map(|plan| PublishRequest {
             product: plan.product,
@@ -673,6 +706,10 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             workflow: plan.workflow.clone(),
         })
         .collect();
+    requests.sort_by_key(|request| match request.product {
+        Product::Metal => 0,
+        Product::Origen => 1,
+    });
     let state_path = app
         .root
         .join(".origen/releases")
@@ -712,6 +749,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     }
     displayln!("  Source: {} ({})", configured_remote, release_branch);
     displayln!("  Publication provider: {}", provider);
+    displayln!("  Orchestrator workflow: {}", release_workflow);
     if let Some(repo) = &github_repository {
         displayln!("  GitHub repository: {}/{}", repo.owner, repo.name);
     }
@@ -861,10 +899,13 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         release_branch: release_branch.clone(),
         requests: requests.clone(),
         paths: commit_paths,
-        app_root: app.root.clone(),
+        workflow: release_workflow,
     };
     execute_remote_phases(&mut effects, &requests, &mut release_state, &state_path)?;
-    displayln!("Release completed successfully");
+    if wait {
+        monitor_release_workflow(repo, &mut release_state, &state_path, true)?;
+    }
+    displayln!("Release dispatched successfully");
     Ok(())
 }
 
@@ -1208,7 +1249,7 @@ fn validate_prepared_artifacts(root: &Path, requests: &[PublishRequest]) -> Resu
         )?;
         run_checked(
             Path::new("cargo"),
-            &["publish", "--dry-run", "--locked"],
+            &["publish", "--dry-run", "--locked", "--allow-dirty"],
             &root.join("rust/origen_metal"),
         )?;
     }
@@ -1419,32 +1460,57 @@ mod tests {
         fn tag(&mut self, request: &PublishRequest) -> Result<()> {
             self.call(format!("tag:{}", request.tag))
         }
-        fn publish(&mut self, request: &PublishRequest) -> Result<()> {
-            self.call(format!("publish:{}", request.tag))
-        }
-        fn verify(&mut self, request: &PublishRequest) -> Result<()> {
-            self.call(format!("verify:{}", request.tag))
-        }
-        fn deploy_website(&mut self) -> Result<()> {
-            self.call("website".to_string())
+        fn dispatch_release(
+            &mut self,
+            release_id: &str,
+            _requests: &[PublishRequest],
+        ) -> Result<WorkflowRun> {
+            self.call(format!("dispatch:{}", release_id))?;
+            Ok(workflow_run())
         }
     }
 
     fn requests() -> Vec<PublishRequest> {
         vec![
             PublishRequest {
-                product: Product::Origen,
-                tag: "origen-v2.0.0.dev9".to_string(),
-                version: "2.0.0.dev9".to_string(),
-                workflow: Some("publish.yml".to_string()),
-            },
-            PublishRequest {
                 product: Product::Metal,
                 tag: "origen-metal-v1.6.0".to_string(),
                 version: "1.6.0".to_string(),
                 workflow: Some("publish_metal.yml".to_string()),
             },
+            PublishRequest {
+                product: Product::Origen,
+                tag: "origen-v2.0.0.dev9".to_string(),
+                version: "2.0.0.dev9".to_string(),
+                workflow: Some("publish.yml".to_string()),
+            },
         ]
+    }
+
+    fn workflow_run() -> WorkflowRun {
+        WorkflowRun {
+            id: 42,
+            name: "Release O2 Products".to_string(),
+            head_branch: "origen-metal-v1.6.0".to_string(),
+            head_sha: "abc123".to_string(),
+            status: "queued".to_string(),
+            conclusion: None,
+            url: "https://api.github.com/repos/Origen-SDK/o2/actions/runs/42".to_string(),
+            html_url: "https://github.com/Origen-SDK/o2/actions/runs/42".to_string(),
+            run_attempt: 1,
+            path: ".github/workflows/release.yml".to_string(),
+            event: "workflow_dispatch".to_string(),
+            created_at: "2026-08-26T00:00:00Z".to_string(),
+            updated_at: "2026-08-26T00:00:00Z".to_string(),
+            run_started_at: "2026-08-26T00:00:00Z".to_string(),
+            triggering_actor: origen::utility::github::Actor {
+                login: "release-app".to_string(),
+                id: 1,
+                r#type: "Bot".to_string(),
+            },
+            cancel_url: "https://api.github.com/runs/42/cancel".to_string(),
+            rerun_url: "https://api.github.com/runs/42/rerun".to_string(),
+        }
     }
 
     fn state(id: &str, requests: Vec<PublishRequest>) -> ReleaseState {
@@ -1605,69 +1671,62 @@ mod tests {
     }
 
     #[test]
-    fn remote_phases_are_ordered_and_combined_release_deploys_once() -> Result<()> {
+    fn remote_phases_tag_metal_first_and_dispatch_once() -> Result<()> {
         let root = tempfile::tempdir()?;
         let path = root.path().join("state.toml");
-        let mut state = state("combined", requests());
+        let requests = requests();
+        let mut state = state("combined", requests.clone());
         let mut effects = FakeEffects::default();
-        execute_remote_phases(&mut effects, &requests(), &mut state, &path)?;
+        execute_remote_phases(&mut effects, &requests, &mut state, &path)?;
         assert_eq!(
             effects.calls,
             vec![
                 "validate",
                 "commit",
-                "tag:origen-v2.0.0.dev9",
                 "tag:origen-metal-v1.6.0",
-                "publish:origen-v2.0.0.dev9",
-                "verify:origen-v2.0.0.dev9",
-                "publish:origen-metal-v1.6.0",
-                "verify:origen-metal-v1.6.0",
-                "website",
+                "tag:origen-v2.0.0.dev9",
+                "dispatch:combined",
             ]
         );
+        let state = ReleaseState::load(&path)?;
+        assert_eq!(state.workflow_run_id, Some(42));
+        assert_eq!(
+            state.workflow_url.as_deref(),
+            Some("https://github.com/Origen-SDK/o2/actions/runs/42")
+        );
+        assert!(state.is_complete("dispatched"));
         Ok(())
     }
 
     #[test]
-    fn failed_remote_phase_resumes_without_repeating_completed_work() -> Result<()> {
+    fn dispatched_release_does_not_repeat_remote_work() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let path = root.path().join("state.toml");
+        let requests = requests();
+        let mut state = state("combined", requests.clone());
+        execute_remote_phases(&mut FakeEffects::default(), &requests, &mut state, &path)?;
+        let mut state = ReleaseState::load(&path)?;
+        let mut resumed = FakeEffects::default();
+        execute_remote_phases(&mut resumed, &requests, &mut state, &path)?;
+        assert!(resumed.calls.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn failed_dispatch_resumes_without_repeating_commit_or_tags() -> Result<()> {
         let root = tempfile::tempdir()?;
         let path = root.path().join("state.toml");
         let requests = requests();
         let mut state = state("combined", requests.clone());
         let mut first = FakeEffects {
             calls: Vec::new(),
-            fail_on: Some("publish:origen-metal-v1.6.0".to_string()),
+            fail_on: Some("dispatch:combined".to_string()),
         };
         assert!(execute_remote_phases(&mut first, &requests, &mut state, &path).is_err());
         let mut state = ReleaseState::load(&path)?;
         let mut resumed = FakeEffects::default();
         execute_remote_phases(&mut resumed, &requests, &mut state, &path)?;
-        assert_eq!(
-            resumed.calls,
-            vec![
-                "publish:origen-metal-v1.6.0",
-                "verify:origen-metal-v1.6.0",
-                "website",
-            ]
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn failed_website_deployment_resumes_without_republishing() -> Result<()> {
-        let root = tempfile::tempdir()?;
-        let path = root.path().join("state.toml");
-        let requests = vec![requests().remove(0)];
-        let mut state = state("origen", requests.clone());
-        let mut first = FakeEffects {
-            calls: Vec::new(),
-            fail_on: Some("website".to_string()),
-        };
-        assert!(execute_remote_phases(&mut first, &requests, &mut state, &path).is_err());
-        let mut state = ReleaseState::load(&path)?;
-        let mut resumed = FakeEffects::default();
-        execute_remote_phases(&mut resumed, &requests, &mut state, &path)?;
-        assert_eq!(resumed.calls, vec!["website"]);
+        assert_eq!(resumed.calls, vec!["dispatch:combined"]);
         Ok(())
     }
 }

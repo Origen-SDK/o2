@@ -327,7 +327,7 @@ jobs:
         run: ls -al ./origen_wheels
 
       - name: Push To PyPi Test Server
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           packages-dir: origen_wheels
           password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
@@ -357,7 +357,7 @@ jobs:
         run: ls -al ./origen_wheels
 
       - name: Push To PyPi Server
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           packages-dir: origen_wheels
           password: ${{ secrets.PYPI_ORIGEN_API_TOKEN }}

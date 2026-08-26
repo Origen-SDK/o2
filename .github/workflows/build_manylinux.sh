@@ -1,11 +1,29 @@
 #!/bin/bash
+set -euo pipefail
 
 export ORIGEN_PUBLISH_STEP=1
+ROOT_DIR="${ROOT_DIR:-$PWD}"
+
+: "${GIT_DIR:?GIT_DIR is required}"
+: "${PYTHON_VERSION:?PYTHON_VERSION is required}"
+: "${PACKAGE_TO_BUILD:?PACKAGE_TO_BUILD is required}"
 
 if [[ "${PACKAGE_TO_BUILD}" != "origen" && "${PACKAGE_TO_BUILD}" != "origen_metal" ]]; then
     echo "PACKAGE_TO_BUILD must be either 'origen' or 'origen_metal'"
     exit 1
 fi
+shopt -s nullglob
+
+single_wheel() {
+    local directory="$1"
+    local wheels=("${directory}"/*.whl)
+    if [[ ${#wheels[@]} -ne 1 ]]; then
+        echo "Expected exactly one wheel in ${directory}, found ${#wheels[@]}" >&2
+        ls -al "${directory}" >&2 || true
+        return 1
+    fi
+    basename "${wheels[0]}"
+}
 
 echo -e "\nInstall Rust"
 echo "========================================"
@@ -39,21 +57,10 @@ IFS='.' read -r -a SPLIT_VER <<< ${PYTHON_VERSION}
 PY_M_VER=${SPLIT_VER[0]}.${SPLIT_VER[1]}
 echo $PY_M_VER
 
-LIBFFI_VER="3.12"
-if [[ $PY_M_VER == $LIBFFI_VER ]]; then
-    echo -e "\nInstall libffi"
-    echo "========================================"
-    yum install libffi-devel -y
-    ldconfig
-else
-    LOW=$(echo -e "$PY_M_VER\n$LIBFFI_VER" | sort --version-sort | head --lines=1)
-    if [[ $LOW != $PY_M_VER ]]; then
-        echo -e "\nInstall libffi"
-        echo "========================================"
-        yum install libffi-devel -y
-        ldconfig
-    fi
-fi
+echo -e "\nInstall libffi"
+echo "========================================"
+yum install libffi-devel -y
+ldconfig
 
 echo -e "\nInstall Perl-IPC-cmd"
 echo "========================================"
@@ -142,7 +149,7 @@ echo -e "\nDisplay OM Wheelhouse Directory"
 echo "========================================"
 cd ${GIT_DIR}/python/origen_metal
 ls wheelhouse
-OM_WHEEL=$( ls wheelhouse | head -1 )
+OM_WHEEL=$(single_wheel wheelhouse)
 
 echo -e "\nDisplay OM Wheel Name"
 echo "========================================"
@@ -177,7 +184,7 @@ echo -e "\nDisplay Origen Wheelhouse Directory"
 echo "========================================"
 cd ${GIT_DIR}/python/origen
 ls wheelhouse
-ORIGEN_WHEEL=$( ls wheelhouse | head -1 )
+ORIGEN_WHEEL=$(single_wheel wheelhouse)
 
 echo -e "\nDisplay Origen Wheelhouse Directory"
 echo "========================================"
