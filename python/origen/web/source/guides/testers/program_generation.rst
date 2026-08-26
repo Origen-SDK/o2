@@ -114,11 +114,17 @@ output's ``flow_visualizations`` directory:
    output/v93ksmt7/test_program/flow_visualizations/production.flow.html
    output/v93ksmt7/test_program/flow_visualizations/production.flow.json
 
-The HTML is self-contained and can be opened directly in a browser. It provides
-search and zoom controls. Selecting a test node opens its invocation, method
-library, template, class, configured values, defaults, parameter types, aliases,
-and constraints. Pass, fail, and error paths have distinct labels and colors;
-good and bad bins are also distinguished without relying on color alone.
+The HTML is self-contained and can be opened directly in a browser. Groups and
+subflows start collapsed, so large flows render only the currently visible
+nodes. Select a group or subflow to expand it; the node count shows both the
+visible and total nodes. Search automatically expands the sections containing a
+match. Zoom resizes the existing graph without rebuilding it.
+
+Selecting a test node opens its invocation, method library, template, class,
+configured values, defaults, parameter types, aliases, and constraints.
+Sections and tests support pointer and keyboard interaction. Pass, fail, and
+error paths have distinct labels and colors; good and bad bins are also
+distinguished without relying on color alone.
 
 Third-Party Integration
 ^^^^^^^^^^^^^^^^^^^^^^^

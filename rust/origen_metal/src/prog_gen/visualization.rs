@@ -831,6 +831,7 @@ h1 { margin: 4px 0 0; font-size: clamp(18px, 2.2vw, 27px); line-height: 1.1; ove
       <input id="node-search" type="search" placeholder="Find tests, conditions, bins..." autocomplete="off">
     </div>
     <div class="toolbar" aria-label="Graph controls">
+      <button type="button" id="sections" aria-label="Expand all sections">Expand sections</button>
       <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
       <button type="button" id="zoom-reset" aria-label="Reset zoom">100%</button>
       <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
@@ -855,9 +856,16 @@ const nodeHeight = 72;
 const xGap = 282;
 const yGap = 108;
 let zoom = 1;
+let baseWidth = 0;
+let baseHeight = 0;
+let nodeElements = [];
+const collapsedSections = new Set();
 const svg = document.getElementById("graph");
 const graphShell = document.querySelector(".graph-shell");
+const searchInput = document.getElementById("node-search");
 const positions = new Map();
+const sectionKinds = new Set(["group", "subflow"]);
+const ancestorsByNode = buildAncestors(FLOW_DATA.nodes);
 
 function element(name, attributes = {}) {
   const node = document.createElementNS(NS, name);
@@ -876,15 +884,85 @@ function lines(value) {
   }
   return result.slice(0, 3);
 }
+function isSection(node) {
+  return sectionKinds.has(node.kind);
+}
+function buildAncestors(nodes) {
+  const ancestors = new Map();
+  const sections = [];
+  nodes.forEach(node => {
+    while (sections.length && node.depth <= sections[sections.length - 1].depth) sections.pop();
+    ancestors.set(node.id, sections.map(section => section.id));
+    if (isSection(node)) sections.push(node);
+  });
+  return ancestors;
+}
+function visibleGraph() {
+  const remappedIds = new Map();
+  const nodes = FLOW_DATA.nodes.filter(node => {
+    const ancestors = ancestorsByNode.get(node.id) || [];
+    const collapsedAncestor = ancestors.find(id => collapsedSections.has(id));
+    remappedIds.set(node.id, collapsedAncestor || node.id);
+    return !collapsedAncestor;
+  });
+  const edgeKeys = new Set();
+  const edges = [];
+  FLOW_DATA.edges.forEach(edge => {
+    const from = remappedIds.get(edge.from);
+    const to = remappedIds.get(edge.to);
+    if (!from || !to || from === to) return;
+    const key = `${from}|${to}|${edge.kind}`;
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    edges.push({...edge, from, to});
+  });
+  return {nodes, edges};
+}
+function setGraphSize() {
+  svg.setAttribute("width", baseWidth * zoom);
+  svg.setAttribute("height", baseHeight * zoom);
+  document.getElementById("zoom-reset").textContent = `${Math.round(zoom * 100)}%`;
+}
+function updateSectionsButton() {
+  const button = document.getElementById("sections");
+  button.textContent = collapsedSections.size ? "Expand sections" : "Collapse sections";
+  button.setAttribute("aria-label", collapsedSections.size ? "Expand all sections" : "Collapse all sections");
+}
+function currentQuery() {
+  return searchInput.value.trim().toLowerCase();
+}
+function expandMatchingAncestors(query) {
+  let expanded = false;
+  if (!query) return expanded;
+  FLOW_DATA.nodes.filter(node => node.label.toLowerCase().includes(query)).forEach(node => {
+    (ancestorsByNode.get(node.id) || []).forEach(sectionId => {
+      if (collapsedSections.delete(sectionId)) expanded = true;
+    });
+  });
+  return expanded;
+}
+function applySearchStyles(scrollToMatch) {
+  const query = currentQuery();
+  nodeElements.forEach(node => node.classList.toggle("dim", query && !node.dataset.label.includes(query)));
+  const first = nodeElements.find(node => query && node.dataset.label.includes(query));
+  if (scrollToMatch && first) first.scrollIntoView({block:"center", inline:"center", behavior:matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+}
+function toggleSection(nodeId) {
+  if (collapsedSections.has(nodeId)) collapsedSections.delete(nodeId);
+  else collapsedSections.add(nodeId);
+  expandMatchingAncestors(currentQuery());
+  renderGraph();
+}
 function renderGraph() {
   svg.replaceChildren();
   positions.clear();
-  const maxDepth = Math.max(0, ...FLOW_DATA.nodes.map(node => node.depth));
-  const width = 80 + (maxDepth + 1) * xGap;
-  const height = 70 + Math.max(1, FLOW_DATA.nodes.length) * yGap;
-  svg.setAttribute("width", width * zoom);
-  svg.setAttribute("height", height * zoom);
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  nodeElements = [];
+  const visible = visibleGraph();
+  const maxDepth = Math.max(0, ...visible.nodes.map(node => node.depth));
+  baseWidth = 80 + (maxDepth + 1) * xGap;
+  baseHeight = 70 + Math.max(1, visible.nodes.length) * yGap;
+  svg.setAttribute("viewBox", `0 0 ${baseWidth} ${baseHeight}`);
+  setGraphSize();
   const title = element("title", {id: "graph-title"});
   title.textContent = `${FLOW_DATA.name} test flow`;
   svg.append(title);
@@ -895,10 +973,10 @@ function renderGraph() {
   svg.append(defs);
   const viewport = element("g");
   svg.append(viewport);
-  FLOW_DATA.nodes.forEach(node => {
-    positions.set(node.id, {x: 36 + node.depth * xGap, y: 36 + node.order * yGap});
+  visible.nodes.forEach((node, index) => {
+    positions.set(node.id, {x: 36 + node.depth * xGap, y: 36 + index * yGap});
   });
-  FLOW_DATA.edges.forEach(edge => {
+  visible.edges.forEach(edge => {
     const source = positions.get(edge.from);
     const target = positions.get(edge.to);
     if (!source || !target) return;
@@ -915,12 +993,19 @@ function renderGraph() {
       viewport.append(label);
     }
   });
-  FLOW_DATA.nodes.forEach(node => {
+  visible.nodes.forEach(node => {
     const position = positions.get(node.id);
-    const group = element("g", {class:`node ${node.kind}${node.detail_id ? " interactive" : ""}`, transform:`translate(${position.x} ${position.y})`, "data-label":node.label.toLowerCase()});
+    const section = isSection(node);
+    const interactive = section || node.detail_id;
+    const group = element("g", {
+      class:`node ${node.kind}${interactive ? " interactive" : ""}`,
+      transform:`translate(${position.x} ${position.y})`,
+      "data-label":node.label.toLowerCase(),
+      "data-node-id":node.id
+    });
     group.append(element("rect", {width:nodeWidth, height:nodeHeight}));
     const kind = element("text", {x:"13", y:"17", class:"kind"});
-    kind.textContent = node.kind.replaceAll("-", " ").toUpperCase();
+    kind.textContent = section ? `${node.kind.toUpperCase()} · ${collapsedSections.has(node.id) ? "COLLAPSED" : "EXPANDED"}` : node.kind.replaceAll("-", " ").toUpperCase();
     group.append(kind);
     lines(node.label).forEach((line, index) => {
       const text = element("text", {x:"13", y:String(39 + index * 16)});
@@ -930,18 +1015,27 @@ function renderGraph() {
     const title = element("title");
     title.textContent = node.source ? `${node.label}\n${node.source}` : node.label;
     group.append(title);
-    if (node.detail_id) {
+    if (interactive) {
       group.setAttribute("role", "button");
       group.setAttribute("tabindex", "0");
-      group.setAttribute("aria-label", `Inspect ${node.label}`);
-      group.addEventListener("click", () => showDetails(node.detail_id));
+      if (section) {
+        group.setAttribute("aria-label", `${collapsedSections.has(node.id) ? "Expand" : "Collapse"} ${node.label}`);
+        group.setAttribute("aria-expanded", String(!collapsedSections.has(node.id)));
+      } else {
+        group.setAttribute("aria-label", `Inspect ${node.label}`);
+      }
+      const activate = () => section ? toggleSection(node.id) : showDetails(node.detail_id);
+      group.addEventListener("click", activate);
       group.addEventListener("keydown", event => {
-        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); showDetails(node.detail_id); }
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
       });
     }
+    nodeElements.push(group);
     viewport.append(group);
   });
-  document.getElementById("stats").textContent = `${FLOW_DATA.tester} · ${FLOW_DATA.nodes.length} nodes · ${FLOW_DATA.tests ? Object.keys(FLOW_DATA.tests).length : 0} tests`;
+  document.getElementById("stats").textContent = `${FLOW_DATA.tester} · ${visible.nodes.length} of ${FLOW_DATA.nodes.length} nodes · ${FLOW_DATA.tests ? Object.keys(FLOW_DATA.tests).length : 0} tests`;
+  updateSectionsButton();
+  applySearchStyles(false);
 }
 function showDetails(detailId) {
   const detail = FLOW_DATA.tests[detailId];
@@ -963,18 +1057,20 @@ function showDetails(detailId) {
 }
 function setZoom(value) {
   zoom = Math.min(1.8, Math.max(.55, value));
-  document.getElementById("zoom-reset").textContent = `${Math.round(zoom * 100)}%`;
-  renderGraph();
+  setGraphSize();
 }
+document.getElementById("sections").addEventListener("click", () => {
+  if (collapsedSections.size) collapsedSections.clear();
+  else FLOW_DATA.nodes.filter(isSection).forEach(node => collapsedSections.add(node.id));
+  expandMatchingAncestors(currentQuery());
+  renderGraph();
+});
 document.getElementById("zoom-in").addEventListener("click", () => setZoom(zoom + .15));
 document.getElementById("zoom-out").addEventListener("click", () => setZoom(zoom - .15));
 document.getElementById("zoom-reset").addEventListener("click", () => setZoom(1));
-document.getElementById("node-search").addEventListener("input", event => {
-  const query = event.target.value.trim().toLowerCase();
-  const nodes = [...svg.querySelectorAll(".node")];
-  nodes.forEach(node => node.classList.toggle("dim", query && !node.dataset.label.includes(query)));
-  const first = nodes.find(node => query && node.dataset.label.includes(query));
-  if (first) first.scrollIntoView({block:"center", inline:"center", behavior:matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+searchInput.addEventListener("input", () => {
+  if (expandMatchingAncestors(currentQuery())) renderGraph();
+  applySearchStyles(true);
 });
 document.getElementById("download-json").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([JSON.stringify(FLOW_DATA, null, 2)], {type:"application/json"}));
@@ -984,6 +1080,7 @@ document.getElementById("download-json").addEventListener("click", () => {
   link.click();
   URL.revokeObjectURL(url);
 });
+FLOW_DATA.nodes.filter(isSection).forEach(node => collapsedSections.add(node.id));
 renderGraph();
 </script>
 </body>
@@ -993,7 +1090,7 @@ renderGraph();
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prog_gen::{FlowID, ParamType};
+    use crate::prog_gen::{FlowID, GroupType, ParamType};
 
     fn sample() -> (Node<PGM>, Model) {
         let mut model = Model::new(SupportedTester::V93KSMT8);
@@ -1030,10 +1127,24 @@ mod tests {
             PGM::Flow("main".to_string()),
             vec![
                 Node::new_with_children(
-                    PGM::Condition(FlowCondition::IfEnable(vec!["production".to_string()])),
-                    vec![test],
+                    PGM::Group(
+                        "Production".to_string(),
+                        None,
+                        GroupType::Flow,
+                        Some(FlowID::from_str("production_group")),
+                    ),
+                    vec![Node::new_with_children(
+                        PGM::Condition(FlowCondition::IfEnable(vec!["production".to_string()])),
+                        vec![test],
+                    )],
                 ),
-                Node::new(PGM::Log("Flow complete".to_string())),
+                Node::new_with_children(
+                    PGM::SubFlow(
+                        "cleanup".to_string(),
+                        Some(FlowID::from_str("cleanup_subflow")),
+                    ),
+                    vec![Node::new(PGM::Log("Flow complete".to_string()))],
+                ),
             ],
         );
         (ast, model)
@@ -1058,6 +1169,8 @@ mod tests {
         assert!(fail_edges.iter().all(|edge| edge.kind == "fail"));
         assert!(graph.nodes.iter().any(|node| node.kind == "condition"));
         assert!(graph.nodes.iter().any(|node| node.kind == "bin-bad"));
+        assert!(graph.nodes.iter().any(|node| node.kind == "group"));
+        assert!(graph.nodes.iter().any(|node| node.kind == "subflow"));
     }
 
     #[test]
@@ -1106,6 +1219,19 @@ mod tests {
         assert!(html.contains("continuity_method"));
         assert!(html.contains("forceCurrent"));
         assert!(!html.contains("https://"));
+        assert!(html.contains("const collapsedSections = new Set()"));
+        assert!(html.contains("const sectionKinds = new Set([\"group\", \"subflow\"])"));
+        assert!(html.contains("function visibleGraph()"));
+        assert!(html.contains("visible.nodes.length} of ${FLOW_DATA.nodes.length} nodes"));
+        let set_zoom = html
+            .split("function setZoom(value) {")
+            .nth(1)
+            .unwrap()
+            .split_once('}')
+            .unwrap()
+            .0;
+        assert!(set_zoom.contains("setGraphSize()"));
+        assert!(!set_zoom.contains("renderGraph()"));
 
         if let Ok(output) = std::env::var("ORIGEN_FLOW_VISUALIZATION_TEST_OUTPUT") {
             fs::create_dir_all(&output).unwrap();
