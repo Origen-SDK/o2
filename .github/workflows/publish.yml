@@ -429,7 +429,6 @@ jobs:
             artifacts: ./origen.zip, cli.zip
             artifactErrorsFailBuild: true
             prerelease: ${{ inputs.prerelease }}
-            commit: ${{ inputs.release_ref }}
             tag: ${{ inputs.release_ref }}
             bodyFile: release_body.md
             generateReleaseNotes: false

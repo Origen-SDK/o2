@@ -304,7 +304,6 @@ jobs:
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          commit: ${{ inputs.release_ref }}
           tag: ${{ inputs.release_ref }}
           bodyFile: release_body.md
           generateReleaseNotes: false

@@ -456,6 +456,11 @@ jobs:
         working-directory: python/origen
         run: uv build --wheel --clear --no-create-gitignore
 
+      - name: Build Origen Metal Wheel
+        working-directory: python/origen_metal
+        run: uv build --wheel --clear --no-create-gitignore
+
+
       # uv writes a '.gitignore' into the output directory. Dotfiles are not
       # hidden on Windows, so an unfiltered listing picks it up and the wheel
       # name becomes two lines. Suppress the file and match '*.whl' explicitly.
@@ -484,24 +489,18 @@ jobs:
           pip --version
           uv --version
 
-      - name: Install Origen Package Globally (Windows)
+      - name: Install local Origen packages globally (Windows)
         if: startsWith(matrix.os, 'windows-')
         run: |
           echo $GITHUB_ENV
-          echo "Installing Local Origen ($env:DIST)"
-          echo "Installing Local Origen ($DIST)"
-          pip install python/origen/dist/$env:DIST
+          echo "Installing Local OM candidate and Origen ($env:DIST)"
+          pip install --find-links python/origen_metal/dist python/origen/dist/$env:DIST
 
-      - name: Install Origen Package Globally (Linux)
+      - name: Install local Origen packages globally (Linux)
         if: contains(matrix.os, 'ubuntu')
         run: |
-          echo "Installing Local Origen ($DIST)"
-          pip install python/origen/dist/$DIST
-
-      - name: Install OM Package Globally
-        run: |
-          echo "Installing Local OM"
-          pip install python/origen_metal
+          echo "Installing Local OM candidate and Origen ($DIST)"
+          pip install --find-links python/origen_metal/dist python/origen/dist/$DIST
 
       - name: Show Origen Binary Location (Linux)
         if: contains(matrix.os, 'ubuntu')
@@ -522,8 +521,7 @@ jobs:
       - name: Install Plugins
         run: |
           pip install test_apps/pl_ext_cmds test_apps/test_apps_shared_test_helpers test_apps/python_plugin
-          pip install python/origen/dist/${{ env.DIST }} --force-reinstall
-          pip install python/origen_metal --force-reinstall
+          pip install --find-links python/origen_metal/dist python/origen/dist/${{ env.DIST }} --force-reinstall
 
       - name: Run No-Workspace-With-Plugins Tests
         working-directory: test_apps/no_workspace

@@ -51,6 +51,14 @@ jobs:
             o2
             Origen-SDK.github.io
 
+      - name: Check out exact release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.origen_ref || inputs.metal_ref }}
+          token: ${{ steps.release-token.outputs.token }}
+          fetch-depth: 0
+
+
       - name: Publish selected products in dependency order
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
@@ -62,6 +70,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          workflow_ref=master
 
           dispatch_and_wait() {
             local workflow="$1"
@@ -73,12 +82,12 @@ jobs:
               --repo "$GH_REPO" \
               --workflow "$workflow" \
               --event workflow_dispatch \
-              --branch "$release_ref" \
+              --branch "$workflow_ref" \
               --limit 1 \
               --json databaseId \
               --jq '.[0].databaseId // empty')"
 
-            gh workflow run "$workflow" --repo "$GH_REPO" --ref "$release_ref" "$@"
+            gh workflow run "$workflow" --repo "$GH_REPO" --ref "$workflow_ref" "$@"
 
             local run_id=""
             for _ in $(seq 1 60); do
@@ -86,7 +95,7 @@ jobs:
                 --repo "$GH_REPO" \
                 --workflow "$workflow" \
                 --event workflow_dispatch \
-                --branch "$release_ref" \
+                --branch "$workflow_ref" \
                 --limit 1 \
                 --json databaseId \
                 --jq '.[0].databaseId // empty')"
@@ -104,13 +113,56 @@ jobs:
             gh run watch "$run_id" --repo "$GH_REPO" --exit-status
           }
 
+          ensure_github_release() {
+            local release_ref="$1"
+            local version="$2"
+            local history="$3"
+            local tag_prefix="$4"
+            local title="$5"
+            if gh release view "$release_ref" --repo "$GH_REPO" >/dev/null 2>&1; then
+              return
+            fi
+            python ci/extract_release_notes.py \
+              --history "$history" \
+              --tag-prefix "$tag_prefix" \
+              --version "$version" \
+              --output release_body.md
+            gh release create "$release_ref" \
+              --repo "$GH_REPO" \
+              --verify-tag \
+              --title "$title" \
+              --notes-file release_body.md
+          }
+
+          metal_registries_complete() {
+            curl -fsS "https://pypi.org/pypi/origen-metal/$METAL_VERSION/json" >/dev/null &&
+              curl -fsS \
+                -H "User-Agent: Origen-SDK O2 release workflow" \
+                "https://crates.io/api/v1/crates/origen_metal/$METAL_VERSION" >/dev/null
+          }
+
+          origen_registry_complete() {
+            curl -fsS "https://pypi.org/pypi/origen/$ORIGEN_VERSION/json" >/dev/null
+          }
+
+
           if [[ -n "$METAL_REF" ]]; then
-            dispatch_and_wait publish_metal.yml "$METAL_REF" \
-              -f "release_ref=$METAL_REF" \
-              -f "version=$METAL_VERSION" \
-              -f "publish_python=true" \
-              -f "publish_rust=true" \
-              -f "publish_github_release=true"
+            if metal_registries_complete; then
+              echo "Origen Metal $METAL_VERSION is already published; skipping package rebuild"
+              ensure_github_release \
+                "$METAL_REF" \
+                "$METAL_VERSION" \
+                python/origen/doc/metal/history \
+                origen-metal \
+                "Origen Metal $METAL_VERSION"
+            else
+              dispatch_and_wait publish_metal.yml "$METAL_REF" \
+                -f "release_ref=$METAL_REF" \
+                -f "version=$METAL_VERSION" \
+                -f "publish_python=true" \
+                -f "publish_rust=true" \
+                -f "publish_github_release=true"
+            fi
           fi
 
 
@@ -120,21 +172,25 @@ jobs:
           fi
 
           if [[ -n "$ORIGEN_REF" ]]; then
-            dispatch_and_wait publish.yml "$ORIGEN_REF" \
-              -f "release_ref=$ORIGEN_REF" \
-              -f "version=$ORIGEN_VERSION" \
-              -f "publish_pypi=true" \
-              -f "publish_pypi_test=false" \
-              -f "publish_github_release=true" \
-              -f "prerelease=$origen_prerelease"
+            if origen_registry_complete; then
+              echo "Origen $ORIGEN_VERSION is already published; skipping package rebuild"
+              ensure_github_release \
+                "$ORIGEN_REF" \
+                "$ORIGEN_VERSION" \
+                python/origen/doc/history \
+                origen \
+                "Origen $ORIGEN_VERSION"
+            else
+              dispatch_and_wait publish.yml "$ORIGEN_REF" \
+                -f "release_ref=$ORIGEN_REF" \
+                -f "version=$ORIGEN_VERSION" \
+                -f "publish_pypi=true" \
+                -f "publish_pypi_test=false" \
+                -f "publish_github_release=true" \
+                -f "prerelease=$origen_prerelease"
+            fi
           fi
 
-      - name: Check out exact release source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.origen_ref || inputs.metal_ref }}
-          token: ${{ steps.release-token.outputs.token }}
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5

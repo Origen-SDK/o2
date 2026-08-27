@@ -182,11 +182,7 @@ impl ReleaseEffects for ProductionEffects<'_> {
             get_latest_workflow_dispatch(&self.repo.owner, &self.repo.name, Some(&self.workflow))
                 .ok();
         if let Some(run) = latest.as_ref() {
-            if requests
-                .iter()
-                .any(|request| request.tag == run.head_branch)
-                && !run.completed()
-            {
+            if run.head_branch == self.release_branch && !run.completed() {
                 return Ok(run.refresh()?);
             }
         }
@@ -197,11 +193,6 @@ impl ReleaseEffects for ProductionEffects<'_> {
         let metal = requests
             .iter()
             .find(|request| request.product == Product::Metal);
-        let workflow_ref = metal
-            .or(origen)
-            .ok_or_else(|| origen::Error::new("A release requires at least one product"))?
-            .tag
-            .clone();
         let inputs = serde_json::json!({
             "release_id": release_id,
             "origen_ref": origen.map(|request| request.tag.as_str()).unwrap_or(""),
@@ -213,10 +204,10 @@ impl ReleaseEffects for ProductionEffects<'_> {
             &self.repo.owner,
             &self.repo.name,
             &self.workflow,
-            &workflow_ref,
+            &self.release_branch,
             Some(inputs),
         )?;
-        self.find_dispatched_run(previous_id, &workflow_ref)
+        self.find_dispatched_run(previous_id, &self.release_branch)
     }
 }
 
