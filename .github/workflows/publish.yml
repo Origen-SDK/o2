@@ -244,6 +244,7 @@ jobs:
 
       - name: Get Origen Python Package Version
         working-directory: python/origen
+        shell: bash
         run: python -c "import pathlib,re; print(re.search(r'^version\s*=\s*\"([^\"]+)\"', pathlib.Path('pyproject.toml').read_text(), re.M).group(1))" > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
