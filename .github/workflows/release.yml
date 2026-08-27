@@ -217,6 +217,7 @@ jobs:
           cargo build --manifest-path rust/origen/Cargo.toml --bin origen --workspace
           ORIGEN="$PWD/rust/origen/target/debug/origen"
           "$ORIGEN" develop_origen build --metal
+          uv sync --project test_apps/python_app --all-groups --no-editable
           cd python/origen
           uv sync --all-groups --no-editable
           "$ORIGEN" web build --release
