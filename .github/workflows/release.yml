@@ -210,6 +210,7 @@ jobs:
 
       - name: Build release documentation and deploy website
         env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           github_pat: ${{ steps.release-token.outputs.token }}
           github_username: x-access-token
           GIT_AUTHOR_NAME: Origen O2 Release Automation
@@ -219,6 +220,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config --global credential.helper \
+            '!f() { echo "username=x-access-token"; echo "password=$GH_TOKEN"; }; f'
           cargo build --manifest-path rust/origen/Cargo.toml --bin origen --workspace
           ORIGEN="$PWD/rust/origen/target/debug/origen"
           "$ORIGEN" develop_origen build --metal
