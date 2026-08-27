@@ -47,3 +47,14 @@ class TestBadConfigs(CLICommon):
         assert "missing.toml either does not exists or is not accessible" in err["stdout"]
         assert self.eval_m not in err["stdout"]
         assert err["stderr"] == ""
+
+
+class TestProgramGenerationConfig(CLICommon):
+    def test_flow_visualization_is_exposed_to_python(self):
+        config = self.to_config_path("flow_visualization.toml").absolute()
+        out = self.cmds.eval.run(
+            "print(origen.app.program_generation['flow_visualization'])",
+            run_opts={"bypass_config_lookup": True},
+            with_env={"origen_app_config_paths": str(config)},
+        )
+        assert "True" in out.splitlines()

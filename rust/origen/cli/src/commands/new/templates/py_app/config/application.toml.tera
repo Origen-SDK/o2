@@ -3,3 +3,7 @@ name = "{{name}}"
 #target = ["dut/falcon", "tester/v93k"]
 # To make your application workspace run in production mode by default
 #mode = "production"
+
+# Generate interactive HTML and JSON diagrams for every rendered test-program flow.
+#[program_generation]
+#flow_visualization = true
