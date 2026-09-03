@@ -55,10 +55,6 @@ pub fn parse_str(vcd: &str) -> Result<Node<VCD>> {
     }
 }
 
-fn inner_strs(pair: Pair<'_, Rule>) -> Vec<&str> {
-    pair.into_inner().map(|v| v.as_str()).collect()
-}
-
 // This is the main function responsible for transforming the parsed strings into an AST
 pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<VCD>> {
     let mut ast = AST::new();
@@ -104,13 +100,19 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<VCD>> {
                 ));
             }
             Rule::var_command => {
-                let vals = inner_strs(pair);
+                let mut p = pair.into_inner();
+                let var_type = p.next().unwrap().as_str();
+                let var_size = p.next().unwrap().as_str();
+                let var_id = p.next().unwrap().as_str();
+                let var_ref_pair = p.next().unwrap();
+                // Extract just the signal name from var_reference (ref_name)
+                let ref_name = var_ref_pair.into_inner().next().unwrap().as_str();
                 ast.push(node!(
                     VCD::Var,
-                    vals[0].parse().unwrap(),
-                    vals[1].parse().unwrap(),
-                    vals[2].parse().unwrap(),
-                    vals[3].parse().unwrap(),
+                    var_type.parse().unwrap(),
+                    var_size.parse().unwrap(),
+                    var_id.parse().unwrap(),
+                    ref_name.parse().unwrap(),
                     None
                 ));
             }

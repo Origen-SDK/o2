@@ -34,11 +34,14 @@ time_unit = { "fs" | "ps" | "ns" | "us" | "ms" | "s" }
 var_type = { "event" | "integer" | "parameter" | "real" | "reg" |
              "supply0" | "supply1" | "time" | "triand" | "trior" |
              "trireg" | "tri0"| "tri1" | "tri" | "wand" | "wire" | "wor" }
-var_reference = { (!"$end" ~ ANY)+ }                                   // TODO: needs work here to breakdown arrays
-var_identifier = { identifier | identifier_code }
+var_reference = { ref_name ~ bit_or_range_select? }
+ref_name = @{ (!"$end" ~ !"[" ~ printable_ascii_character)+ }
+bit_or_range_select = { "[" ~ range_index ~ (":" ~ range_index)? ~ "]" }
+range_index = @{ decimal_digit+ }
+var_identifier = { identifier_code }
 
 identifier = @{ (!"$end" ~ printable_ascii_character)+ }
-identifier_code = @{ (!"$end" ~ printable_ascii_character)+ }          // TODO: implement enhance version >{integer}
+identifier_code = @{ (!"$end" ~ printable_ascii_character)+ }
 
 //#############################################################################
 //# Simulation Commands
@@ -52,7 +55,7 @@ dumpportsoff_command = { "$dumpportsoff" ~ (scalar_value_change | vector_value_c
 dumpportson_command = { "$dumpportson" ~ (scalar_value_change | vector_value_change)* ~ "$end" }
 dumpports_command = { "$dumpports" ~ (scalar_value_change | vector_value_change)* ~ "$end" }
 
-simulation_time = { "#" ~ decimal_number }
+simulation_time = { "#" ~ unsigned_number }
 scalar_value_change = { value ~ identifier_code }
 value = { "0" | "1" | "x" | "X" | "z" | "Z" }
 vector_value_change = { (("b" | "B") ~ binary_value ~ identifier_code) |
@@ -63,17 +66,11 @@ vector_value_change = { (("b" | "B") ~ binary_value ~ identifier_code) |
 real_number = { (unsigned_number ~ "." ~ unsigned_number) |
                 (unsigned_number ~ ("." ~ unsigned_number)? ~ exp ~ (sign)? ~ unsigned_number)}
 exp = { "e" | "E" }
-decimal_number = { unsigned_number |                                     // TODO: review, might should have atomic here (@)
-                   ((size)? ~ decimal_base ~ unsigned_number) |
-                   ((size)? ~ decimal_base ~ x_digit ~ ("_")*) |
-                   ((size)? ~ decimal_base ~ z_digit ~ ("_")*) }
 sign = { "+" | "-" }
 size = { non_zero_unsigned_number }
 non_zero_unsigned_number = @{ non_zero_decimal_digit ~ ("_" | decimal_digit)* }
 unsigned_number = @{ decimal_digit ~ ("_" | decimal_digit)* }
 binary_value = @{ binary_digit ~ ("_" | binary_digit)* }
-decimal_base = @{ ("'" ~ ("s" | "S")? ~ "d") | ("'" ~ ("s" | "S")? ~ "D") }   // s|S here is 'signed'
-binary_base = @{ ("'" ~ ("s" | "S")? ~ "b") | ("'" ~ ("s" | "S")? ~ "B") }    // s|S here is 'signed'
 non_zero_decimal_digit = { "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" }
 decimal_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" }
 binary_digit = { x_digit | z_digit | "0" | "1" }
