@@ -1,0 +1,319 @@
+icl_source = { SOI ~ source_item+ ~ EOI }
+module_source = { SOI ~ module_def ~ EOI }
+namespace_source = { SOI ~ namespace_def ~ EOI }
+use_namespace_source = { SOI ~ use_namespace_def ~ EOI }
+
+source_item = _{ namespace_def | use_namespace_def | module_def }
+namespace_def = { k_namespace ~ scalar_id? ~ ";" }
+use_namespace_def = { k_use_namespace ~ scalar_id? ~ ";" }
+module_def = { k_module ~ scalar_id ~ "{" ~ module_item* ~ "}" }
+
+module_item = _{
+    use_namespace_def | port_def | instance_def | scan_register_def | data_register_def |
+    logic_signal_def | scan_mux_def | data_mux_def | clock_mux_def | one_hot_data_group_def |
+    one_hot_scan_group_def | scan_interface_def | access_link_def | alias_def | enum_def |
+    parameter_def | local_parameter_def | attribute_def
+}
+
+port_def = _{
+    scan_in_port_def | scan_out_port_def | shift_en_port_def | capture_en_port_def |
+    update_en_port_def | data_in_port_def | data_out_port_def | to_shift_en_port_def |
+    to_update_en_port_def | to_capture_en_port_def | select_port_def | to_select_port_def |
+    reset_port_def | to_reset_port_def | tms_port_def | to_tms_port_def | tck_port_def |
+    to_tck_port_def | clock_port_def | to_clock_port_def | trst_port_def | to_trst_port_def |
+    to_ir_select_port_def | address_port_def | write_en_port_def | read_en_port_def
+}
+
+scan_in_port_def = { k_scan_in_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+scan_out_port_def = { k_scan_out_port ~ identifier ~ (";" | "{" ~ scan_out_port_item* ~ "}") }
+scan_out_port_item = _{ attribute_def | source_def | enable_def }
+shift_en_port_def = { k_shift_en_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+capture_en_port_def = { k_capture_en_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+update_en_port_def = { k_update_en_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+data_in_port_def = { k_data_in_port ~ identifier ~ (";" | "{" ~ data_in_port_item* ~ "}") }
+data_in_port_item = _{ attribute_def | ref_enum_def | default_load_value_def }
+data_out_port_def = { k_data_out_port ~ identifier ~ (";" | "{" ~ data_out_port_item* ~ "}") }
+data_out_port_item = _{ attribute_def | source_def | enable_def | ref_enum_def }
+to_shift_en_port_def = { k_to_shift_en_port ~ identifier ~ (";" | "{" ~ sourced_port_item* ~ "}") }
+to_update_en_port_def = { k_to_update_en_port ~ identifier ~ (";" | "{" ~ sourced_port_item* ~ "}") }
+to_capture_en_port_def = { k_to_capture_en_port ~ identifier ~ (";" | "{" ~ sourced_port_item* ~ "}") }
+select_port_def = { k_select_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+to_select_port_def = { k_to_select_port ~ identifier ~ (";" | "{" ~ sourced_port_item* ~ "}") }
+sourced_port_item = _{ attribute_def | source_def }
+reset_port_def = { k_reset_port ~ identifier ~ (";" | "{" ~ reset_port_item* ~ "}") }
+reset_port_item = _{ attribute_def | active_polarity_def }
+to_reset_port_def = { k_to_reset_port ~ identifier ~ (";" | "{" ~ to_reset_port_item* ~ "}") }
+to_reset_port_item = _{ attribute_def | source_def | active_polarity_def }
+tms_port_def = { k_tms_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+to_tms_port_def = { k_to_tms_port ~ identifier ~ (";" | "{" ~ sourced_port_item* ~ "}") }
+to_ir_select_port_def = { k_to_ir_select_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+tck_port_def = { k_tck_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+// Some production ICL generators explicitly state the otherwise implicit TCK source.
+to_tck_port_def = { k_to_tck_port ~ identifier ~ (";" | "{" ~ (attribute_def | source_def)* ~ "}") }
+clock_port_def = { k_clock_port ~ identifier ~ (";" | "{" ~ clock_port_item* ~ "}") }
+clock_port_item = _{ attribute_def | differential_inv_of_def }
+to_clock_port_def = { k_to_clock_port ~ identifier ~ (";" | "{" ~ to_clock_port_item* ~ "}") }
+to_clock_port_item = _{
+    attribute_def | source_def | frequency_multiplier_def | frequency_divider_def |
+    differential_inv_of_def | period_def
+}
+trst_port_def = { k_trst_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+to_trst_port_def = { k_to_trst_port ~ identifier ~ (";" | "{" ~ sourced_port_item* ~ "}") }
+address_port_def = { k_address_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+write_en_port_def = { k_write_en_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+read_en_port_def = { k_read_en_port ~ identifier ~ (";" | "{" ~ attribute_def* ~ "}") }
+
+source_def = { k_source ~ concat_signal ~ ";" }
+enable_def = { k_enable ~ data_signal ~ ";" }
+ref_enum_def = { k_ref_enum ~ scalar_id ~ ";" }
+default_load_value_def = { k_default_load_value ~ (concat_number | scalar_id) ~ ";" }
+active_polarity_def = { k_active_polarity ~ polarity_value ~ ";" }
+polarity_value = @{ "0" | "1" }
+differential_inv_of_def = { k_differential_inv_of ~ concat_signal ~ ";" }
+frequency_multiplier_def = { k_frequency_multiplier ~ pos_int ~ ";" }
+frequency_divider_def = { k_frequency_divider ~ pos_int ~ ";" }
+period_def = { k_period ~ pos_int ~ time_unit? ~ ";" }
+time_unit = @{ "ms" | "us" | "ns" | "ps" | "fs" | "as" | "s" }
+
+instance_def = { k_instance ~ scalar_id ~ k_of ~ module_reference ~ (";" | "{" ~ instance_item* ~ "}") }
+module_reference = { (scalar_id? ~ "::")? ~ (scalar_id | parameter_ref) }
+instance_item = _{ input_port_connection | allow_broadcast_def | attribute_def | parameter_def | instance_address_value }
+input_port_connection = { k_input_port ~ identifier ~ "=" ~ concat_signal ~ ";" }
+allow_broadcast_def = { k_allow_broadcast ~ scalar_id ~ ";" }
+instance_address_value = { k_address_value ~ number ~ ";" }
+
+scan_register_def = { k_scan_register ~ identifier ~ (";" | "{" ~ scan_register_item* ~ "}") }
+scan_register_item = _{
+    attribute_def | scan_in_source_def | default_load_value_def | capture_source_def |
+    reset_value_def | ref_enum_def
+}
+scan_in_source_def = { k_scan_in_source ~ scan_signal ~ ";" }
+capture_source_def = { k_capture_source ~ (concat_signal | scalar_id) ~ ";" }
+reset_value_def = { k_reset_value ~ (concat_number | scalar_id) ~ ";" }
+
+data_register_def = { k_data_register ~ identifier ~ (";" | "{" ~ data_register_item* ~ "}") }
+data_register_item = _{
+    write_en_source_def | write_data_source_def | data_register_address_value | read_callback_def |
+    read_data_source_def | write_callback_def | reset_value_def | default_load_value_def |
+    ref_enum_def | attribute_def
+}
+write_en_source_def = { k_write_en_source ~ invert? ~ data_signal ~ ";" }
+write_data_source_def = { k_write_data_source ~ concat_signal ~ ";" }
+data_register_address_value = { k_address_value ~ number ~ ";" }
+read_callback_def = { k_read_callback ~ iproc_reference ~ iproc_name ~ iproc_argument* ~ ";" }
+read_data_source_def = { k_read_data_source ~ concat_signal ~ ";" }
+write_callback_def = { k_write_callback ~ iproc_reference ~ iproc_name ~ iproc_argument* ~ ";" }
+iproc_reference = { (scalar_id? ~ "::")? ~ (scalar_id | parameter_ref) ~ ("::" ~ (scalar_id | parameter_ref))? }
+iproc_name = _{ scalar_id | parameter_ref }
+iproc_argument = { "<D>" | "<R>" | number | string | parameter_ref }
+
+logic_signal_def = { k_logic_signal ~ identifier ~ "{" ~ logic_expr ~ ";" ~ "}" }
+logic_expr = { logic_bool_expr }
+logic_bool_expr = { logic_bitwise_expr ~ (logic_bool_op ~ logic_bitwise_expr)* }
+logic_bitwise_expr = { logic_equality_expr ~ (logic_bitwise_op ~ logic_equality_expr)* }
+logic_equality_expr = { logic_concat_expr ~ (logic_equality_op ~ logic_num_arg)? }
+logic_concat_expr = { logic_unary_expr ~ ("," ~ logic_unary_expr)* }
+logic_unary_expr = { (logic_unary_op | logic_reduction_op)* ~ logic_primary }
+logic_primary = _{ logic_paren | signal }
+logic_paren = { "(" ~ logic_expr ~ ")" }
+logic_num_arg = _{ concat_number | scalar_id | "(" ~ logic_num_arg ~ ")" }
+logic_bool_op = { "&&" | "||" }
+logic_bitwise_op = @{ ("&" ~ !"&") | ("|" ~ !"|") | "^" }
+logic_equality_op = { "==" | "!=" }
+logic_unary_op = { "~" | "!" }
+logic_reduction_op = @{ ("&" ~ !"&") | ("|" ~ !"|") | "^" }
+
+// Attributes inside mux blocks are emitted by widely deployed 1687 toolchains.
+scan_mux_def = { k_scan_mux ~ identifier ~ k_selected_by ~ concat_signal ~ "{" ~ (attribute_def | scan_mux_selection)+ ~ "}" }
+scan_mux_selection = { concat_number_list ~ ":" ~ concat_signal ~ ";" }
+data_mux_def = { k_data_mux ~ identifier ~ k_selected_by ~ concat_signal ~ "{" ~ (attribute_def | data_mux_selection)+ ~ "}" }
+data_mux_selection = { concat_number_list ~ ":" ~ concat_signal ~ ";" }
+clock_mux_def = { k_clock_mux ~ identifier ~ k_selected_by ~ concat_signal ~ "{" ~ (attribute_def | clock_mux_selection)+ ~ "}" }
+clock_mux_selection = { concat_number_list ~ ":" ~ concat_signal ~ ";" }
+
+one_hot_scan_group_def = { k_one_hot_scan_group ~ identifier ~ "{" ~ one_hot_scan_group_item+ ~ "}" }
+one_hot_scan_group_item = { k_port ~ concat_signal ~ ";" }
+one_hot_data_group_def = { k_one_hot_data_group ~ identifier ~ "{" ~ one_hot_data_group_item+ ~ "}" }
+one_hot_data_group_item = _{ instance_def | data_register_def | one_hot_data_group_port_source }
+one_hot_data_group_port_source = { k_port ~ concat_signal ~ ";" }
+
+scan_interface_def = { k_scan_interface ~ scalar_id ~ "{" ~ scan_interface_item+ ~ "}" }
+scan_interface_item = _{ attribute_def | scan_interface_port_def | default_load_value_def | scan_interface_chain_def }
+scan_interface_port_def = { k_port ~ identifier ~ ";" }
+scan_interface_chain_def = { k_chain ~ scalar_id ~ "{" ~ scan_interface_chain_item+ ~ "}" }
+scan_interface_chain_item = _{ attribute_def | scan_interface_port_def | default_load_value_def }
+
+access_link_def = _{ access_link_1149_def | access_link_generic_def }
+access_link_1149_def = {
+    k_access_link ~ scalar_id ~ k_of ~ access_link_standard ~ "{" ~ bsdl_entity_def ~
+    bsdl_instruction+ ~ "}"
+}
+bsdl_entity_def = { k_bsdl_entity ~ scalar_id ~ ";" }
+access_link_standard = @{ "STD_1149_1_2001" | "STD_1149_1_2013" }
+bsdl_instruction = { scalar_id ~ "{" ~ bsdl_selection+ ~ "}" }
+bsdl_selection = {
+    (k_scan_interface ~ "{" ~ access_link_scan_interface_name+ ~ "}") |
+    (k_active_signals ~ "{" ~ access_link_active_signal_name+ ~ "}")
+}
+access_link_scan_interface_name = { scalar_id ~ ("." ~ scalar_id)? ~ ";" }
+access_link_active_signal_name = { identifier ~ ";" }
+access_link_generic_def = { k_access_link ~ scalar_id ~ k_of ~ scalar_id ~ generic_access_link_block }
+generic_access_link_block = { "{" ~ (generic_access_link_block | string | generic_access_link_text)* ~ "}" }
+generic_access_link_text = @{ (!("{" | "}" | "\"" | " " | "\t" | "\r" | "\n") ~ ANY)+ }
+
+// An empty block is accepted as the general ICL empty-block terminator.
+alias_def = { k_alias ~ identifier ~ "=" ~ concat_hier_data_signal ~ (";" | "{" ~ alias_item* ~ "}") }
+alias_item = _{ attribute_def | access_together_def | apply_end_state_def | ref_enum_def }
+access_together_def = { k_access_together ~ ";" }
+apply_end_state_def = { k_apply_end_state ~ concat_number ~ ";" }
+concat_hier_data_signal = { inverted_hier_data_signal ~ ("," ~ inverted_hier_data_signal)* }
+inverted_hier_data_signal = { invert? ~ hier_data_signal }
+hier_data_signal = ${ (scalar_id ~ ".")* ~ identifier }
+
+enum_def = { k_enum ~ scalar_id ~ "{" ~ enum_item+ ~ "}" }
+enum_item = { scalar_id ~ "=" ~ concat_number ~ ";" }
+parameter_def = { k_parameter ~ scalar_id ~ "=" ~ parameter_value ~ ";" }
+local_parameter_def = { k_local_parameter ~ scalar_id ~ "=" ~ parameter_value ~ ";" }
+parameter_value = _{ concat_number | concat_string }
+concat_string = { (string | parameter_ref) ~ ("," ~ (string | parameter_ref))* }
+attribute_def = { k_attribute ~ scalar_id ~ ("=" ~ (concat_number | concat_string))? ~ ";" }
+
+concat_signal = { inverted_signal ~ ("," ~ inverted_signal)* }
+inverted_signal = { invert? ~ signal }
+reset_signal = { invert? ~ signal }
+scan_signal = { invert? ~ signal }
+data_signal = { invert? ~ signal }
+clock_signal = { invert? ~ signal }
+tck_signal = { signal }
+tms_signal = { signal }
+trst_signal = { signal }
+shift_en_signal = { signal }
+capture_en_signal = { signal }
+update_en_signal = { signal }
+signal = _{ hier_port | number | identifier }
+
+identifier = _{ vector_id | scalar_id }
+vector_id = { scalar_id ~ "[" ~ (range | index) ~ "]" }
+index = { integer_expr }
+range = { integer_expr ~ ":" ~ integer_expr }
+hier_port = ${ (scalar_id ~ ".")+ ~ identifier }
+parameter_ref = @{ "$" ~ scalar_id }
+scalar_id = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+id_continue = _{ ASCII_ALPHANUMERIC | "_" }
+
+number = _{ based_number | integer_expr }
+based_number = _{
+    sized_bin_number | sized_dec_number | sized_hex_number |
+    unsized_bin_number | unsized_dec_number | unsized_hex_number
+}
+sized_bin_number = @{ (parameter_size | integer_size) ~ bin_base ~ base_space* ~ bin_digits }
+sized_dec_number = @{ (parameter_size | integer_size) ~ dec_base ~ base_space* ~ dec_digits }
+sized_hex_number = @{ (parameter_size | integer_size) ~ hex_base ~ base_space* ~ hex_digits }
+unsized_bin_number = @{ bin_base ~ base_space* ~ bin_digits }
+unsized_dec_number = @{ dec_base ~ base_space* ~ dec_digits }
+unsized_hex_number = @{ hex_base ~ base_space* ~ hex_digits }
+parameter_size = _{ "$" ~ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+integer_size = _{ ASCII_DIGIT ~ (ASCII_DIGIT | "_")* }
+bin_base = { "'b" | "'B" }
+dec_base = { "'d" | "'D" }
+hex_base = { "'h" | "'H" }
+bin_digits = @{ ("0" | "1" | "x" | "X") ~ ("0" | "1" | "x" | "X" | "_")* }
+dec_digits = @{ ASCII_DIGIT ~ (ASCII_DIGIT | "_")* }
+hex_digits = @{ (ASCII_HEX_DIGIT | "x" | "X") ~ (ASCII_HEX_DIGIT | "x" | "X" | "_")* }
+base_space = _{ " " | "\t" }
+pos_int = @{ ASCII_DIGIT ~ (ASCII_DIGIT | "_")* }
+
+concat_number = { inverted_number ~ ("," ~ inverted_number)* }
+inverted_number = { invert? ~ number }
+concat_number_list = { concat_number ~ ("|" ~ concat_number)* }
+integer_expr = { integer_term ~ (integer_add_op ~ integer_term)* }
+integer_term = { integer_factor ~ (integer_mul_op ~ integer_factor)* }
+integer_factor = _{ integer_paren | parameter_ref | pos_int }
+integer_paren = { "(" ~ integer_expr ~ ")" }
+integer_add_op = { "+" | "-" }
+integer_mul_op = { "*" | "/" | "%" }
+invert = { "~" }
+
+// Preserve general escaped characters used by generated hierarchy/path attributes.
+string = @{ "\"" ~ (("\\" ~ ANY) | (!("\"" | "\\") ~ ANY))* ~ "\"" }
+
+// Atomic keyword rules provide lexer-style token boundaries while still allowing keywords to be
+// used as identifiers in identifier positions.
+k_namespace = @{ "NameSpace" ~ !id_continue }
+k_use_namespace = @{ "UseNameSpace" ~ !id_continue }
+k_module = @{ "Module" ~ !id_continue }
+k_scan_in_port = @{ "ScanInPort" ~ !id_continue }
+k_scan_out_port = @{ "ScanOutPort" ~ !id_continue }
+k_shift_en_port = @{ "ShiftEnPort" ~ !id_continue }
+k_capture_en_port = @{ "CaptureEnPort" ~ !id_continue }
+k_update_en_port = @{ "UpdateEnPort" ~ !id_continue }
+k_data_in_port = @{ "DataInPort" ~ !id_continue }
+k_data_out_port = @{ "DataOutPort" ~ !id_continue }
+k_to_shift_en_port = @{ "ToShiftEnPort" ~ !id_continue }
+k_to_update_en_port = @{ "ToUpdateEnPort" ~ !id_continue }
+k_to_capture_en_port = @{ "ToCaptureEnPort" ~ !id_continue }
+k_select_port = @{ "SelectPort" ~ !id_continue }
+k_to_select_port = @{ "ToSelectPort" ~ !id_continue }
+k_reset_port = @{ "ResetPort" ~ !id_continue }
+k_to_reset_port = @{ "ToResetPort" ~ !id_continue }
+k_tms_port = @{ "TMSPort" ~ !id_continue }
+k_to_tms_port = @{ "ToTMSPort" ~ !id_continue }
+k_tck_port = @{ "TCKPort" ~ !id_continue }
+k_to_tck_port = @{ "ToTCKPort" ~ !id_continue }
+k_clock_port = @{ "ClockPort" ~ !id_continue }
+k_to_clock_port = @{ "ToClockPort" ~ !id_continue }
+k_trst_port = @{ "TRSTPort" ~ !id_continue }
+k_to_trst_port = @{ "ToTRSTPort" ~ !id_continue }
+k_to_ir_select_port = @{ "ToIRSelectPort" ~ !id_continue }
+k_address_port = @{ "AddressPort" ~ !id_continue }
+k_write_en_port = @{ "WriteEnPort" ~ !id_continue }
+k_read_en_port = @{ "ReadEnPort" ~ !id_continue }
+k_source = @{ "Source" ~ !id_continue }
+k_enable = @{ "Enable" ~ !id_continue }
+k_ref_enum = @{ "RefEnum" ~ !id_continue }
+k_default_load_value = @{ "DefaultLoadValue" ~ !id_continue }
+k_active_polarity = @{ "ActivePolarity" ~ !id_continue }
+k_differential_inv_of = @{ "DifferentialInvOf" ~ !id_continue }
+k_frequency_multiplier = @{ "FreqMultiplier" ~ !id_continue }
+k_frequency_divider = @{ "FreqDivider" ~ !id_continue }
+k_period = @{ "Period" ~ !id_continue }
+k_instance = @{ "Instance" ~ !id_continue }
+k_of = @{ "Of" ~ !id_continue }
+k_input_port = @{ "InputPort" ~ !id_continue }
+k_allow_broadcast = @{ "AllowBroadcastOnScanInterface" ~ !id_continue }
+k_address_value = @{ "AddressValue" ~ !id_continue }
+k_scan_register = @{ "ScanRegister" ~ !id_continue }
+k_scan_in_source = @{ "ScanInSource" ~ !id_continue }
+k_capture_source = @{ "CaptureSource" ~ !id_continue }
+k_reset_value = @{ "ResetValue" ~ !id_continue }
+k_data_register = @{ "DataRegister" ~ !id_continue }
+k_write_en_source = @{ "WriteEnSource" ~ !id_continue }
+k_write_data_source = @{ "WriteDataSource" ~ !id_continue }
+k_read_callback = @{ "ReadCallBack" ~ !id_continue }
+k_read_data_source = @{ "ReadDataSource" ~ !id_continue }
+k_write_callback = @{ "WriteCallBack" ~ !id_continue }
+k_logic_signal = @{ "LogicSignal" ~ !id_continue }
+k_scan_mux = @{ "ScanMux" ~ !id_continue }
+k_data_mux = @{ "DataMux" ~ !id_continue }
+k_clock_mux = @{ "ClockMux" ~ !id_continue }
+k_selected_by = @{ "SelectedBy" ~ !id_continue }
+k_one_hot_scan_group = @{ "OneHotScanGroup" ~ !id_continue }
+k_one_hot_data_group = @{ "OneHotDataGroup" ~ !id_continue }
+k_port = @{ "Port" ~ !id_continue }
+k_scan_interface = @{ "ScanInterface" ~ !id_continue }
+k_chain = @{ "Chain" ~ !id_continue }
+k_access_link = @{ "AccessLink" ~ !id_continue }
+k_bsdl_entity = @{ "BSDLEntity" ~ !id_continue }
+k_active_signals = @{ "ActiveSignals" ~ !id_continue }
+k_alias = @{ "Alias" ~ !id_continue }
+k_access_together = @{ "AccessTogether" ~ !id_continue }
+k_apply_end_state = @{ "iApplyEndState" ~ !id_continue }
+k_enum = @{ "Enum" ~ !id_continue }
+k_parameter = @{ "Parameter" ~ !id_continue }
+k_local_parameter = @{ "LocalParameter" ~ !id_continue }
+k_attribute = @{ "Attribute" ~ !id_continue }
+
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE? }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT = { block_comment | line_comment }
