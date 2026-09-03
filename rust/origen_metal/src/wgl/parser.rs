@@ -145,22 +145,16 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::built_in_func_call => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::BuiltInFuncCall,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::BuiltInFuncCall, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::built_in_var => {
-                ast.push(node!(
-                    WGL::BuiltInVar,
-                    pair.as_str().parse().unwrap()
-                ));
+                ast.push(node!(WGL::BuiltInVar, pair.as_str().parse().unwrap()));
             }
             Rule::constant => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                
+
                 if let Some(nxt) = p.peek() {
                     match nxt.as_rule() {
                         Rule::scale => {
@@ -191,15 +185,10 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                                 Some(v2.parse().unwrap())
                             ));
                         }
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
-                    ast.push(node!(
-                        WGL::Constant,
-                        v1.parse().unwrap(),
-                        None,
-                        None
-                    ));
+                    ast.push(node!(WGL::Constant, v1.parse().unwrap(), None, None));
                 }
             }
             Rule::binary_expression => {
@@ -253,10 +242,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::waveform_program => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::WaveformProgram,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::WaveformProgram, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::waveform_parameters => {
@@ -280,15 +266,9 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                     ));
                 }
             }
-            Rule::name => {
-                ast.push(node!(WGL::String, unquote(pair.as_str())))
-            }
-            Rule::identifier => {
-                ast.push(node!(WGL::String, unquote(pair.as_str())))
-            }
-            Rule::quoted_string => {
-                ast.push(node!(WGL::String, unquote(pair.as_str())))
-            }
+            Rule::name => ast.push(node!(WGL::String, unquote(pair.as_str()))),
+            Rule::identifier => ast.push(node!(WGL::String, unquote(pair.as_str()))),
+            Rule::quoted_string => ast.push(node!(WGL::String, unquote(pair.as_str()))),
             Rule::signals => {
                 ids.push(ast.push_and_open(node!(WGL::Signals)));
                 pairs.push(pair.into_inner());
@@ -296,10 +276,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::signal_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::Signal,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::Signal, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::bus_range => {
@@ -318,26 +295,16 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
                 if let Some(_nxt) = p.peek() {
-                    ids.push(ast.push_and_open(node!(
-                        WGL::SignalRef,
-                        v1.parse().unwrap()
-                    )));
+                    ids.push(ast.push_and_open(node!(WGL::SignalRef, v1.parse().unwrap())));
                     pairs.push(p);
                 } else {
-                    ast.push(node!(
-                        WGL::SignalRef,
-                        v1.parse().unwrap()
-                    ));
+                    ast.push(node!(WGL::SignalRef, v1.parse().unwrap()));
                 }
             }
             Rule::range => {
                 let vals = inner_strs(pair);
                 if vals.len() == 1 {
-                    ast.push(node!(
-                        WGL::Range,
-                        vals[0].parse().unwrap(),
-                        None
-                    ))
+                    ast.push(node!(WGL::Range, vals[0].parse().unwrap(), None))
                 } else {
                     ast.push(node!(
                         WGL::Range,
@@ -358,17 +325,12 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 ids.push(ast.push_and_open(node!(WGL::SignalAttributes)));
                 pairs.push(pair.into_inner());
             }
-            Rule::mux => {
-                ast.push(node!(WGL::Mux))
-            }
+            Rule::mux => ast.push(node!(WGL::Mux)),
             Rule::data_bit_count => ast.push(node!(
                 WGL::DataBitCount,
                 inner_strs(pair)[0].parse().unwrap()
             )),
-            Rule::wide => ast.push(node!(
-                WGL::Wide,
-                inner_strs(pair)[0].parse().unwrap()
-            )),
+            Rule::wide => ast.push(node!(WGL::Wide, inner_strs(pair)[0].parse().unwrap())),
             Rule::signal_direction => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str().to_lowercase();
@@ -380,11 +342,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                         Some(v2.parse().unwrap())
                     ));
                 } else {
-                    ast.push(node!(
-                        WGL::SigDirection,
-                        v1.parse().unwrap(),
-                        None
-                    ));
+                    ast.push(node!(WGL::SigDirection, v1.parse().unwrap(), None));
                 }
             }
             Rule::strobe => {
@@ -399,50 +357,42 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::radix => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str().to_lowercase();
-                ast.push(node!(
-                    WGL::Radix,
-                    v1.parse().unwrap()
-                ));
+                ast.push(node!(WGL::Radix, v1.parse().unwrap()));
             }
             Rule::dut_pins => {
                 ids.push(ast.push_and_open(node!(WGL::DutPins)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::dut_pin_group => {
                 ids.push(ast.push_and_open(node!(WGL::DutPinGroup)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::pin_info => {
                 ids.push(ast.push_and_open(node!(WGL::PinInfo)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::pin_name => {
                 ids.push(ast.push_and_open(node!(WGL::PinName)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::pin_number => {
                 ids.push(ast.push_and_open(node!(WGL::PinNumber)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::ate_pins => {
                 ids.push(ast.push_and_open(node!(WGL::AtePins)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::ate_pin_group => {
                 ids.push(ast.push_and_open(node!(WGL::AtePinGroup)));
                 pairs.push(pair.into_inner());
-            }            
+            }
             Rule::ate_pin_info => {
                 ids.push(ast.push_and_open(node!(WGL::AtePinInfo)));
                 pairs.push(pair.into_inner());
-            }            
-            Rule::pstate => ast.push(node!(
-                WGL::PState,
-                inner_strs(pair)[0].parse().unwrap()
-            )),
-            Rule::integer => {
-                ast.push(node!(WGL::Integer, pair.as_str().parse().unwrap()))
             }
+            Rule::pstate => ast.push(node!(WGL::PState, inner_strs(pair)[0].parse().unwrap())),
+            Rule::integer => ast.push(node!(WGL::Integer, pair.as_str().parse().unwrap())),
             Rule::scan_cells => {
                 ids.push(ast.push_and_open(node!(WGL::ScanCells)));
                 pairs.push(pair.into_inner());
@@ -450,10 +400,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::scan_cell_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::ScanCell,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::ScanCell, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::scan_group => {
@@ -471,10 +418,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::cell_reference => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::CellRef,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::CellRef, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::scan_state => {
@@ -484,24 +428,16 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::scan_state_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::ScanState,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::ScanState, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::state_vector_element => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::StateVector,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::StateVector, v1.parse().unwrap())));
                 pairs.push(p);
             }
-            Rule::state_string => {
-                ast.push(node!(WGL::StateString, unquote(pair.as_str())))
-            }
+            Rule::state_string => ast.push(node!(WGL::StateString, unquote(pair.as_str()))),
             Rule::scan_chain => {
                 ids.push(ast.push_and_open(node!(WGL::ScanChains)));
                 pairs.push(pair.into_inner());
@@ -509,10 +445,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::chain_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::ScanChain,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::ScanChain, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::in_edge_signal => ast.push(node!(
@@ -523,16 +456,11 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 WGL::ScanChainOutEdge,
                 inner_strs(pair)[0].parse().unwrap()
             )),
-            Rule::chain_mem_invert => {
-                ast.push(node!(WGL::ScanChainMemInvert))
-            }
+            Rule::chain_mem_invert => ast.push(node!(WGL::ScanChainMemInvert)),
             Rule::time_plate => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::TimePlate,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::TimePlate, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::time_reference => {
@@ -543,11 +471,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
                 let v2 = p.next().unwrap().as_str().to_lowercase();
-                ast.push(node!(
-                    WGL::Time,
-                    v1.parse().unwrap(),
-                    v2.parse().unwrap()
-                ));
+                ast.push(node!(WGL::Time, v1.parse().unwrap(), v2.parse().unwrap()));
             }
             Rule::channel => {
                 ids.push(ast.push_and_open(node!(WGL::Channel)));
@@ -608,19 +532,13 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::pattern => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::Pattern,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::Pattern, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::subroutine => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::Subroutine,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::Subroutine, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::pattern_param_dir => {
@@ -629,10 +547,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::pattern_param => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::PatternParam,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::PatternParam, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::pattern_row => {
@@ -656,11 +571,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 let v1 = p.next().unwrap();
                 let n = match v1.as_rule() {
                     Rule::integer => {
-                        node!(
-                            WGL::LoopStmt, 
-                            v1.as_str().parse().unwrap(),
-                            None
-                        )
+                        node!(WGL::LoopStmt, v1.as_str().parse().unwrap(), None)
                     }
                     Rule::identifier => {
                         node!(
@@ -694,9 +605,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 ids.push(ast.push_and_open(node!(WGL::Address)));
                 pairs.push(pair.into_inner());
             }
-            Rule::address_increment => {
-                ast.push(node!(WGL::AddressIncrement))
-            }
+            Rule::address_increment => ast.push(node!(WGL::AddressIncrement)),
             Rule::pattern_expression => {
                 ids.push(ast.push_and_open(node!(WGL::PatternExpression)));
                 pairs.push(pair.into_inner());
@@ -715,19 +624,13 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::out_edge_signal_only => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ast.push(node!(
-                    WGL::ScanChainOutEdge,
-                    v1.parse().unwrap()
-                ));
+                ast.push(node!(WGL::ScanChainOutEdge, v1.parse().unwrap()));
             }
             Rule::time_comment => {
                 ids.push(ast.push_and_open(node!(WGL::TimeComment)));
                 pairs.push(pair.into_inner());
             }
-            Rule::call => ast.push(node!(
-                WGL::Call,
-                inner_strs(pair)[0].parse().unwrap()
-            )),
+            Rule::call => ast.push(node!(WGL::Call, inner_strs(pair)[0].parse().unwrap())),
             Rule::offset => {
                 ids.push(ast.push_and_open(node!(WGL::Offset)));
                 pairs.push(pair.into_inner());
@@ -751,10 +654,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::anonymous_scan_run => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str().to_lowercase();
-                ids.push(ast.push_and_open(node!(
-                    WGL::AnonymousScanRun,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::AnonymousScanRun, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::symbolic => {
@@ -772,11 +672,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                         Some(v2.parse().unwrap())
                     ));
                 } else {
-                    ast.push(node!(
-                        WGL::SymDirection,
-                        v1.parse().unwrap(),
-                        None
-                    ));
+                    ast.push(node!(WGL::SymDirection, v1.parse().unwrap(), None));
                 }
             }
             Rule::symbolic_assignment => {
@@ -784,7 +680,10 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 let nxt = p.peek().unwrap();
                 let n = match nxt.as_rule() {
                     Rule::name => {
-                        node!(WGL::SymAssignment, Some(unquote(p.next().unwrap().as_str())))
+                        node!(
+                            WGL::SymAssignment,
+                            Some(unquote(p.next().unwrap().as_str()))
+                        )
                     }
                     _ => node!(WGL::SymAssignment, None),
                 };
@@ -794,28 +693,19 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::equation_sheet => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::EquationSheet,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::EquationSheet, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::expression_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::ExprSet,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::ExprSet, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::variable_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::Variable,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::Variable, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::equation_defaults => {
@@ -839,15 +729,10 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::format_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::Format,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::Format, v1.parse().unwrap())));
                 pairs.push(p);
             }
-            Rule::tds_state => {
-                ast.push(node!(WGL::TdsState, unquote(pair.as_str())))
-            }
+            Rule::tds_state => ast.push(node!(WGL::TdsState, unquote(pair.as_str()))),
             Rule::registers => {
                 ids.push(ast.push_and_open(node!(WGL::Registers)));
                 pairs.push(pair.into_inner());
@@ -859,15 +744,10 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::register_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::Register,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::Register, v1.parse().unwrap())));
                 pairs.push(p);
             }
-            Rule::format_spec => {
-                ast.push(node!(WGL::FormatSpec, unquote(pair.as_str())))
-            }
+            Rule::format_spec => ast.push(node!(WGL::FormatSpec, unquote(pair.as_str()))),
             Rule::pin_groups => {
                 ids.push(ast.push_and_open(node!(WGL::PinGroups)));
                 pairs.push(pair.into_inner());
@@ -875,10 +755,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::pin_group_decl => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::PinGroup,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::PinGroup, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::time_gens => {
@@ -906,10 +783,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::timing_sets => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::TimingSet,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::TimingSet, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::tg_assign => {
@@ -927,38 +801,24 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
             }
-            Rule::tg_repeat => ast.push(node!(
-                WGL::Repeat,
-                inner_strs(pair)[0].parse().unwrap()
-            )),
+            Rule::tg_repeat => ast.push(node!(WGL::Repeat, inner_strs(pair)[0].parse().unwrap())),
             Rule::macro_definition => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::MacroDef,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::MacroDef, v1.parse().unwrap())));
                 pairs.push(p);
             }
-            Rule::macro_body => {
-                ast.push(node!(WGL::MacroBody, pair.as_str().to_string()))
-            }
+            Rule::macro_body => ast.push(node!(WGL::MacroBody, pair.as_str().to_string())),
             Rule::macro_invocation => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str();
-                ids.push(ast.push_and_open(node!(
-                    WGL::MacroInvocation,
-                    v1.parse().unwrap()
-                )));
+                ids.push(ast.push_and_open(node!(WGL::MacroInvocation, v1.parse().unwrap())));
                 pairs.push(p);
             }
             Rule::include_invocation => {
                 let mut p = pair.into_inner();
                 let v1 = unquote(p.next().unwrap().as_str());
-                ast.push(node!(
-                    WGL::Include,
-                    v1
-                ));
+                ast.push(node!(WGL::Include, v1));
             }
             Rule::annotation => {
                 let text = pair.as_str();
@@ -969,10 +829,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             Rule::global_mode => {
                 let mut p = pair.into_inner();
                 let v1 = p.next().unwrap().as_str().to_lowercase();
-                ast.push(node!(
-                    WGL::GlobalMode,
-                    v1.parse().unwrap()
-                ));
+                ast.push(node!(WGL::GlobalMode, v1.parse().unwrap()));
             }
             Rule::EOI => {}
             _ => {
@@ -1024,7 +881,7 @@ mod tests {
         ))
         .expect("cannot read file")
     }
- 
+
     #[test]
     fn test_example1_to_ast() {
         let _wgl = from_file(Path::new(
@@ -1059,7 +916,7 @@ mod tests {
             }
         }
     }
-        
+
     #[test]
     fn test_example2_can_parse() {
         let txt = read("example2");

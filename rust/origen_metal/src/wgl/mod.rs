@@ -130,7 +130,7 @@ pub enum BuiltInFunc {
     TAN,
     TANH,
     ATAN2,
-    POW
+    POW,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
