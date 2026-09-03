@@ -1,72 +1,85 @@
-use std::collections::HashMap;
-use crate::commands::_prelude::*;
-use std::fmt;
 use super::extensions::ExtensionSource;
+use crate::commands::_prelude::*;
 use origen_metal::indexmap::IndexSet;
+use std::collections::HashMap;
+use std::fmt;
 
 pub const NOT_EXTENDABLE_MSG: &'static str = "This command does not support extensions.";
 
 #[derive(Debug)]
 pub struct CmdHelps {
-    helps: HashMap<CmdSrc, CmdHelp>
+    helps: HashMap<CmdSrc, CmdHelp>,
 }
 
 impl CmdHelps {
     pub fn new() -> Self {
         Self {
-            helps: HashMap::new()
+            helps: HashMap::new(),
         }
     }
 
     pub fn core_cmd(&self, cmd: &str) -> Command {
-        self.apply_core_cmd_helps(cmd, Command::new(cmd))
+        self.apply_core_cmd_helps(cmd, Command::new(cmd.to_string()))
     }
 
     pub fn core_subc(&self, cmd_path: &[&str]) -> Command {
-        self.apply_core_subc_helps(cmd_path, Command::new(*cmd_path.last().unwrap()))
+        self.apply_core_subc_helps(cmd_path, Command::new(cmd_path.last().unwrap().to_string()))
     }
 
     pub fn add_core_cmd(&mut self, cmd_name: &str) -> &mut CmdHelp {
-        self.helps.entry(CmdSrc::Core(cmd_name.to_string())).or_default()
+        self.helps
+            .entry(CmdSrc::Core(cmd_name.to_string()))
+            .or_default()
     }
 
     pub fn add_core_sub_cmd(&mut self, cmd_path: &[&str]) -> &mut CmdHelp {
-        self.helps.entry(CmdSrc::Core(cmd_path.join("."))).or_default()
+        self.helps
+            .entry(CmdSrc::Core(cmd_path.join(".")))
+            .or_default()
     }
 
     pub fn add_app_cmd(&mut self, cmd_name: &str) -> &mut CmdHelp {
-        self.helps.entry(CmdSrc::App(cmd_name.to_string())).or_default()
+        self.helps
+            .entry(CmdSrc::App(cmd_name.to_string()))
+            .or_default()
     }
 
     pub fn add_pl_cmd(&mut self, pl_name: &str, cmd_name: &str) -> &mut CmdHelp {
-        self.helps.entry(CmdSrc::Plugin(pl_name.to_string(), cmd_name.to_string())).or_default()
+        self.helps
+            .entry(CmdSrc::Plugin(pl_name.to_string(), cmd_name.to_string()))
+            .or_default()
     }
 
     pub fn add_aux_cmd(&mut self, ns: &str, cmd_name: &str) -> &mut CmdHelp {
-        self.helps.entry(CmdSrc::Aux(ns.to_string(), cmd_name.to_string())).or_default()
+        self.helps
+            .entry(CmdSrc::Aux(ns.to_string(), cmd_name.to_string()))
+            .or_default()
     }
 
-    pub fn apply_core_cmd_helps<'a>(&'a self, cmd_name: &str, app: Command<'a>) -> Command<'a> {
+    pub fn apply_core_cmd_helps<'a>(&'a self, cmd_name: &str, app: Command) -> Command {
         self.apply_helps(&CmdSrc::Core(cmd_name.to_string()), app)
     }
 
-    pub fn apply_core_subc_helps<'a>(&'a self, cmd_path: &[&str], app: Command<'a>) -> Command<'a> {
+    pub fn apply_core_subc_helps<'a>(&'a self, cmd_path: &[&str], app: Command) -> Command {
         self.apply_helps(&CmdSrc::Core(cmd_path.join(".")), app)
     }
 
-    pub fn apply_helps<'a>(&'a self, cmd_src: &CmdSrc, mut app: Command<'a>) -> Command<'a> {
+    pub fn apply_helps<'a>(&'a self, cmd_src: &CmdSrc, mut app: Command) -> Command {
         if let Some(helps) = self.helps.get(cmd_src) {
             if let Some(h) = helps.before_help.as_ref() {
-                app = app.before_help(h.as_str());
+                app = app.before_help(h.clone());
             }
             if let Some(h) = helps.help.as_ref() {
-                app = app.about(h.as_str());
+                app = app.about(h.clone());
             }
             if let Some(h) = helps.after_help.as_ref() {
-                app = app.after_help(h.as_str());
+                app = app.after_help(h.clone());
             }
         } else {
-            log_error!("Could not apply help messages to {} - no such command found", cmd_src);
+            log_error!(
+                "Could not apply help messages to {} - no such command found",
+                cmd_src
+            );
         }
         app
     }
@@ -88,8 +101,12 @@ impl CmdHelps {
                 for ext in exts.iter() {
                     match ext.source {
                         ExtensionSource::App => extended_from_app = true,
-                        ExtensionSource::Plugin(ref n) => { pls.insert(n); },
-                        ExtensionSource::Aux(ref n, _) => { nspaces.insert(n); },
+                        ExtensionSource::Plugin(ref n) => {
+                            pls.insert(n);
+                        }
+                        ExtensionSource::Aux(ref n, _) => {
+                            nspaces.insert(n);
+                        }
                     }
                 }
                 let mut msg = "This command is extended from:".to_string();
@@ -99,13 +116,20 @@ impl CmdHelps {
                 if !pls.is_empty() {
                     msg += &format!(
                         "\n    - Plugins: {}",
-                        pls.iter().map(|n| format!("'{}'", n)).collect::<Vec<String>>().join(", ")
+                        pls.iter()
+                            .map(|n| format!("'{}'", n))
+                            .collect::<Vec<String>>()
+                            .join(", ")
                     );
                 }
                 if !nspaces.is_empty() {
                     msg += &format!(
                         "\n    - Aux Namespaces: {}",
-                        nspaces.iter().map(|n| format!("'{}'", n)).collect::<Vec<String>>().join(", ")
+                        nspaces
+                            .iter()
+                            .map(|n| format!("'{}'", n))
+                            .collect::<Vec<String>>()
+                            .join(", ")
                     );
                 }
                 if let Some(after) = help.after_help.as_ref() {
@@ -161,34 +185,43 @@ impl CmdHelp {
 
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub enum CmdSrc {
-    Core(String), // Core command
-    App(String), // App command
+    Core(String),           // Core command
+    App(String),            // App command
     Plugin(String, String), // Plugin command
-    Aux(String, String), // Aux command
+    Aux(String, String),    // Aux command
 }
 
 impl CmdSrc {
     pub fn new(target: &str) -> Result<Self> {
-        let (scope, t) = target.split_once('.').ok_or_else(|| format!("Could not discern scope from '{}'", target))?;
+        let (scope, t) = target
+            .split_once('.')
+            .ok_or_else(|| format!("Could not discern scope from '{}'", target))?;
         Ok(match scope {
             "origen" => Self::Core(t.to_string()),
             "app" => Self::App(t.to_string()),
             "plugin" => {
-                let (pl_name, pl_t) = t.split_once('.').ok_or_else(|| format!("Could not discern plugin from '{}'", t))?;
+                let (pl_name, pl_t) = t
+                    .split_once('.')
+                    .ok_or_else(|| format!("Could not discern plugin from '{}'", t))?;
                 Self::Plugin(pl_name.to_string(), pl_t.to_string())
             }
             "aux" | "aux_ns" => {
-                let (ns_name, aux_t) = t.split_once('.').ok_or_else(|| format!("Could not discern auxillary command namespace from '{}'", t))?;
+                let (ns_name, aux_t) = t.split_once('.').ok_or_else(|| {
+                    format!("Could not discern auxillary command namespace from '{}'", t)
+                })?;
                 Self::Aux(ns_name.to_string(), aux_t.to_string())
             }
-            _ => bail!("Unknown target scope '{}'. Expected 'origen', 'app', 'aux', or 'plugin'", scope)
+            _ => bail!(
+                "Unknown target scope '{}'. Expected 'origen', 'app', 'aux', or 'plugin'",
+                scope
+            ),
         })
     }
 
     pub fn offset_path(&self) -> &str {
         match self {
             Self::Core(cmd) | Self::App(cmd) => &cmd,
-            Self::Plugin(_, cmd) | Self::Aux(_, cmd) => &cmd
+            Self::Plugin(_, cmd) | Self::Aux(_, cmd) => &cmd,
         }
     }
 }
@@ -198,13 +231,13 @@ impl fmt::Display for CmdSrc {
         match self {
             Self::Core(cmd) => {
                 write!(f, "origen.{}", cmd)
-            },
+            }
             Self::App(cmd) => {
                 write!(f, "app.{}", cmd)
-            },
+            }
             Self::Plugin(pl_name, cmd) => {
                 write!(f, "plugin.{}.{}", pl_name, cmd)
-            },
+            }
             Self::Aux(ns_name, cmd) => {
                 write!(f, "aux_ns.{}.{}", ns_name, cmd)
             }

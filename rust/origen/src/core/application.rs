@@ -2,12 +2,12 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
-use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
 use origen_metal::framework::reference_files;
 use origen_metal::utils::revision_control::RevisionControl;
 use origen_metal::utils::revision_control::Status;
+use origen_metal::utils::version::Version;
 use origen_metal::Outcome;
 use regex::Regex;
 use std::fs;
@@ -69,13 +69,16 @@ impl Application {
     /// Sets the application version by writing it out to config/version.toml
     /// The normal way to do this is to call app.version(), bump the returned version object
     /// as required, then return it back to this function.
-    /// See here for the API - https://docs.rs/semver
+    /// See the [semver API](https://docs.rs/semver).
     pub fn set_version(&self, version: &Version) -> Result<()> {
         log_info!(
             "Updating version file: '{}'",
             self.version_file().into_os_string().into_string()?
         );
-        set_version_in_toml(&self.version_file(), version)
+        let mut v = Version::from_pyproject_with_toml_handle(self.version_file())?;
+        v.set_new_version(version.clone())?;
+        v.write()?;
+        Ok(())
     }
 
     /// Execute the given function with a reference to the application config.
@@ -96,7 +99,7 @@ impl Application {
         func(&mut cfg)
     }
 
-    pub fn config(&self) -> std::sync::RwLockReadGuard<Config> {
+    pub fn config(&self) -> std::sync::RwLockReadGuard<'_, Config> {
         self.config.read().unwrap()
     }
 
@@ -112,10 +115,22 @@ impl Application {
 
     /// Return an RevisionControl, containing a driver, based on the app's config
     pub fn rc(&self) -> Result<RevisionControl> {
-        Ok(self.with_config(|cfg| match cfg.revision_control.as_ref() {
-            Some(rc) => Ok(RevisionControl::from_config(rc)?),
+        self.with_config(|cfg| match cfg.revision_control.as_ref() {
+            Some(rc) => {
+                let mut resolved = rc.clone();
+                if let Some(local) = resolved.get("local") {
+                    let path = PathBuf::from(local);
+                    if path.is_relative() {
+                        resolved.insert(
+                            "local".to_string(),
+                            self.root.join(path).to_string_lossy().to_string(),
+                        );
+                    }
+                }
+                RevisionControl::from_config(&resolved)
+            }
             None => bail!("No app RC was given. Cannot create RC driver"),
-        })?)
+        })
     }
 
     pub fn rc_init(&self) -> Result<Outcome> {
@@ -445,8 +460,8 @@ impl ProductionStatus {
 #[cfg(test)]
 mod tests {
     use crate::core::application::Application;
-    use crate::utility::version::Version;
     use crate::STATUS;
+    use origen_metal::utils::version::Version;
 
     #[test]
     fn reading_and_writing_version() {

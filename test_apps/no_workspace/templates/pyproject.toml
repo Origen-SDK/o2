@@ -1,0 +1,41 @@
+[project]
+name = "{{ name }}"
+version = "0.1.0"
+description = "Origen installation test"
+requires-python = ">=3.7,<3.13"
+dependencies = [
+    "docutils!=0.21.post1",
+    "more-itertools>=8,<10",
+    "zipp>=3.4,<3.16",
+    "setuptools>=40,<70",
+    "importlib-metadata>=4,<7",
+    "filelock>=3,<3.13",
+    "pygments>=2.7,<2.18",
+    "virtualenv>=20,<20.27",
+    "platformdirs>=2,<4",
+    "distlib>=0.3,<1",
+{% if local_origen %}
+    "origen",
+    "origen-metal",
+{% else %}
+    "origen>=0",
+    "origen-metal>=0",
+{% endif %}
+{% if has_pls %}
+    "python-plugin",
+    "test-apps-shared-test-helpers",
+{% endif %}
+]
+
+[tool.uv]
+package = false
+
+{% if local_origen %}
+[tool.uv.sources]
+origen = { path = "{{ o2_root.joinpath("python/origen").as_posix() }}" }
+origen-metal = { path = "{{ o2_root.joinpath("python/origen_metal").as_posix() }}" }
+{% if has_pls %}
+python-plugin = { path = "{{ o2_root.joinpath("test_apps/python_plugin").as_posix() }}" }
+test-apps-shared-test-helpers = { path = "{{ o2_root.joinpath("test_apps/test_apps_shared_test_helpers").as_posix() }}" }
+{% endif %}
+{% endif %}

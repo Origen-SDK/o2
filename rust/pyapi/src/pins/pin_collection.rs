@@ -46,12 +46,12 @@ impl PinCollection {
 impl PinCollection {
     #[setter]
     fn actions(slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<()> {
-        Self::set_actions(slf, actions, None)?;
+        Self::apply_actions(slf, actions, None)?;
         Ok(())
     }
 
-    #[args(kwargs = "**")]
-    fn set_actions(
+    #[pyo3(signature=(actions, **kwargs))]
+    fn apply_actions(
         slf: PyRefMut<Self>,
         actions: &PyAny,
         kwargs: Option<&PyDict>,
@@ -65,11 +65,8 @@ impl PinCollection {
     }
 
     #[getter]
-    fn get_actions(&self) -> PyResult<PyObject> {
+    fn get_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let pin_actions = self.pin_collection.get_actions(&dut)?;
         Ok(PinActions {
             actions: pin_actions,
@@ -102,7 +99,7 @@ impl PinCollection {
         Ok(())
     }
 
-    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(label=None, symbol=None, cycles=None, mask=None))]
     fn overlay(
         slf: PyRef<Self>,
         label: Option<String>,
@@ -117,7 +114,7 @@ impl PinCollection {
         Ok(slf.into())
     }
 
-    #[args(symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(symbol=None, cycles=None, mask=None))]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,
@@ -147,10 +144,8 @@ impl PinCollection {
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<PyObject> {
+    fn get_reset_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let pin_actions = self.pin_collection.get_reset_actions(&dut)?;
         Ok(PinActions {
             actions: pin_actions,
@@ -168,11 +163,8 @@ impl PinCollection {
         Ok(self.pin_collection.is_little_endian())
     }
 
-    #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    #[pyo3(signature=(**kwargs))]
+    fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
@@ -185,10 +177,7 @@ impl PinCollection {
         Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn repeat(slf: PyRef<Self>, py: Python, count: usize) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         py.eval(
@@ -271,15 +260,15 @@ impl ListLikeAPI for PinCollection {
                 }
             }
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(
-            py,
-            PinCollection {
-                pin_collection: OrigenPinCollection::new(ids, None),
-            },
-        )?
-        .to_object(py))
+        Python::with_gil(|py| {
+            Ok(Py::new(
+                py,
+                PinCollection {
+                    pin_collection: OrigenPinCollection::new(ids, None),
+                },
+            )?
+            .to_object(py))
+        })
     }
 }
 

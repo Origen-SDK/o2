@@ -3,12 +3,16 @@ field = { (ASCII_DIGIT | "." | "-")+ }
 stil_source = { SOI ~ stil_source_items+ ~ EOI }
 
 stil_source_items = _{
-    stil_version | header_block | signals_block | signal_groups_block |
+    stil_version | header_block | env_block | signals_block | signal_groups_block |
     timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
-    scan_structures_block | pattern_block | include
+    scan_structures_block | pattern_block | include | dcapfilter_block | dcapsetup_block |
+    macrodefs_block | procedures_block | user_keywords_block | user_functions_block | annotation | udb_stmt
 }
 
-stil_version = { "STIL" ~ integer ~ "." ~ integer ~ EOS }
+stil_version = { "STIL" ~ integer ~ "." ~ integer ~ (ext_block | EOS) }
+ext_block = { "{" ~ extension+ ~ "}" }
+extension = { name ~ (name | integer) ~ EOS }
+
 major = { ASCII_DIGIT }
 minor = { ASCII_DIGIT }
 
@@ -28,7 +32,7 @@ divide = { "/" }
 factor = { paren_expression | number_with_unit | number | name }
 paren_expression = { "(" ~ expression ~ ")" }
 
-sigref_expr = { name | (single_quote ~ expression_ ~ single_quote) }
+sigref_expr = { signal_name | (single_quote ~ expression_ ~ single_quote) }
 expression_ = { factor_ ~ ((add | subtract) ~ factor_)* }
 factor_ = { paren_expression_ | name }
 paren_expression_ = { "(" ~ expression_ ~ ")" }
@@ -41,25 +45,68 @@ engineering_prefix = { "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p"
 //# 9. Header Block
 //############################################################################
 
-header_block = { "Header" ~ "{" ~ title? ~ date? ~ source? ~ history? ~ "}" }
+header_block = { "Header" ~ "{" ~ header_item* ~ "}" }
+header_item = _{ title | date | source | history | annotation | include }
 title = { "Title" ~ string ~ EOS }
 date = { "Date" ~ string ~ EOS }
 source = { "Source" ~ string ~ EOS }
 history = { "History" ~ "{" ~ annotation* ~ "}" }
 annotation = { "Ann" ~ "{*" ~ annotation_inner ~ "*}" }
-annotation_inner = { (!"*}" ~ ANY)* }
+annotation_inner = @{ (!"*}" ~ ANY)* }
+
+//############################################################################
+//# 1450.1-2005 Extension - Environment Block
+//############################################################################
+
+env_block = { "Environment" ~ name? ~ "{" ~ env_item* ~ "}" }
+env_item = _{ inherit_env | name_maps | file_reference }
+inherit_env = { "InheritEnvironment" ~ name ~ EOS }
+name_maps = { "NameMaps" ~ (name | string)? ~ "{" ~ name_maps_item* ~ "}" }
+name_maps_item = _{
+    nm_inherit |
+    nm_prefix |
+    nm_separator |
+    nm_scan_cells |
+    nm_signals |
+    nm_signal_groups |
+    nm_variables |
+    nm_all_names
+}
+nm_inherit = _{ nm_inherit_simple | nm_inherit_block }
+nm_inherit_simple = { "InheritNameMap" ~ (name ~ "::")? ~ name? ~ EOS }
+nm_inherit_block = { "InheritNameMap" ~ (name ~ "::")? ~ name? ~ "{" ~ nm_prefix? ~ nm_separator? ~ nm_scan_cells* ~ "}" }
+nm_env_namespace = { name ~ "::"}
+nm_prefix = { "Prefix" ~ string ~ EOS }
+nm_separator = { "Separator" ~ string ~ EOS }
+nm_scan_cells = { "ScanCells" ~ "{" ~ nm_scan_cell* ~ "}" }
+nm_scan_cell = { signal_name? ~ string? ~ EOS }
+nm_signals = { "Signals" ~ "{" ~ nm_signal* ~ "}" }
+nm_signal = { signal_name ~ string ~ EOS }
+nm_signal_groups = { "SignalGroups" ~ name? ~ "{" ~ nm_signal_group* ~ "}" }
+nm_signal_group = { name ~ string ~ EOS }
+nm_variables = { "Variables" ~ "{" ~ nm_variable* ~ "}" }
+nm_variable = { name ~ string ~ EOS }
+nm_all_names = { "AllNames" ~ "{" ~ nm_name* ~ "}" }
+nm_name = { name ~ string ~ EOS }
+file_reference = _{ file_reference_simple | file_reference_block }
+file_reference_simple = { "FileReference" ~ string ~ EOS }
+file_reference_block = { "FileReference" ~ string ~ "{" ~ file_type ~ file_format ~ file_version ~ "}" } 
+file_type = { "Type" ~ name ~ EOS }
+file_format = { "Format" ~ name ~ EOS}
+file_version = { "Version" ~ string ~ EOS}
+
 
 //############################################################################
 //# 14. Signals Block
 //############################################################################
 
-signals_block = { "Signals" ~ "{" ~ signal* ~ "}" }
+signals_block = { "Signals" ~ "{" ~ (signal | annotation)* ~ "}" }
 signal = {
-    (name ~ signal_type ~ EOS) |
-    (name ~ signal_type ~
+    (signal_name ~ signal_type ~ EOS) |
+    (signal_name ~ signal_type ~
     ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
 }
-signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo") }
+signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo" | "inout" | "out" | "in" | "supply" | "pseudo" ) }
 
 termination = {
     "Termination" ~ termination_val ~ EOS
@@ -76,8 +123,8 @@ base_val = { ("Hex" | "Dec") }
 
 alignment = { "Alignment" ~ alignment_val ~ EOS }
 alignment_val = { ("MSB" | "LSB") }
-scan_in = { "ScanIn" ~ integer ~ EOS }
-scan_out = { "ScanOut" ~ integer ~ EOS }
+scan_in = { "ScanIn" ~ integer? ~ EOS }
+scan_out = { "ScanOut" ~ integer? ~ EOS }
 data_bit_count = { "DataBitCount" ~ integer ~ EOS }
 waveform_character_list = @{ waveform_character+ }
 waveform_character = { ASCII_ALPHANUMERIC }
@@ -86,7 +133,7 @@ waveform_character = { ASCII_ALPHANUMERIC }
 //# 15. SignalGroups Block
 //############################################################################
 
-signal_groups_block = { "SignalGroups" ~ name? ~ "{" ~ signal_group* ~ "}" }
+signal_groups_block = { "SignalGroups" ~ name? ~ "{" ~ (signal_group | annotation)* ~ "}" }
 signal_group = {
     (name ~ "=" ~ sigref_expr ~ EOS) |
     (name ~ "=" ~ sigref_expr ~ 
@@ -97,22 +144,51 @@ signal_group = {
 //# 16. PatternExec Block
 //############################################################################
 
-pattern_exec_block = {
-    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ "}"
-}
+pattern_exec_block = { "PatternExec" ~ name? ~ "{" ~ pat_exec_item* ~ "}" }
+pat_exec_item = _{ category | selector | timing | pattern_burst | dcapfilter | dcapsetup | annotation | include }
 category = { "Category" ~ name ~ EOS }
 selector = { "Selector" ~ name ~ EOS }
 timing = { "Timing" ~ name ~ EOS }
 pattern_burst = { "PatternBurst" ~ name ~ EOS }
+dcapfilter = { "DCapFilter" ~ name ~ EOS}
+dcapsetup  = { "DCapSetup" ~ name ~ EOS }
+
+
+//############################################################################
+//# 16.1 DcapSetup Block
+//############################################################################
+
+dcapsetup_block = {
+    "DCapSetup" ~ name ~ "{" ~ pins*  ~ "}"
+}
+pins = { "Pins" ~ name ~ EOS}
+
+//############################################################################
+//# 16.2 DcapFilter Block
+//############################################################################
+
+dcapfilter_block = {
+    "DCapFilter" ~ name ~ "{" ~ stype* ~ transfer_mode* ~ frame_count* ~ vectors_per_frame* ~ vectors_per_sample* ~ 
+    discard_offset* ~ discard_vectors* ~ discard_frames* ~ "}"
+}
+stype = { "Type" ~ name ~ EOS }
+transfer_mode = { "TransferMode" ~ name ~ EOS }
+frame_count = { "FrameCount" ~ integer ~ EOS }
+vectors_per_frame = { "VectorsPerFrame" ~ integer ~ EOS }
+vectors_per_sample = { "VectorsPerSample" ~ integer ~ EOS }
+discard_offset = { "DiscardOffset" ~ integer ~ EOS }
+discard_vectors = { "DiscardVectors" ~ integer ~ EOS }
+discard_frames = { "DiscardFrames" ~ integer ~ EOS }
+
 
 //############################################################################
 //# 17. PatternBurst Block
 //############################################################################
 
 pattern_burst_block = {
-    "PatternBurst" ~ name ~ "{" ~ signal_groups* ~ macro_defs* ~ procedures? ~ scan_structures? ~ start? ~
-        stop? ~ termination_block* ~ pat_list+ ~ "}"
+    "PatternBurst" ~ name ~ "{" ~ pat_burst_item* ~ "}"
 }
+pat_burst_item = _{ signal_groups | macro_defs | procedures | scan_structures | start | stop | termination_block | pat_list | annotation | include }
 signal_groups = { "SignalGroups" ~ name ~ EOS }
 macro_defs = { "MacroDefs" ~ name ~ EOS }
 procedures = { "Procedures" ~ name ~ EOS }
@@ -125,9 +201,9 @@ termination_item = {
 }
 pat_list = { "PatList" ~ "{" ~ pat_list_item* ~ "}" }
 pat_list_item = {
-    name ~ (EOS | ("{" ~ signal_groups* ~ macro_defs* ~ procedures? ~ scan_structures? ~ start? ~
-                       stop? ~ termination_block* ~ "}"))
+    name ~ (EOS | ("{" ~ pat_list_sub_item* ~ "}"))
 }
+pat_list_sub_item = _{ signal_groups | macro_defs | procedures | scan_structures | start | stop | termination_block | annotation | include }
 
 //############################################################################
 //# 18. Timing block
@@ -135,25 +211,38 @@ pat_list_item = {
 
 timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups* ~ waveform_table* ~ "}" }
 waveform_table = {
-    "WaveformTable" ~ name ~ "{" ~ period? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
+    "WaveformTable" ~ name ~ "{" ~ (tagged_period | period)? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
 }
 period = { "Period" ~ time_expr ~ EOS }
+tagged_period = { tag ~ "Period" ~ time_expr ~ EOS }
 inherit_waveform_table = { "InheritWaveformTable" ~ name ~ EOS }
 sub_waveforms = { "SubWaveforms" ~ "{" ~ sub_waveform* ~ "}" }
 sub_waveform = { label? ~ "Duration" ~ time_expr ~ "{" ~ event* ~ "}" }
 waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
-waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ wfc_definition* ~ "}" }
+waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ (tagged_wfc_definition | wfc_definition)* ~ "}" }
 inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
-wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
+wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ event_with_no_semicolon? ~ "}" }
+tagged_wfc_definition = { tag ~ wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ event_with_no_semicolon? ~ "}" }
 wfc_list = @{ wfc_char+ }
-wfc_char = { ASCII_ALPHANUMERIC }
+wfc_char = { ASCII_ALPHANUMERIC | "#" | "%" }
 inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
 name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
 event = { label? ~ time_expr? ~ event_list? ~ EOS }
+// Compatibility syntax. The AST builder rejects this rule unless it has been explicitly enabled.
+event_with_no_semicolon = { (label ~ time_expr? ~ event_list?) | (time_expr ~ event_list?) | event_list }
 event_list = { event_char ~ ("/" ~ event_char)* }
 event_char = {
-    "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
-    "Q" | "M" | "N" | "A" | "B" | "F" | "?"
+    // Unambiguous single chars — no keyword starts with these, try first
+    "D" | "U" | "Z" | "P" | "H" | "X" | "x" | "T" | "V" |
+    "l" | "h" | "t" | "v" | "R" | "G" | "Q" | "N" | "A" | "B" | "?" |
+    // Long-form keyword alternatives (must come before F, L, M single chars)
+    "ForceDown" | "ForceUp" | "ForceOff" | "ForcePrior" | "ForceUnknown" |
+    "CompareLowWindow" | "CompareHighWindow" | "CompareOffWindow" | "CompareValidWindow" |
+    "CompareLow" | "CompareHigh" | "CompareUnknown" | "CompareOff" | "CompareValid" |
+    "LogicLow" | "LogicHigh" | "LogicZUnknown" |
+    "ExpectHigh" | "ExpectLow" | "ExpectOff" | "Marker" |
+    // Single chars that share a prefix with keywords above
+    "F" | "L" | "M"
 }
 
 //############################################################################
@@ -176,9 +265,10 @@ selector_val_subset = { ("Min" | "Typ" | "Max") }
 //# 20. ScanStructures Blocks
 //############################################################################
 
-scan_structures_block = { "ScanStructures" ~ name? ~ "{" ~ scan_chain* ~ "}" }
-scan_chain = { "ScanChain" ~ name ~ "{" ~ scan_length ~ (scan_out_length | scan_cells | scan_in_name |
-               scan_out_name | scan_master_clock | scan_slave_clock | scan_inversion)* ~ "}" }
+scan_structures_block = { "ScanStructures" ~ name? ~ "{" ~ (scan_chain | annotation)* ~ "}" }
+scan_chain = { "ScanChain" ~ name ~ "{" ~ scan_chain_item* ~ "}" }
+scan_chain_item = _{ scan_length | scan_out_length | scan_cells | scan_in_name | scan_out_name | scan_master_clock | scan_slave_clock | scan_inversion | annotation | include | udb_stmt | bare_block_stmt }
+bare_block_stmt = _{ "{" ~ udb_block_inner ~ "}" ~ EOS? }
 scan_length = { "ScanLength" ~ integer ~ EOS }
 scan_out_length = { "ScanOutLength" ~ integer ~ EOS }
 scan_cells = { "ScanCells" ~ (not | name)* ~ EOS }
@@ -197,24 +287,29 @@ scan_inversion_val = { ("0" | "1") }
 pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
 label = { (string | name) ~ ":" }
 time_unit = { "TimeUnit" ~ time_expr ~ EOS }
-pattern_statement = { label | vector | waveform_statement | condition | call | macro_statement | loop_statement |
-                      match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
+pattern_statement = !{ label | vector | waveform_statement | condition | fixed_statement | call | macro_statement |
+                      loop_statement | match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation | udb_stmt }
 
-vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
-cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
-vec_data = { repeat | waveform_format | hex_format | dec_format | data_string }
-repeat = @{ "\\r" ~ integer }
+vector = ${ "V" ~ "ector"? ~ s ~ "{" ~ (s ~ (cyclized_data | non_cyclized_data))* ~ s ~ "}" ~ vector_comment? }
+vector_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
+cyclized_data = !{ (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
+vec_data = { repeat | capture | noop | waveform_format | hex_format | dec_format | data_string | wfc_data_string }
+repeat  = @{ "\\r" ~ integer }
+capture = @{ "\\c" ~ integer }
+noop    = @{ "\\n" ~ integer }
 waveform_format = { "\\w" }
 hex_format = @{ "\\h " | ("\\h" ~ data_string) }
 dec_format = @{ "\\d " | ("\\d" ~ data_string) }
 data_string = { ASCII_ALPHANUMERIC+ }
-non_cyclized_data = { (time_value ~ sigref_expr ~ "=" ~ event_list ~ EOS) |
-                      (time_value ~ "{" ~ (sigref_expr ~ "=" ~ event_list ~ EOS)+ ~ "}") }
+wfc_data_string = { wfc_char+ }
+non_cyclized_data = !{ (time_value ~ sigref_expr ~ "=" ~ event_list ~ EOS) |
+                       (time_value ~ "{" ~ (sigref_expr ~ "=" ~ event_list ~ EOS)+ ~ "}") }
 time_value = @{ "@" ~ integer }
 
 waveform_statement = { "W" ~ "aveformTable"? ~ name ~ EOS }
 
 condition = { "C" ~ "ondition"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
+fixed_statement = { "F" ~ "ixed"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
 
 //call = { ("Call" ~ name ~ "{" ~ (scan_data | cyclized_data | non_cyclized_data)* ~ "}") | ("Call" ~ name ~ EOS) }
 // Can't see what is different between scan_data and cyclized_data
@@ -222,7 +317,8 @@ call = { ("Call" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("
 
 macro_statement = { ("Macro" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Macro" ~ name ~ EOS) }
 
-loop_statement = { "Loop" ~ integer ~ "{" ~ pattern_statement* ~ "}" }
+loop_statement = ${ "Loop" ~ (space | N)* ~ integer ~ (space | N)* ~ "{" ~ ((space | N)* ~ pattern_statement)* ~ (space | N)* ~ "}" ~ loop_comment? }
+loop_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 
 match_loop = { "MatchLoop" ~ (integer | infinite) ~ "{" ~ pattern_statement+ ~ "}" }
 infinite = { "Infinite" }
@@ -231,11 +327,36 @@ goto = { "Goto" ~ name ~ EOS }
 
 breakpoint = { ("BreakPoint" ~ EOS) | ("BreakPoint" ~ "{" ~ pattern_statement* ~ "}") }
 
-iddq = { "IDDQ" ~ "TestPoint" ~ EOS }
+iddq = { ("IDDQ" | "Iddq") ~ "TestPoint" ~ EOS }
 
 stop_statement = { "Stop" ~ EOS }
 
 scan_chain_statement = { "ScanChain" ~ name ~ EOS }
+
+// User-Defined Block (udb) statement — catch-all for UserKeywords-declared identifiers.
+// Must be LAST in pattern_statement to avoid shadowing STIL keywords.
+udb_stmt = { name ~ udb_pre_content ~ (udb_block | EOS) }
+udb_block = { "{" ~ udb_block_inner ~ "}" }
+udb_block_inner = @{ ((!("{" | "}") ~ ANY) | ("{" ~ udb_block_inner ~ "}"))* }
+udb_pre_content = @{ (!";" ~ !"{" ~ !"}" ~ ANY)* }
+
+//############################################################################
+//# 5. UserKeywords and UserFunctions blocks
+//############################################################################
+
+user_keywords_block = { "UserKeywords" ~ name+ ~ EOS }
+user_functions_block = { "UserFunctions" ~ name+ ~ EOS }
+
+//############################################################################
+//# 24. Procedures and MacroDefs blocks
+//############################################################################
+
+procedures_block = { "Procedures" ~ name? ~ "{" ~ (procedures_def | include)* ~ "}" }
+procedures_def = { name ~ "{" ~ procedure_or_macro_item* ~"}" }
+macrodefs_block = { "MacroDefs" ~ name? ~ "{" ~ (macro_def | include)* ~ "}" }
+macro_def = { name ~ "{" ~ procedure_or_macro_item* ~"}" }
+procedure_or_macro_item = { shift_pat_stmt | pattern_statement }
+shift_pat_stmt = { "Shift" ~ "{" ~ (label? ~ pattern_statement)* ~ "}" }
 
 //############################################################################
 //# Identifiers
@@ -243,9 +364,15 @@ scan_chain_statement = { "ScanChain" ~ name ~ EOS }
 
 string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 name = @{ ((name_segment ~ ".")+ ~ name_segment) | name_segment }
+signal_name = @{ ((signal_name_segment ~ ".")+ ~ signal_name_segment) | signal_name_segment }
 name_segment = { simple_identifier | escaped_identifier }
+signal_name_segment = { signal_identifier | signal_escaped_range | signal_escaped_single | escaped_identifier }
+signal_escaped_range  = @{ escaped_identifier ~ "[" ~ digit+ ~ ".." ~ digit+ ~ "]" }
+signal_escaped_single = @{ escaped_identifier ~ "[" ~ digit+ ~ "]" }
 simple_identifier = @{ (letter | underline) ~ simple_character* }
+signal_identifier = @{ (letter | underline) ~ signal_character* }
 simple_character = { letter | digit | underline }
+signal_character = { letter | digit | underline | "[" | "]" | ".." }
 letter = { upper_case_letter | lower_case_letter }
 upper_case_letter = { ASCII_ALPHA_UPPER }
 lower_case_letter = { ASCII_ALPHA_LOWER }
@@ -258,6 +385,7 @@ special_character = {
     "<" | "." | ">" | "/" | "?" | "\\"
 }
 whitespace_character = { " " | "\t" | "\n" }
+tag = { "<" ~ (string | name) ~ ">" }
 
 //#############################################################################
 //# Numbers
@@ -267,7 +395,7 @@ digit = { ASCII_DIGIT }
 hexdigit = { ASCII_HEX_DIGIT }
 hex_number = @{ hexdigit+ }
 integer = @{ digit+ }
-signed_integer = @{ integer | (minus ~ integer) }
+signed_integer = @{ (minus ~ integer) | ("+" ~ integer) | integer }
 number = { float_number | signed_integer }
 float_number = {
     (signed_integer ~ point ~ integer ~ exponential ~ signed_integer) |
@@ -304,4 +432,4 @@ N = _{ NEWLINE }
 
 // For Pest implicit whitespace insertion
 WHITESPACE = _{ space | NEWLINE }
-COMMENT = _{ block_comment | one_line_comment }
+COMMENT = { block_comment | one_line_comment }

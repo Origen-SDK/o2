@@ -7,6 +7,7 @@ from .core_cmds.target import T_Target
 from .core_cmds.app import T_App
 from .core_cmds.plugin import T_Plugin
 from .core_cmds.plugins import T_Plugins
+from .core_cmds.web import T_Web
 
 class T_AppWorkspaceCoreCommands(CLICommon):
     def test_app_workspace_help_message(self):
@@ -43,7 +44,9 @@ class T_AppWorkspaceCoreCommands(CLICommon):
             help = cmd.get_help_msg(run_opts=no_config_run_opts)
             help.assert_summary(cmd.help)
             help.assert_args(cmd.code)
-            help.assert_bare_app_opts()
+            opts = list(self.in_app_cmds.standard_opts())
+            opts.insert(3, cmd.scripts)
+            help.assert_opts(*opts)
 
         def test_basic_eval(self, cmd, no_config_run_opts):
             d = cmd.demos["multi_statement_single_arg"]
@@ -62,6 +65,9 @@ class T_AppWorkspaceCoreCommands(CLICommon):
     class TestTarget(T_Target):
         pass
 
+    class TestWeb(T_Web):
+        pass
+
     class TestInteractive(CLICommon):
         _cmd= origen.helpers.regressions.cli.CLI.in_app_cmds.i
 
@@ -74,7 +80,7 @@ class T_AppWorkspaceCoreCommands(CLICommon):
         @pytest.mark.skip
         def test_interactive(self, cmd, no_config_run_opts):
             # TEST_NEEDED CLI try to get an interactive test that just starts/stops
-            proc = subprocess.Popen(["poetry", "run", "origen", "i"], universal_newlines=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["uv", "run", "--no-editable", "origen", "i"], universal_newlines=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
                 proc.stdin.flush()
                 #proc.stdout.flush()

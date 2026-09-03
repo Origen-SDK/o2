@@ -1,8 +1,8 @@
 use super::utility::transaction::Transaction;
+use crate::om::TypedValueMap;
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
-use crate::om::TypedValueMap;
 
 pub type Id = usize;
 type Metadata = Option<TypedValueMap>;

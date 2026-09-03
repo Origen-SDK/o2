@@ -73,9 +73,9 @@ class FixtureCompilerTest(abc.ABC):
     @property
     def expected_str_render_with_standard_context(self):
         # Make sure origen.version isn't woefully broken
-        assert isinstance(origen.version, str)
-        assert len(origen.version) > 0
-        return f"Hello from Origen version {origen.version}!"
+        assert isinstance(origen.__version__, str)
+        assert len(origen.__version__) > 0
+        return f"Hello from Origen version {origen.__version__}!"
 
     @property
     def expected_str_render_with_additional_context(self):

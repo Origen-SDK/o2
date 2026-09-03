@@ -108,7 +108,7 @@ impl FilePermissions {
         } else {
             crate::type_error!(format!(
                 "Can not build FilePermissions from type '{}'",
-                permissions.get_type().name()?
+                permissions.get_type().qualname()?
             ))
         }
     }

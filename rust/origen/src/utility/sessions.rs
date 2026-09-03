@@ -15,7 +15,7 @@ pub fn setup_sessions() -> om::Result<()> {
     log_trace!("Setting up user session...");
     if let Some(r) = &ORIGEN_CONFIG.session__user_root {
         let mut users = om::users_mut();
-        let mut sc = users.default_session_config_mut();
+        let sc = users.default_session_config_mut();
         sc.root = Some(PathBuf::from(r));
     }
 

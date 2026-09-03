@@ -42,10 +42,7 @@ macro_rules! key_error {
 #[macro_export]
 macro_rules! key_exception {
     ($message:expr) => {
-        pyo3::exceptions::PyKeyError::new_err(format!(
-            "{}",
-            $message
-        ))
+        pyo3::exceptions::PyKeyError::new_err(format!("{}", $message))
     };
 }
 
@@ -53,6 +50,16 @@ macro_rules! key_exception {
 macro_rules! not_implemented_error {
     ($message:expr) => {
         Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
+            "{}",
+            $message
+        )))
+    };
+}
+
+#[macro_export]
+macro_rules! value_error {
+    ($message:expr) => {
+        Err(pyo3::exceptions::PyValueError::new_err(format!(
             "{}",
             $message
         )))

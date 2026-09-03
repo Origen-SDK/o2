@@ -10,3 +10,4 @@ Testers
    testers/pattern_generation
    testers/program_generation
    testers/supported_testers
+   testers/ultraflex

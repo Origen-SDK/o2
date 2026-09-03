@@ -2,10 +2,10 @@ mod mailer;
 mod maillist;
 mod maillists;
 
-use pyo3::prelude::*;
 pub use mailer::{Mailer, OM_MAILER_CLASS_QP};
 pub use maillist::Maillist;
 pub use maillists::{Maillists, OM_MAILLISTS_CLASS_QP};
+use pyo3::prelude::*;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "mailer")?;

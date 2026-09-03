@@ -1,17 +1,29 @@
-[tool.poetry]
-name = "test_apps_shared_test_helpers"
-version = "0.1.0"
-description = "Shared Regression Test Helpers for Test Apps"
-authors = ["Origen-SDK"]
+[project]
+name = "test-apps-shared-test-helpers"
+version = "0.1.1"
+description = "Shared regression helpers for O2 test applications"
+requires-python = ">=3.7,<3.13"
+authors = [{ name = "Origen-SDK" }]
+dependencies = [
+    "pytest>=7",
+    "pytest-rerunfailures>=13",
+    "origen",
+    "pl-ext-cmds",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-origen = { path = "../../python/origen", develop = true }
-pl_ext_cmds = { path = "../pl_ext_cmds", develop = true }
+[tool.uv.sources]
+origen = { path = "../../python/origen" }
+pl-ext-cmds = { path = "../pl_ext_cmds" }
 
-[tool.poetry.dev-dependencies]
-pytest = "^3"
+[tool.hatch.build.targets.wheel]
+packages = ["test_apps_shared_test_helpers"]
+
+[tool.hatch.build]
+artifacts = [
+    "test_apps_shared_test_helpers/**/*.toml",
+    "test_apps_shared_test_helpers/*.toml",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

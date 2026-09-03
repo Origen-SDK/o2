@@ -67,7 +67,7 @@ impl Simple {
         Ok(slf.into())
     }
 
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits_or_val, **write_opts))]
     fn write_register(
         slf: PyRef<Self>,
         bits_or_val: &PyAny,
@@ -87,7 +87,7 @@ impl Simple {
         Ok(slf.into())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits_or_val, **verify_opts))]
     fn verify_register(
         slf: PyRef<Self>,
         bits_or_val: &PyAny,

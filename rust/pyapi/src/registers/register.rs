@@ -21,6 +21,17 @@ pub struct Field {
 #[pymethods]
 impl Field {
     #[new]
+    #[pyo3(signature=(
+        name,
+        description,
+        offset,
+        width,
+        access,
+        resets,
+        enums,
+        filename=None,
+        lineno=None,
+    ))]
     fn new(
         name: String,
         description: Option<String>,

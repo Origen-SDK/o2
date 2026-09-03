@@ -1,12 +1,12 @@
-use crate::utility::location::Location;
+use super::target;
 use crate::exit_on_bad_config;
-use origen_metal::{config, scrub_path};
+use crate::om::glob::glob;
+use crate::utility::location::Location;
 use origen_metal::config::{Environment, File};
+use origen_metal::{config, scrub_path};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use crate::om::glob::glob;
 use std::process::exit;
-use super::target;
 
 const PUBLISHER_OPTIONS: &[&str] = &["system", "package_app", "upload_app"];
 const BYPASS_APP_CONFIG_ENV_VAR: &str = "origen_app_bypass_config_lookup";
@@ -15,18 +15,20 @@ const APP_CONFIG_PATHS: &str = "origen_app_config_paths";
 macro_rules! use_app_config {
     () => {{
         !std::env::var_os($crate::core::application::config::BYPASS_APP_CONFIG_ENV_VAR).is_some()
-    }}
+    }};
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CurrentState {
-    pub target: Option<Vec<String>>
+    pub target: Option<Vec<String>>,
 }
 
 impl CurrentState {
     pub fn build(root: &PathBuf) -> Self {
         let file = root.join(".origen").join("application.toml");
-        let mut s = config::Config::builder().set_default("target", None::<Vec<String>>).unwrap();
+        let mut s = config::Config::builder()
+            .set_default("target", None::<Vec<String>>)
+            .unwrap();
         if file.exists() {
             s = s.add_source(File::with_name(&format!("{}", file.display())));
         }
@@ -40,7 +42,10 @@ impl CurrentState {
             config.target = Some(t.to_owned())
         } else {
             if let Some(t) = &config.target {
-                let clean_defaults = target::set_at_root(t.iter().map( |s| s.as_str() ).collect(), config.root.as_ref().unwrap());
+                let clean_defaults = target::set_at_root(
+                    t.iter().map(|s| s.as_str()).collect(),
+                    config.root.as_ref().unwrap(),
+                );
                 self.target = Some(clean_defaults);
             }
         }
@@ -79,6 +84,7 @@ pub struct Config {
     pub publisher: Option<HashMap<String, String>>,
     pub linter: Option<HashMap<String, String>>,
     pub release_scribe: Option<HashMap<String, String>>,
+    pub release: Option<HashMap<String, String>>,
     pub app_session_root: Option<String>,
     pub commands: Option<Vec<String>>,
 }
@@ -99,6 +105,7 @@ impl Config {
         self.publisher = latest.publisher;
         self.linter = latest.linter;
         self.release_scribe = latest.release_scribe;
+        self.release = latest.release;
         self.app_session_root = latest.app_session_root;
         self.commands = latest.commands;
     }
@@ -121,45 +128,47 @@ impl Config {
             .unwrap()
             .set_default("release_scribe", None::<HashMap<String, String>>)
             .unwrap()
+            .set_default("release", None::<HashMap<String, String>>)
+            .unwrap()
             .set_default("app_session_root", None::<String>)
             .unwrap()
             .set_default("commands", None::<Vec<String>>)
             .unwrap();
 
-            let mut files: Vec<PathBuf> = Vec::new();
-            if let Some(paths) = std::env::var_os(APP_CONFIG_PATHS) {
-                log_trace!("Found custom config paths: {:?}", paths);
-                for path in std::env::split_paths(&paths) {
-                    log_trace!("Looking for Origen app config file at '{}'", path.display());
-                    if path.is_file() {
-                        if let Some(ext) = path.extension() {
-                            if ext == "toml" {
-                                files.push(path);
-                            } else {
-                                log_error!(
-                                    "Expected file {} to have extension '.toml'. Found '{}'",
-                                    path.display(),
-                                    ext.to_string_lossy()
-                                )
-                            }
-                        } else {
-                            // accept a file without an extension. will be interpreted as a .toml
+        let mut files: Vec<PathBuf> = Vec::new();
+        if let Some(paths) = std::env::var_os(APP_CONFIG_PATHS) {
+            log_trace!("Found custom config paths: {:?}", paths);
+            for path in std::env::split_paths(&paths) {
+                log_trace!("Looking for Origen app config file at '{}'", path.display());
+                if path.is_file() {
+                    if let Some(ext) = path.extension() {
+                        if ext == "toml" {
                             files.push(path);
-                        }
-                    } else if path.is_dir() {
-                        let f = path.join("application.toml");
-                        if f.exists() {
-                            files.push(f);
+                        } else {
+                            log_error!(
+                                "Expected file {} to have extension '.toml'. Found '{}'",
+                                path.display(),
+                                ext.to_string_lossy()
+                            )
                         }
                     } else {
-                        log_error!(
-                            "Config path {} either does not exists or is not accessible",
-                            path.display()
-                        );
-                        exit(1);
+                        // accept a file without an extension. will be interpreted as a .toml
+                        files.push(path);
                     }
+                } else if path.is_dir() {
+                    let f = path.join("application.toml");
+                    if f.exists() {
+                        files.push(f);
+                    }
+                } else {
+                    log_error!(
+                        "Config path {} either does not exists or is not accessible",
+                        path.display()
+                    );
+                    exit(1);
                 }
             }
+        }
 
         if use_app_config!() {
             let file = root.join("config").join("application.toml");
@@ -175,7 +184,13 @@ impl Config {
             log_trace!("Loading Origen config file from '{}'", f.display());
             s = s.add_source(File::with_name(&format!("{}", f.display())));
         }
-        s = s.add_source(Environment::with_prefix("origen_app").list_separator(",").with_list_parse_key("target").with_list_parse_key("commands").try_parsing(true));
+        s = s.add_source(
+            Environment::with_prefix("origen_app")
+                .list_separator(",")
+                .with_list_parse_key("target")
+                .with_list_parse_key("commands")
+                .try_parsing(true),
+        );
 
         let cb = exit_on_bad_config!(s.build());
         let mut c: Self = exit_on_bad_config!(cb.try_deserialize());
@@ -225,7 +240,7 @@ impl Config {
     }
 
     pub fn cmd_paths(&self) -> Vec<PathBuf> {
-        let mut retn = vec!();
+        let mut retn = vec![];
         if let Some(cmds) = self.commands.as_ref() {
             // Load in only the commands explicitly given
             for cmds_toml in cmds {
@@ -233,14 +248,22 @@ impl Config {
                 if ct.exists() {
                     retn.push(ct.to_owned());
                 } else {
-                    log_error!("Can not locate app commands file '{}'", scrub_path!(ct).display())
+                    log_error!(
+                        "Can not locate app commands file '{}'",
+                        scrub_path!(ct).display()
+                    )
                 }
             }
         } else {
             // Load in any commands from:
             // 1) app_root/commands.toml
             // 2) app_root/commands/*/**.toml
-            let commands_toml = self.root.as_ref().unwrap().join("config").join("commands.toml");
+            let commands_toml = self
+                .root
+                .as_ref()
+                .unwrap()
+                .join("config")
+                .join("commands.toml");
             // println!("commands toml: {}", commands_toml.display());
             if commands_toml.exists() {
                 retn.push(commands_toml);
@@ -251,7 +274,7 @@ impl Config {
                 for entry in glob(commands_dir.to_str().unwrap()).unwrap() {
                     match entry {
                         Ok(e) => retn.push(e),
-                        Err(e) => log_error!("Error processing commands toml: {}", e)
+                        Err(e) => log_error!("Error processing commands toml: {}", e),
                     }
                 }
             }

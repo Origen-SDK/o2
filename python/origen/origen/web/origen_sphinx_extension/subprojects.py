@@ -1,4 +1,5 @@
 import origen, copy, pathlib, shutil, subprocess, os
+from sphinx.errors import ExtensionError
 from . import logger
 
 
@@ -22,7 +23,7 @@ class SubProject:
         self.subproject_output_dir = self.get_subproject_output_dir()
 
     def get_subproject_output_dir_cmd(self):
-        return "poetry run python -c \"from origen.web import output_build_dir; print(str(output_build_dir))\""
+        return "uv run --no-sync --no-editable python -c \"from origen.web import output_build_dir; print(str(output_build_dir))\""
 
     def get_subproject_output_dir(self):
         env = os.environ.copy()
@@ -37,15 +38,14 @@ class SubProject:
         if out.returncode == 0:
             return content
         else:
-            logger.error(
-                f"Unable to get subproject output directory for '{self.proj}'. Unable to build this project!"
+            raise ExtensionError(
+                f"Unable to get output directory for subproject '{self.proj}'.\n"
+                f"Stdout: {content}\n"
+                f"Stderr: {out.stderr.decode('utf-8').strip()}"
             )
-            logger.error(f"  Stdout: {content}")
-            logger.error(f"  Stderr: {out.stderr.decode('utf-8').strip()}")
-            return False
 
     def build_cmd(self):
-        return "poetry run python -c \"from origen.web import run_cmd; run_cmd('build', {})\""
+        return "uv run --no-sync --no-editable python -c \"from origen.web import run_cmd; run_cmd('build', {})\""
 
     def build(self):
         if self.subproject_output_dir is not False:
@@ -61,7 +61,9 @@ class SubProject:
             if out.returncode == 0:
                 self.mv_docs()
             else:
-                logger.error(f"Failed to build subproject for '{self.proj}'!")
+                raise ExtensionError(
+                    f"Failed to build subproject '{self.proj}' with exit code {out.returncode}"
+                )
 
     def mv_docs(self):
         if self.subproject_output_dir.exists():
@@ -78,8 +80,9 @@ class SubProject:
             shutil.move(str(self.subproject_output_dir),
                         str(self.final_output_dir))
         else:
-            logger.error(
-                f"Could not find resulting docs for project {self.proj} at {self.subproject_output_dir}"
+            raise ExtensionError(
+                f"Could not find resulting docs for project '{self.proj}' at "
+                f"{self.subproject_output_dir}"
             )
 
     def clean(self):

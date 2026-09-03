@@ -1,10 +1,8 @@
 use super::data::Data;
 use super::User;
 use crate::Result;
-use crate::_utility::{str_from_byte_array, bytes_from_str_of_bytes};
+use crate::_utility::{bytes_from_str_of_bytes, str_from_byte_array};
 use crate::utils::encryption::{decrypt_with, encrypt_with};
-#[cfg(feature = "password-cache")]
-use keyring::Keyring;
 use std::fmt;
 
 pub const PASSWORD_KEY: &str = "user_password__";
@@ -91,7 +89,7 @@ impl PasswordCacheOptions {
                     },
                 }
             }
-            Self::None => Ok(None)
+            Self::None => Ok(None),
         }
     }
 
@@ -100,9 +98,7 @@ impl PasswordCacheOptions {
             Self::Session => {
                 let k = dataset.password_key();
                 log_trace!("Clearing password {} from user session", k);
-                user.with_session(None, |_, _, s| {
-                    s.delete(&k)
-                })?;
+                user.with_session(None, |_, _, s| s.delete(&k))?;
             }
             Self::Keyring => {
                 let k = keyring::Entry::new(&dataset.dataset_name, &user.id());
@@ -143,11 +139,15 @@ impl PasswordCacheOptions {
 
 impl fmt::Display for PasswordCacheOptions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Session => "session",
-            Self::Keyring => "keyring",
-            Self::None => "none",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Session => "session",
+                Self::Keyring => "keyring",
+                Self::None => "none",
+            }
+        )
     }
 }
 
@@ -155,7 +155,7 @@ impl From<&PasswordCacheOptions> for Option<String> {
     fn from(value: &PasswordCacheOptions) -> Option<String> {
         match value {
             PasswordCacheOptions::None => None,
-            _ => Some(value.to_string())
+            _ => Some(value.to_string()),
         }
     }
 }
@@ -175,7 +175,7 @@ impl TryFrom<Option<&str>> for PasswordCacheOptions {
                 "session" | "session_store" => PasswordCacheOptions::Session,
                 "keyring" => PasswordCacheOptions::Keyring,
                 "none" => PasswordCacheOptions::None,
-                _ => bail!("Invalid password cache option: '{}'", v)
+                _ => bail!("Invalid password cache option: '{}'", v),
             })
         } else {
             Ok(PasswordCacheOptions::None)

@@ -1,7 +1,7 @@
 use super::super::{Base, Status};
 use crate::framework::users::{User, UserDataset};
 use crate::framework::Outcome as PyOutcome;
-use crate::{bail_with_runtime_error, OMResult};
+use crate::OMResult;
 use origen_metal::utils::revision_control::supported::Git as OrigenGit;
 use origen_metal::utils::revision_control::{RevisionControl, RevisionControlAPI};
 use origen_metal::with_user;
@@ -39,7 +39,7 @@ impl Git {
     }
 
     #[new]
-    #[args(args = "*", config = "**")]
+    #[pyo3(signature=(*args, **config))]
     fn new(args: &PyTuple, config: Option<&PyDict>) -> PyResult<(Self, Base)> {
         let mut c: HashMap<String, String> = HashMap::new();
         if let Some(cfg) = config {
@@ -54,6 +54,7 @@ impl Git {
         Ok(self.rc()?.populate(version)?)
     }
 
+    #[pyo3(signature=(force, path, version))]
     fn checkout(&self, force: bool, path: Option<&str>, version: &str) -> PyResult<bool> {
         let rusty_path;
         if let Some(p) = path {
@@ -81,13 +82,13 @@ impl Git {
         })
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(tagname, **kwargs))]
     fn tag(&self, tagname: &str, kwargs: Option<&PyDict>) -> PyResult<()> {
         let msg: Option<&str>;
         Ok(self.rc()?.tag(
             tagname,
             if let Some(kws) = kwargs {
-                if let Some(f) = kws.get_item("force") {
+                if let Some(f) = kws.get_item("force")? {
                     f.extract::<bool>()?
                 } else {
                     false
@@ -96,7 +97,7 @@ impl Git {
                 false
             },
             if let Some(kws) = kwargs {
-                if let Some(m) = kws.get_item("msg") {
+                if let Some(m) = kws.get_item("msg")? {
                     msg = m.extract::<Option<&str>>()?;
                     msg
                 } else {
@@ -116,12 +117,12 @@ impl Git {
         Ok(self.rc()?.is_initialized()?)
     }
 
-    #[args(paths = "*", kwargs = "**")]
+    #[pyo3(signature=(*paths, **kwargs))]
     fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyOutcome> {
         let msg;
         let dry_run;
         if let Some(kw) = kwargs {
-            match kw.get_item("msg") {
+            match kw.get_item("msg")? {
                 Some(m) => {
                     msg = m.extract::<String>()?;
                 }
@@ -129,7 +130,7 @@ impl Git {
                     return bail_with_runtime_error!("A 'msg' is required for checkin operations")
                 }
             }
-            match kw.get_item("dry-run") {
+            match kw.get_item("dry-run")? {
                 Some(d) => dry_run = d.extract::<bool>()?,
                 None => dry_run = false,
             }
@@ -149,7 +150,7 @@ impl Git {
         )?))
     }
 
-    #[args(dry_run = "false")]
+    #[pyo3(signature=(msg, dry_run=false))]
     fn checkin_all(&self, msg: &str, dry_run: bool) -> PyResult<PyOutcome> {
         Ok(PyOutcome::from_origen(
             self.rc()?.checkin(None, msg, dry_run)?,

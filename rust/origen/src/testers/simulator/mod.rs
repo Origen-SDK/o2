@@ -3,6 +3,7 @@ use crate::generator::PAT;
 use crate::testers::SupportedTester;
 use crate::Result;
 use origen_metal::ast::{Node, Processor};
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -41,6 +42,10 @@ impl Interceptor for Renderer {
 impl TesterID for Renderer {
     fn id(&self) -> SupportedTester {
         SupportedTester::SIMULATOR
+    }
+
+    fn id_prog_gen(&self) -> ProgGenSupportedTester {
+        ProgGenSupportedTester::SIMULATOR
     }
 }
 

@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "pl_ext_cmds"
+version = "0.1.0"
+description = "Plugin Extending Cmds"
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.0,<3.13"
+origen = { path = "../../python/origen", develop = true }
+origen_metal = ">=0.0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

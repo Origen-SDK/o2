@@ -1,18 +1,20 @@
 mod build;
 mod fmt;
+mod publish;
+mod update_supported_python;
 
-use origen::Result;
 use super::_prelude::*;
+use origen::Result;
 pub const BASE_CMD: &'static str = "develop_origen";
 
 gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
     "Commands to assist with Origen core development",
-    { |cmd: App<'a>| { 
-        cmd.arg_required_else_help(true).visible_alias("origen")
-    }},
+    { |cmd: App| { cmd.arg_required_else_help(true).visible_alias("origen") } },
     build::build_cmd(),
-    fmt::fmt_cmd()
+    fmt::fmt_cmd(),
+    update_supported_python::update_supported_python_cmd(),
+    publish::publish_cmd()
 );
 
 pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
@@ -20,6 +22,11 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     match n {
         build::BASE_CMD => build::run(subcmd),
         fmt::BASE_CMD => fmt::run(),
-        _ => unreachable_invalid_subc!(n)
+        update_supported_python::BASE_CMD => update_supported_python::run(subcmd),
+        publish::BASE_CMD => {
+            display_yellowln!("'origen develop_origen publish' is deprecated; release preparation is now owned by 'origen rc tag'");
+            bail!("Use 'origen rc tag --help'. The legacy publisher has been disabled to prevent bypassing release-history and exact-ref checks")
+        }
+        _ => unreachable_invalid_subc!(n),
     }
 }

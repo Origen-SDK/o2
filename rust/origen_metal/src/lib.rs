@@ -1,8 +1,16 @@
 #[macro_use]
 pub extern crate lazy_static;
 pub extern crate config;
-pub extern crate indexmap;
+pub extern crate dialoguer;
+pub extern crate futures;
 pub extern crate glob;
+pub extern crate indexmap;
+pub extern crate minijinja;
+pub extern crate octocrab;
+pub extern crate reqwest;
+pub extern crate serde_json;
+pub extern crate tera;
+pub extern crate toml_edit;
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -11,8 +19,10 @@ extern crate pest_derive;
 pub mod macros;
 #[macro_use]
 pub extern crate cfg_if;
+//#[macro_use]
+//extern crate enum_display_derive;
 #[macro_use]
-extern crate enum_display_derive;
+extern crate strum_macros;
 pub mod _utility;
 
 pub mod prelude;
@@ -21,6 +31,7 @@ pub mod ast;
 mod error;
 pub mod framework;
 pub mod frontend;
+pub mod prog_gen;
 pub mod stil;
 pub mod vcd;
 pub mod utils;
@@ -41,12 +52,13 @@ pub use framework::users::users::{
     get_current_user_id, get_initial_user_id, require_current_user_email,
     require_current_user_home_dir, require_current_user_id, set_current_user,
     try_lookup_and_set_current_user, try_lookup_current_user, users, users_mut, with_current_user,
-    with_current_user_session, with_user, with_user_mut, with_users, with_users_mut, with_user_or_current,
+    with_current_user_session, with_user, with_user_mut, with_user_or_current, with_users,
+    with_users_mut,
 };
 // TODO and this?
 pub use framework::users::user::{
     add_dataset_to_user, register_dataset_with_user, with_user_dataset, with_user_dataset_mut,
-    with_user_hierarchy, with_user_motive_or_default
+    with_user_hierarchy, with_user_motive_or_default,
 };
 pub use framework::users::users::unload as unload_users;
 pub use utils::os::on_linux as running_on_linux;
@@ -64,11 +76,15 @@ pub mod built_info {
 }
 
 lazy_static! {
+    pub static ref PROG_GEN_CONFIG: prog_gen::config::Config = prog_gen::config::Config::default();
     pub static ref LOGGER: framework::logger::Logger = framework::logger::Logger::default();
     pub static ref VERSION: &'static str = built_info::PKG_VERSION;
     pub static ref FRONTEND: RwLock<Frontend> = RwLock::new(Frontend::new());
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
+    /// This is analogous to the TEST for test program duration, it provides a similar API for
+    /// pushing nodes to the current flow, FLOW.push(my_node), etc.
+    pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
 }
 
 pub fn unload() -> Result<()> {
@@ -101,10 +117,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    #[cfg(all(test, not(origen_skip_frontend_tests)))]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     pub fn run_python(code: &str) -> crate::Result<()> {
-        let mut c = std::process::Command::new("poetry");
+        let mut c = crate::new_cmd!("uv");
         c.arg("run");
+        c.arg("--no-editable");
         c.arg("python");
         c.arg("-c");
         c.arg(&format!("import origen_metal as om; {}", code));

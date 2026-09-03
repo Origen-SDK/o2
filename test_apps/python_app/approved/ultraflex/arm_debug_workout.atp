@@ -1,0 +1,382 @@
+// ******************************************************************************************
+// Generated
+//   Time: 2026-03-25 18:07:41.917418400 -05:00
+//   By: nxf65099
+//   Command: origen generate \\?\C:\Tools\Origen\O2\forked\o2\test_apps\python_app\example\patterns\arm_debug_workout.py
+// ******************************************************************************************
+// Workspace
+//   Environment
+//     OS: Windows Unknown
+//     Mode: development
+//     Targets
+//         C:\Tools\Origen\O2\forked\o2\test_apps\python_app\targets\dut\falcon.py
+//   Application
+//     Local Path: C:\Tools\Origen\O2\forked\o2\test_apps\python_app
+//   Origen Core
+//     Version: 2.0.0-dev.7
+//     Executable Path: C:\Users\nxf65099\AppData\Local\Programs\Python\Python311\python.exe
+// ******************************************************************************************
+// Header Comments
+//   From the Application
+//     Hello pattern from the application!
+// ******************************************************************************************
+opcode_mode = single;
+digital_inst = hsdm;
+compressed = yes;
+vector ($tset, reset, swdclk, swdio)
+{
+start_label pattern_st:
+repeat 100 > simple X 0 X ;
+// Wrap some of the commonly used tasks into their own methods
+// ArmDebug: Switching ArmDebug protocol to SWD
+repeat 50 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 58 > simple X 1 1 ;
+repeat 4 > simple X 1 0 ;
+// The register model should be available
+// SWD: Verify DP - DP: 0, Data: 0xDEA1C0DE
+// SWD: Header: host -> target (A: 0, ap_access: 0, verify: 1) 
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+ > simple X 1 L ;
+repeat 4 > simple X 1 H ;
+ > simple X 1 L ;
+repeat 2 > simple X 1 H ;
+repeat 6 > simple X 1 L ;
+repeat 3 > simple X 1 H ;
+repeat 4 > simple X 1 L ;
+ > simple X 1 H ;
+ > simple X 1 L ;
+ > simple X 1 H ;
+ > simple X 1 L ;
+repeat 4 > simple X 1 H ;
+ > simple X 1 L ;
+repeat 2 > simple X 1 H ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// ArmDebugDP: select ctrlstat (DP Addr: 0)
+// SWD: Write DP - DP: 8, Data: 0x0
+// SWD: Header: host -> target (A: 2, ap_access: 0, verify: 0) 
+ > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+repeat 32 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 0 ;
+// SWD: Verify DP - DP: 4, Data: 0xF0000000
+// SWD: Header: host -> target (A: 1, ap_access: 0, verify: 1) 
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 28 > simple X 1 L ;
+repeat 4 > simple X 1 H ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// Verify the various IDs of the MemAPs
+// SWD: Write DP - DP: 8, Data: 0xF0
+// SWD: Header: host -> target (A: 2, ap_access: 0, verify: 0) 
+ > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+repeat 4 > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+repeat 24 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 0 ;
+// SWD: Verify AP - AP: 252, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 X ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// SWD: Verify AP - AP: 252, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 L ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// SWD: Verify AP - AP: 252, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 X ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// SWD: Verify AP - AP: 252, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 L ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// SWD: Verify AP - AP: 252, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 X ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// SWD: Verify AP - AP: 252, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 L ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+// Do some register writes & verifies
+// SWD: Write DP - DP: 8, Data: 0x0
+// SWD: Header: host -> target (A: 2, ap_access: 0, verify: 0) 
+ > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+repeat 32 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 0 ;
+// SWD: Write AP - AP: 0, Data: 0x23000012
+// SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 19 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 1 ;
+// SWD: Write AP - AP: 4, Data: 0x1234
+// SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 19 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 1 ;
+// SWD: Write AP - AP: 12, Data: 0x4321
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 0) 
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+ > simple X 1 1 ;
+repeat 4 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 4 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 17 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 1 ;
+// SWD: Write AP - AP: 0, Data: 0x23000012
+// SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 19 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 1 ;
+// SWD: Write AP - AP: 4, Data: 0xABCD
+// SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+ > simple X 1 X ;
+// SWD: Drive data
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 16 > simple X 1 0 ;
+// SWD: Drive data's parity bit
+ > simple X 1 0 ;
+// SWD: Verify AP - AP: 12, Data: 0xABCD
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+repeat 32 > simple X 1 X ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+ > simple X 1 0 ;
+// SWD: Verify DP - DP: 12, Data: 0xABCD
+// SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
+// SWD: Acknowledge Ok: target -> host
+ > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+// SWD: Verify data
+ > simple X 1 H ;
+ > simple X 1 L ;
+repeat 2 > simple X 1 H ;
+repeat 2 > simple X 1 L ;
+repeat 4 > simple X 1 H ;
+ > simple X 1 L ;
+ > simple X 1 H ;
+ > simple X 1 L ;
+ > simple X 1 H ;
+ > simple X 1 L ;
+ > simple X 1 H ;
+repeat 16 > simple X 1 L ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple X 1 X ;
+ > simple X 1 0 ;
+repeat 10 > simple X 1 0 ;
+}

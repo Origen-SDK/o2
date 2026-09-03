@@ -1,17 +1,25 @@
-[tool.poetry]
-name = "pl_ext_cmds"
+[project]
+name = "pl-ext-cmds"
 version = "0.1.0"
-description = "Plugin Extending Cmds"
-authors = ["Origen-SDK"]
+description = "Plugin extending commands"
+requires-python = ">=3.7,<3.13"
+authors = [{ name = "Origen-SDK" }]
+dependencies = ["origen", "origen-metal>=0"]
 
-[tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-origen = { path = "../../python/origen", develop = true }
-origen_metal = { path = "../../python/origen_metal", develop = true }
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^3"
+[tool.uv.sources]
+origen = { path = "../../python/origen" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["pl_ext_cmds"]
+
+[tool.hatch.build]
+artifacts = ["pl_ext_cmds/**/*.toml", "pl_ext_cmds/*.toml"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

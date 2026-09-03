@@ -5,13 +5,11 @@ pub mod swd;
 
 use pyo3::prelude::*;
 
-#[pymodule]
-/// Implements the module _origen.services in Python
-pub fn services(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<jtag::JTAG>()?;
-    m.add_class::<swd::SWD>()?;
-    m.add_class::<simple::Simple>()?;
-    // m.add_class::<ahb::AHB>()?;
-
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "services")?;
+    subm.add_class::<jtag::JTAG>()?;
+    subm.add_class::<swd::SWD>()?;
+    subm.add_class::<simple::Simple>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }

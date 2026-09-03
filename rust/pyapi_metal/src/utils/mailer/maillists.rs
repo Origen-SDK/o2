@@ -1,8 +1,8 @@
+use super::maillist::Maillist as PyML;
 use origen_metal::utils::mailer::Maillists as OrigenMLS;
 use origen_metal::utils::mailer::MaillistsTOMLConfig;
-use super::maillist::Maillist as PyML;
 use pyo3::prelude::*;
-use pyo3::types::{PyTuple, PyDict};
+use pyo3::types::{PyDict, PyTuple};
 use std::path::PathBuf;
 
 // TEST_NEEDED
@@ -10,24 +10,28 @@ pub const OM_MAILLISTS_CLASS_QP: &str = "origen_metal.utils.mailer.Maillists";
 
 #[pyclass(subclass)]
 pub struct Maillists {
-    om_mls: OrigenMLS
+    om_mls: OrigenMLS,
 }
 
 #[pymethods]
 impl Maillists {
     #[new]
-    #[args(dirs="*", continue_on_error="false")]
+    #[pyo3(signature=(n, *dirs, continue_on_error=false))]
     fn new(n: String, dirs: &PyTuple, continue_on_error: bool) -> PyResult<Self> {
         Ok(Self {
             om_mls: OrigenMLS::new(
-                n, 
+                n,
                 if dirs.is_empty() {
                     None
                 } else {
-                    Some(dirs.iter().map( |d| d.extract::<PathBuf>()).collect::<PyResult<Vec<PathBuf>>>()?)
+                    Some(
+                        dirs.iter()
+                            .map(|d| d.extract::<PathBuf>())
+                            .collect::<PyResult<Vec<PathBuf>>>()?,
+                    )
                 },
                 continue_on_error,
-            )?
+            )?,
         })
     }
 
@@ -54,7 +58,7 @@ impl Maillists {
 
     #[getter]
     fn directories(&self, py: Python) -> PyResult<Vec<PyObject>> {
-        let mut retn: Vec<PyObject> = vec!();
+        let mut retn: Vec<PyObject> = vec![];
         for d in self.om_mls.directories.iter() {
             retn.push(crate::pypath!(py, d.display()));
         }
@@ -62,15 +66,30 @@ impl Maillists {
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
-        Ok(self.om_mls.maillists.keys().map(|k| k.to_string()).collect())
+        Ok(self
+            .om_mls
+            .maillists
+            .keys()
+            .map(|k| k.to_string())
+            .collect())
     }
 
     fn values(&self) -> PyResult<Vec<PyML>> {
-        Ok(self.om_mls.maillists.iter().map(|(_n, ml)| PyML::from_om(ml.clone())).collect())
+        Ok(self
+            .om_mls
+            .maillists
+            .iter()
+            .map(|(_n, ml)| PyML::from_om(ml.clone()))
+            .collect())
     }
 
     fn items(&self) -> PyResult<Vec<(String, PyML)>> {
-        Ok(self.om_mls.maillists.iter().map(|(n, ml)| (n.to_string(), PyML::from_om(ml.clone()))).collect())
+        Ok(self
+            .om_mls
+            .maillists
+            .iter()
+            .map(|(n, ml)| (n.to_string(), PyML::from_om(ml.clone())))
+            .collect())
     }
 
     fn maillists_for<'py>(&self, py: Python<'py>, audience: &str) -> PyResult<&'py PyDict> {
@@ -156,13 +175,24 @@ impl MaillistsIter {
 }
 
 impl Maillists {
-    pub fn toml_config_into_args<'py>(py: Python<'py>, name: &str, continue_on_error: Option<bool>, config: &MaillistsTOMLConfig) -> PyResult<(&'py PyTuple, &'py PyDict)> {
+    pub fn toml_config_into_args<'py>(
+        py: Python<'py>,
+        name: &str,
+        continue_on_error: Option<bool>,
+        config: &MaillistsTOMLConfig,
+    ) -> PyResult<(&'py PyTuple, &'py PyDict)> {
         let kwargs = PyDict::new(py);
         kwargs.set_item("continue_on_error", continue_on_error)?;
         let args = PyTuple::new(py, {
             let mut v = vec![];
             v.push(name.to_object(py));
-            v.extend(config.resolve_dirs().iter().map(|d| d.to_object(py)).collect::<Vec<PyObject>>());
+            v.extend(
+                config
+                    .resolve_dirs()
+                    .iter()
+                    .map(|d| d.to_object(py))
+                    .collect::<Vec<PyObject>>(),
+            );
             v
         });
         Ok((args, kwargs))

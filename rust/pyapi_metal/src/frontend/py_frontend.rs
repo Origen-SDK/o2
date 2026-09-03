@@ -1,9 +1,8 @@
 use super::{with_frontend_mod, PY_FRONTEND};
-use crate::{bail_with_runtime_error, frontend_mod};
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 
-use super::py_data_stores::{PyDataStores, PyDataStoreCategory};
+use super::py_data_stores::{PyDataStoreCategory, PyDataStores};
 
 #[pyclass]
 pub struct PyFrontend {

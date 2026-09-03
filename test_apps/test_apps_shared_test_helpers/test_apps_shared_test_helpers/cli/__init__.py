@@ -8,8 +8,9 @@ from .cmd_models.auxs import Aux
 from .cmd_models.exts import ExtensionDrivers
 from .cmd_models.plugins import Plugins
 from .error_cases import ErrorCases
+from . import dirs
 
-from .asertions import AssertionHelpers
+from .assertions import AssertionHelpers
 
 develop_origen = "develop_origen"
 def develop_origen_cmd():
@@ -30,6 +31,22 @@ cli.GlobalCommands.commands.insert(2, cli.GlobalCommands.develop_origen)
 cli.InAppCommands.Names.develop_origen = develop_origen
 cli.InAppCommands.develop_origen = develop_origen_cmd()
 cli.InAppCommands.commands.insert(4, cli.InAppCommands.develop_origen)
+
+rc = "rc"
+def rc_cmd():
+    return Cmd(
+        rc,
+        help="Revision-control and release operations",
+        subcmds=[Cmd("tag")],
+    )
+
+cli.GlobalCommands.Names.rc = rc
+cli.GlobalCommands.rc = rc_cmd()
+cli.GlobalCommands.commands.append(cli.GlobalCommands.rc)
+
+cli.InAppCommands.Names.rc = rc
+cli.InAppCommands.rc = rc_cmd()
+cli.InAppCommands.commands.append(cli.InAppCommands.rc)
 
 def apply_ext_output_args(mod):
     from origen.boot import before_cmd, after_cmd, clean_up
@@ -103,6 +120,10 @@ class CLIShared(cli.CLI, AssertionHelpers):
     error_messages = ErrorCases()
     na = "no_action"
 
+    def get_action_results(self, *args):
+        from .ext_helpers import get_action_results as get_action_results_wrap
+        return get_action_results_wrap(*args)
+
     @pytest.fixture
     def cmd(self):
         return self._cmd
@@ -138,7 +159,8 @@ class CLIShared(cli.CLI, AssertionHelpers):
 
     configs = Configs()
 
-    project_dir = Path(__file__).parent.parent.parent.parent.parent
-    cli_dir = project_dir.joinpath("rust/origen/target/debug")
-    test_apps_dir = project_dir.joinpath("test_apps")
-    plugins_dir = test_apps_dir # Currently the same but may change if test_apps dir is re-organized
+    project_dir = dirs.project_dir
+    cli_dir = dirs.cli_dir
+    rust_build_cli_dir = dirs.rust_build_cli_dir
+    test_apps_dir = dirs.test_apps_dir
+    plugins_dir = dirs.plugins_dir

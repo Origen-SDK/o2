@@ -9,6 +9,7 @@ use crate::core::tester::{Interceptor, TesterAPI, TesterID};
 use crate::generator::PAT;
 use crate::{dut, Result};
 use origen_metal::ast::{Node, Processor, Return};
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use std::path::PathBuf;
 pub use supported_testers::SupportedTester;
 
@@ -19,6 +20,7 @@ pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std
             Ok(Box::new(DummyRendererWithInterceptors::default()))
         }
         SupportedTester::V93KSMT7 => Ok(Box::new(smt::V93K_SMT7::default())),
+        SupportedTester::V93KSMT8 => Ok(Box::new(smt::V93K_SMT8::default())),
         SupportedTester::SIMULATOR => Ok(Box::new(simulator::Renderer::default())),
         SupportedTester::ULTRAFLEX => Ok(Box::new(igxl::UltraFlex::default())),
         SupportedTester::J750 => Ok(Box::new(igxl::j750::J750::default())),
@@ -50,6 +52,10 @@ impl Interceptor for DummyRenderer {}
 impl TesterID for DummyRenderer {
     fn id(&self) -> SupportedTester {
         SupportedTester::DUMMYRENDERER
+    }
+
+    fn id_prog_gen(&self) -> ProgGenSupportedTester {
+        ProgGenSupportedTester::ALL
     }
 }
 
@@ -106,6 +112,10 @@ impl DummyRendererWithInterceptors {}
 impl TesterID for DummyRendererWithInterceptors {
     fn id(&self) -> SupportedTester {
         SupportedTester::DUMMYRENDERERWITHINTERCEPTORS
+    }
+
+    fn id_prog_gen(&self) -> ProgGenSupportedTester {
+        ProgGenSupportedTester::ALL
     }
 }
 

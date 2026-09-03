@@ -1,20 +1,32 @@
-[tool.poetry]
-name = "python_no_app"
+[project]
+name = "python-no-app"
 version = "0.1.0"
 description = "O2 workspace without an application"
-authors = ["Origen-SDK"]
+requires-python = ">=3.7,<3.13"
+dependencies = [
+    "origen",
+    "origen-metal",
+    "python-plugin",
+    "python-plugin-the-second",
+    "python-plugin-no-cmds",
+    "test-apps-shared-test-helpers",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-origen = { path = "../../python/origen", develop = true }
-origen_metal = { path = "../../python/origen_metal", develop = true }
-python_plugin = { path = "../python_plugin", develop = true }
-python_plugin_the_second = { path = "../python_plugin_the_second", develop = true }
-python_plugin_no_cmds = { path = "../python_plugin_no_cmds", develop = true }
-test_apps_shared_test_helpers = { path = "../test_apps_shared_test_helpers", develop = true }
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.0"
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+origen = { path = "../../python/origen" }
+origen-metal = { path = "../../python/origen_metal" }
+python-plugin = { path = "../python_plugin" }
+python-plugin-the-second = { path = "../python_plugin_the_second" }
+python-plugin-no-cmds = { path = "../python_plugin_no_cmds" }
+test-apps-shared-test-helpers = { path = "../test_apps_shared_test_helpers" }
 
 [tool.pytest.ini_options]
 addopts = "--ignore=tests/cmd_building/cmd_testers"

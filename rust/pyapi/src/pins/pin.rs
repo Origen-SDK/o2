@@ -27,30 +27,26 @@ pub struct Pin {
 
 #[pymethods]
 impl Pin {
-    fn add_metadata(&self, id_str: &str, obj: &PyAny) -> PyResult<()> {
+    fn add_metadata(&self, py: Python, id_str: &str, obj: &PyAny) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
         let pin = dut._get_mut_pin(self.model_id, &self.name)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
         let mut dut = py
             .eval("origen.dut.db", None, Some(&locals))
             .unwrap()
             .extract::<PyRefMut<PyDUT>>()?;
-        let idx = dut.push_metadata(obj);
+        let idx = dut.push_metadata(py, obj);
 
         // Store the index of this object, returning an error if the
         pin.add_metadata_id(id_str, idx)?;
         Ok(())
     }
 
-    fn set_metadata(&self, id_str: &str, obj: &PyAny) -> PyResult<bool> {
+    fn set_metadata(&self, py: Python, id_str: &str, obj: &PyAny) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
         let pin = dut._get_mut_pin(self.model_id, &self.name)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
         let mut dut = py
             .eval("origen.dut.db", None, Some(&locals))
@@ -58,22 +54,21 @@ impl Pin {
             .extract::<PyRefMut<PyDUT>>()?;
         match pin.get_metadata_id(id_str) {
             Some(idx) => {
-                dut.override_metadata_at(idx, obj)?;
+                dut.override_metadata_at(py, idx, obj)?;
                 Ok(true)
             }
             None => {
-                let idx = dut.push_metadata(obj);
+                let idx = dut.push_metadata(py, obj);
                 pin.add_metadata_id(id_str, idx)?;
                 Ok(false)
             }
         }
     }
 
-    fn get_metadata(&self, id_str: &str) -> PyResult<PyObject> {
+    fn get_metadata(&self, py: Python, id_str: &str) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+
         match pin.metadata.get(id_str) {
             Some(idx) => {
                 let locals = [("origen", py.import("origen")?)].into_py_dict(py);
@@ -130,12 +125,9 @@ impl Pin {
     }
 
     #[getter]
-    fn get_reset_data(&self) -> PyResult<PyObject> {
+    fn get_reset_data(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match &pin.reset_action {
             Some(d) => Ok(d.to_logic()?.to_object(py)),
             None => Ok(py.None()),
@@ -143,12 +135,9 @@ impl Pin {
     }
 
     #[getter]
-    fn get_reset_action(&self) -> PyResult<PyObject> {
+    fn get_reset_action(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match pin.reset_action.as_ref() {
             Some(a) => Ok(a.to_string().into_py(py)),
             None => Ok(py.None()),

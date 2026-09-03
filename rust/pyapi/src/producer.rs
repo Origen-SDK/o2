@@ -1,12 +1,12 @@
 use pyo3::prelude::*;
 use std::path::{Path, PathBuf};
 
-#[pymodule]
-pub fn producer(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyProducer>()?;
-    m.add_class::<PyPattern>()?;
-    m.add_class::<PyJob>()?;
-
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "producer")?;
+    subm.add_class::<PyProducer>()?;
+    subm.add_class::<PyPattern>()?;
+    subm.add_class::<PyJob>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

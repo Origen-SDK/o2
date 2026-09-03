@@ -1,16 +1,15 @@
 use super::data::{Data, DatasetConfig};
 use super::password_cache_options::PasswordCacheOptions;
 use crate::_utility::{unsorted_dedup, validate_input_list};
+use crate::frontend::FeatureReturn;
 use crate::prelude::session_store::*;
 use crate::utils::file::FilePermissions;
 use crate::{Outcome, OutcomeState, Result};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use crate::{log_error};
-use crate::frontend::FeatureReturn;
-use std::env;
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
 pub const DEFAULT_USER_SESSION_PATH_OFFSET: &str = "./.o2/.session";
@@ -120,11 +119,11 @@ where
         if let Some(d) = u.motive_for(motive.as_ref()) {
             ds = d.to_string()
         } else {
-            return func(u)
+            return func(u);
         }
     }
 
-    with_user_hierarchy(user, &vec!(ds), func)
+    with_user_hierarchy(user, &vec![ds], func)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -226,13 +225,24 @@ impl PopulateUserReturn {
 
     pub fn log(&self, uid: &str) -> Result<Option<String>> {
         if self.succeeded() {
-            log_info!("Successfully populated datasets {} for user '{}'", self.outcomes.keys().map( |k| k.as_str()).collect::<Vec<&str>>().join(","), uid);
+            log_info!(
+                "Successfully populated datasets {} for user '{}'",
+                self.outcomes
+                    .keys()
+                    .map(|k| k.as_str())
+                    .collect::<Vec<&str>>()
+                    .join(","),
+                uid
+            );
             Ok(None)
         } else {
             let mut retn = format!("Could not fully populate user '{}'.", uid);
             log_error!("Could not fully populate user '{}'", uid);
             if !&self.failed_datasets.is_empty() {
-                retn += &format!(" Failures occurred populating these datasets: {}", &self.failed_datasets.join(","));
+                retn += &format!(
+                    " Failures occurred populating these datasets: {}",
+                    &self.failed_datasets.join(",")
+                );
                 log_error!("");
                 log_error!("Failures occurred populating these datasets:");
                 for (n, outcome) in &self.failed_outcomes() {
@@ -257,7 +267,7 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
                 is_current = false;
             }
             u_id = id.to_owned();
-        },
+        }
         None => {
             if let Some(id) = super::users::get_current_user_id()? {
                 u_id = id;
@@ -272,7 +282,7 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
     let fe_res = crate::with_optional_frontend(|f| {
         if let Some(fe) = f {
             if let Some(result) = fe.lookup_home_dir(&u_id, dataset, is_current) {
-                return Ok(Some(result?))
+                return Ok(Some(result?));
             }
         }
         Ok(None)
@@ -305,7 +315,11 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
         }
 
         if !hd.ends_with(&u_id) {
-            bail!("Home directory '{}' is not appropriate for current user with id '{}'", hd.display(), &u_id)
+            bail!(
+                "Home directory '{}' is not appropriate for current user with id '{}'",
+                hd.display(),
+                &u_id
+            )
         } else {
             Ok(Some(hd))
         }
@@ -339,7 +353,6 @@ pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result
 //         Ok(hd)
 //     })
 // }
-
 
 #[derive(Debug, Default)]
 struct PopulateStatus {
@@ -430,6 +443,7 @@ impl SessionConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct User {
     // All user data is stored behind a RW lock so that it can be lazily loaded
     // from the environment and cached behind the scenes
@@ -485,7 +499,7 @@ impl User {
         Ok(())
     }
 
-    pub fn write_data(&self, key: Option<&str>) -> Result<RwLockWriteGuard<Data>> {
+    pub fn write_data(&self, key: Option<&str>) -> Result<RwLockWriteGuard<'_, Data>> {
         let k;
         if let Some(tmp) = key {
             k = tmp;
@@ -499,7 +513,7 @@ impl User {
         }
     }
 
-    fn read_data(&self, key: Option<&str>) -> Result<RwLockReadGuard<Data>> {
+    fn read_data(&self, key: Option<&str>) -> Result<RwLockReadGuard<'_, Data>> {
         let k;
         if let Some(tmp) = key {
             k = tmp;
@@ -807,7 +821,10 @@ impl User {
             let mut data = self.write_data(None)?;
             data.home_dir = new_dir;
         } else {
-            self.for_datasets_in_hierarchy_mut( |d| { d.home_dir = None; Ok(()) })?;
+            self.for_datasets_in_hierarchy_mut(|d| {
+                d.home_dir = None;
+                Ok(())
+            })?;
         }
         Ok(())
     }
@@ -843,7 +860,7 @@ impl User {
         }
         let pass = match rpassword::read_password_from_tty(Some(&msg)) {
             Ok(pw) => pw,
-            Err(e) => bail!("Error encountered prompting for password: {}", e)
+            Err(e) => bail!("Error encountered prompting for password: {}", e),
         };
         let attempt = self._try_password(&pass, Some(dataset))?;
 
@@ -897,13 +914,17 @@ impl User {
                     } else {
                         Ok((true, true, Some(o.to_owned())))
                     }
-                }
+                };
             }
         }
         Ok((true, false, None))
     }
 
-    pub fn validate_password(&self, password: &str, dataset_name: Option<&str>) -> Result<FeatureReturn> {
+    pub fn validate_password(
+        &self,
+        password: &str,
+        dataset_name: Option<&str>,
+    ) -> Result<FeatureReturn> {
         let ds = self.read_data(dataset_name)?;
         self._validate_password(password, &ds)
     }
@@ -912,7 +933,14 @@ impl User {
         let lookup = ds.require_data_source_for("password validation", &self.id)?;
         let f = crate::frontend::require()?;
         f.with_data_store(lookup.0, lookup.1, |dstore| {
-            dstore.validate_password(&ds.username.as_ref().map_or_else(|| self.id.as_str(), |u| &u.as_str()), password, &self.id, &ds.dataset_name)
+            dstore.validate_password(
+                &ds.username
+                    .as_ref()
+                    .map_or_else(|| self.id.as_str(), |u| &u.as_str()),
+                password,
+                &self.id,
+                &ds.dataset_name,
+            )
         })
     }
 
@@ -1183,11 +1211,11 @@ impl User {
         Data::populate(&self, name, repopulate, continue_on_error, stop_on_failure)
     }
 
-    pub fn session_config(&self) -> RwLockReadGuard<SessionConfig> {
+    pub fn session_config(&self) -> RwLockReadGuard<'_, SessionConfig> {
         self.session_config.read().unwrap()
     }
 
-    pub fn session_config_mut(&self) -> Result<RwLockWriteGuard<SessionConfig>> {
+    pub fn session_config_mut(&self) -> Result<RwLockWriteGuard<'_, SessionConfig>> {
         let sessions = crate::sessions();
         if sessions
             .groups()
@@ -1233,22 +1261,28 @@ impl User {
         ))
     }
 
-    fn roles_mut(&self) -> Result<RwLockWriteGuard<HashSet<String>>> {
+    fn roles_mut(&self) -> Result<RwLockWriteGuard<'_, HashSet<String>>> {
         Ok(self.roles.write()?)
     }
 
-    pub fn roles(&self) -> Result<RwLockReadGuard<HashSet<String>>> {
+    pub fn roles(&self) -> Result<RwLockReadGuard<'_, HashSet<String>>> {
         Ok(self.roles.read()?)
     }
 
     pub fn add_roles<S: AsRef<str>>(&self, roles: &Vec<S>) -> Result<Vec<bool>> {
         let mut rls = self.roles_mut()?;
-        Ok(roles.iter().map( |r| rls.insert(r.as_ref().to_string())).collect::<Vec<bool>>())
+        Ok(roles
+            .iter()
+            .map(|r| rls.insert(r.as_ref().to_string()))
+            .collect::<Vec<bool>>())
     }
 
     pub fn remove_roles<S: AsRef<str>>(&self, roles: &Vec<S>) -> Result<Vec<bool>> {
         let mut rls = self.roles_mut()?;
-        Ok(roles.iter().map( |r| rls.remove(r.as_ref())).collect::<Vec<bool>>())
+        Ok(roles
+            .iter()
+            .map(|r| rls.remove(r.as_ref()))
+            .collect::<Vec<bool>>())
     }
 
     pub fn with_session_group<T, F>(&self, mut func: F) -> Result<T>
@@ -1319,10 +1353,8 @@ impl User {
         F: FnMut(&Data) -> Result<T>,
     {
         for n in self.data_lookup_hierarchy.iter() {
-            self.with_dataset(&n, |d| {
-                func(d)
-            })?;
-        };
+            self.with_dataset(&n, |d| func(d))?;
+        }
         Ok(())
     }
 
@@ -1331,10 +1363,8 @@ impl User {
         F: FnMut(&mut Data) -> Result<T>,
     {
         for n in self.data_lookup_hierarchy.iter() {
-            self.with_dataset_mut(&n, |d| {
-                func(d)
-            })?;
-        };
+            self.with_dataset_mut(&n, |d| func(d))?;
+        }
         Ok(())
     }
 }

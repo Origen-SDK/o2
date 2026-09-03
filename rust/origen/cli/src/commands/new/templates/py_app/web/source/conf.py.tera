@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
-project = '{{app_name}}'
+project = '{{name}}'
 copyright = '2020, Origen Core Team'
 author = 'Origen Core Team'
 
@@ -36,12 +36,12 @@ release = '0.0.0'
 extensions = [
     'origen.web.origen_sphinx_extension', 'origen_autoapi.sphinx',
     'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosectionlabel',
-    'recommonmark', 'origen.web.shorthand'
+    'myst_parser', 'origen.web.shorthand'
 ]
 
 autosectionlabel_prefix_document = True
 autoapi_modules = {
-    '{{app_name}}.application': {
+    '{{name}}.application': {
         'module-members': ['undoc-members'],
         'class-members': ['members', 'undoc-members']
     }

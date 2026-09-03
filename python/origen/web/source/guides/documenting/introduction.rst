@@ -22,8 +22,10 @@ Your Origen application documentation engine features:
 
 * A fully-functioning :sphinx_app:`Sphinx app <>` out-of-the-box.
 * Integration of the |ose|, which ties into your *Origen application* and the |web_cmd| command.
-* An fully-featured :bootstrap4:`bootstrap4 <>`-derived :sphinx_themes:`theme <>`
-  with the :darkly:`darkly <>` overlay and :dracula_pygments:`dracula <>` syntax highlighting.
+* A responsive, branded :sphinx_themes:`theme <>` based on the PyData Sphinx
+  Theme on current Python versions, including light/dark mode and structured
+  navigation. Older supported Python versions retain the legacy
+  Bootstrap-derived fallback theme.
 
 Basic Build Command
 -------------------

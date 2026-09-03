@@ -47,8 +47,6 @@ origen_shorthand_defs = {
         'napoleon_home',
         'extlinks':
         'extlinks_home',
-        'recommonmark':
-        'recommonmark_home',
         'markdown':
         'markdown_home',
         'rst_subs': ('RST substitutions', 'rst_substitutions'),
@@ -99,7 +97,7 @@ origen_shorthand_defs = {
             'dev_guides_root': 'origen_core_dev_guides_root_src',
             'origen.application': 'origen_src_origen.application',
             'example_commands': 'origen_src_example_commands',
-            'core_conf': ('Origen core conf.py', 'origen_core_guides__conf'),
+            'core_conf': ('Origen core conf.py', 'origen_core_guides_conf_src'),
             '_conf_dir': 'origen_core_guides__conf_dir_src',
         },
         'ldap': {
@@ -147,6 +145,10 @@ origen_shorthand_defs = {
             'Rustdoc Origen',
             '_static/build/rustdoc/origen/doc/origen/index',
         ),
+        'rustdoc_origen_metal': (
+            'Rustdoc Origen Metal',
+            '_static/build/rustdoc/origen_metal/doc/origen_metal/index',
+        ),
         'rustdoc_pyapi':
         ('pyapi', '_static/build/rustdoc/pyapi/doc/_origen/index'),
         'rustdoc_cli': (
@@ -158,16 +160,16 @@ origen_shorthand_defs = {
          '_static/build/origen_sphinx_extension/example/sphinx_build/index'),
         'rust_whoami':
         ('whoami',
-         '_static/build/rustdoc/origen/doc/origen/core/user/fn.whoami'),
+         '_static/build/rustdoc/origen_metal/doc/origen_metal/framework/users/fn.whoami'),
         'backend_arm_debug_model':
         '_static/build/rustdoc/origen/doc/origen/services/arm_debug/struct.ArmDebug',
         'default_encryption_key':
         ('default encryption key',
-         '_static/build/rustdoc/origen/doc/origen/core/config/static.DEFAULT_ENCRYPTION_KEY'
+         '_static/build/rustdoc/origen_metal/doc/origen_metal/utils/encryption/fn.default_encryption_key__byte_str'
          ),
         'default_encryption_nonce':
         ('default encryption nonce',
-         '_static/build/rustdoc/origen/doc/origen/core/config/static.DEFAULT_ENCRYPTION_NONCE'
+         '_static/build/rustdoc/origen_metal/doc/origen_metal/utils/encryption/fn.default_encryption_nonce__byte_str'
          )
     },
     'shorthand_defs': {
@@ -232,10 +234,8 @@ origen_shorthand_defs = {
         'ose_config_vars':
         ('origen sphinx extension config variables',
          f"{doc_root}/the_origen_sphinx_extension:Configuration Variables"),
-        'ose_favicon': ('OSE favicon',
-                        f"{doc_root}/the_origen_sphinx_extension:Favicon"),
-        'ose_logos': ('OSE logos',
-                      f"{doc_root}/the_origen_sphinx_extension:Logos"),
+        'ose_favicon': ('OSE favicon', 'ose-favicon'),
+        'ose_logos': ('OSE logos', 'ose-logos'),
         'ose_subprojects':
         ('OSE SubProjects',
          f"{doc_root}/the_origen_sphinx_extension:SubProjects"),
@@ -284,7 +284,7 @@ origen_shorthand_defs = {
             'session_store':
             ('session store', f'{utilities_root}:Session Storage'),
             'user_sessions':
-            ('user\'s session store', f'{utilities_root}:User Sessions'),
+            ('user\'s session store', f'{utilities_root}:Session Scopes'),
             'user_datasets': ('user datasets', f'{utilities_root}:Datasets'),
             'users': ('users', f'{utilities_root}:Other Configuration Cases'),
             'default_user_config':

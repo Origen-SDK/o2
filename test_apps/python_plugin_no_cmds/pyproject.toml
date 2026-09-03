@@ -1,17 +1,26 @@
-[tool.poetry]
-name = "python_plugin_no_cmds"
+[project]
+name = "python-plugin-no-cmds"
 version = "0.1.0"
-description = "Example Origen Plugin Without Any Commands"
-authors = ["Origen-SDK"]
+description = "Example Origen plugin without commands"
+requires-python = ">=3.7,<3.13"
+authors = [{ name = "Origen-SDK" }]
+dependencies = ["origen", "origen-metal"]
 
-[tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-origen = { path = "../../python/origen", develop = true }
-origen_metal = { path = "../../python/origen_metal", develop = true }
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^3"
+[tool.uv.sources]
+origen = { path = "../../python/origen" }
+origen-metal = { path = "../../python/origen_metal" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["python_plugin_no_cmds"]
+
+[tool.hatch.build]
+artifacts = ["python_plugin_no_cmds/**/*.toml", "python_plugin_no_cmds/*.toml"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

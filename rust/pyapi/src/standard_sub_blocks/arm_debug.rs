@@ -12,27 +12,23 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple, PyType};
 use pyo3::ToPyObject;
 
-#[pymodule]
-/// Implements the module _origen.standard_sub_blocks in Python and ties together
-/// the PyAPI with the Rust backend.
-/// Put another way, this is the Python-side controller for the backend-side model/controller.
-pub fn arm_debug(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<ArmDebug>()?;
-    m.add_class::<DP>()?;
-    m.add_class::<JtagDP>()?;
-    m.add_class::<MemAP>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "arm_debug")?;
+    subm.add_class::<ArmDebug>()?;
+    subm.add_class::<DP>()?;
+    subm.add_class::<JtagDP>()?;
+    subm.add_class::<MemAP>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
 /// Checks for an SWD attribute on the DUT
 /// Note: this must be run after the DUT has loaded or else it'll cause a lockup
-fn check_for_swd() -> PyResult<Option<usize>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+fn check_for_swd(py: Python) -> PyResult<Option<usize>> {
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
-    locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+    locals.set_item("dut", py.eval("origen.dut", Some(locals), None)?)?;
     let m = py.eval("builtins.hasattr(dut, \"swd\")", Some(locals), None)?;
 
     if m.extract::<bool>()? {
@@ -47,13 +43,11 @@ fn check_for_swd() -> PyResult<Option<usize>> {
     }
 }
 
-fn check_for_jtag() -> PyResult<Option<usize>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+fn check_for_jtag(py: Python) -> PyResult<Option<usize>> {
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
-    locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+    locals.set_item("dut", py.eval("origen.dut", Some(locals), None)?)?;
     let m = py.eval("builtins.hasattr(dut, \"jtag\")", Some(locals), None)?;
 
     if m.extract::<bool>()? {
@@ -90,14 +84,17 @@ impl ArmDebug {
     }
 
     #[classmethod]
-    fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         crate::dut::PyDUT::ensure_pins("dut")?;
-        let swd_id = check_for_swd()?;
-        let jtag_id = check_for_jtag()?;
+        let swd_id = check_for_swd(py)?;
+        let jtag_id = check_for_jtag(py)?;
 
         // Create the Arm Debug instance
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let arm_debug_id;
         {
             let model_id = instance.getattr("model_id")?.extract::<usize>()?;
@@ -162,22 +159,23 @@ impl ArmDebug {
             slf.arm_debug_id = Some(arm_debug_id);
         }
         if let Some(opts) = block_options {
-            if let Some(mem_aps) = opts.get_item("mem_aps") {
+            if let Some(mem_aps) = opts.get_item("mem_aps")? {
                 let aps = mem_aps.downcast::<PyDict>()?;
                 for (ap_name, ap_opts) in aps.iter() {
                     let ap_opts_dict = ap_opts.downcast::<PyDict>()?;
                     Self::add_mem_ap(
                         instance.downcast::<PyCell<Self>>()?,
+                        py,
                         &ap_name.extract::<String>()?,
                         {
-                            if let Some(ap_addr) = ap_opts_dict.get_item("ap") {
+                            if let Some(ap_addr) = ap_opts_dict.get_item("ap")? {
                                 Some(ap_addr.extract::<u32>()?)
                             } else {
                                 None
                             }
                         },
                         {
-                            if let Some(csw_reset) = ap_opts_dict.get_item("csw_reset") {
+                            if let Some(csw_reset) = ap_opts_dict.get_item("csw_reset")? {
                                 Some(csw_reset.extract::<u32>()?)
                             } else {
                                 None
@@ -192,13 +190,11 @@ impl ArmDebug {
 
     fn add_mem_ap(
         slf: &PyCell<Self>,
+        py: Python,
         name: &str,
         ap: Option<u32>,
         csw_reset: Option<u32>,
     ) -> PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let args = PyTuple::new(
             py,
             &[name.to_object(py), "origen.arm_debug.mem_ap".to_object(py)],
@@ -229,7 +225,6 @@ impl ArmDebug {
 }
 
 #[pyclass(subclass)]
-#[pyo3(text_signature = "()")]
 #[allow(dead_code)] // Suppress the false dead-code warning for the "clone" derive
 #[derive(Clone)]
 struct DP {
@@ -254,12 +249,17 @@ impl DP {
     }
 
     #[classmethod]
-    #[args(_block_options = "**")]
-    fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    #[pyo3(signature=(instance, block_options=None))]
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
-            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+            if let Some(ad_id) = opts.get_item("arm_debug_id")? {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
@@ -278,8 +278,6 @@ impl DP {
             ));
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let obj = instance.to_object(py);
         let args = PyTuple::new(py, &["default".to_object(py), "default".to_object(py)]);
         let dp_id;
@@ -295,7 +293,7 @@ impl DP {
         Ok(())
     }
 
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits, **_write_opts))]
     fn write_register(&self, bits: &PyAny, _write_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
@@ -305,7 +303,7 @@ impl DP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits, **_verify_opts))]
     fn verify_register(&self, bits: &PyAny, _verify_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
@@ -333,7 +331,6 @@ impl DP {
 }
 
 #[pyclass(subclass)]
-#[pyo3(text_signature = "()")]
 #[allow(dead_code)] // Suppress the false dead-code warning for the "clone" derive
 #[derive(Clone)]
 struct JtagDP {
@@ -358,32 +355,35 @@ impl JtagDP {
     }
 
     #[classmethod]
-    #[args(_block_options = "**")]
-    fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    #[pyo3(signature=(instance, block_options=None))]
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
-            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+            if let Some(ad_id) = opts.get_item("arm_debug_id")? {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
                     return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                        "Subblock arm_debug.dp was given an arm_debug _id block option but could not extract it as an integer"
+                        "Subblock jtagdp was given an arm_debug _id block option but could not extract it as an integer"
                     ));
                 }
             } else {
                 return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'",
+                    "Subblock jtagdp was not given required block option 'arm_debug_id'",
                 ));
             }
         } else {
             return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                "Subblock arm_debug.dp requires an arm_debug_id block option, but no block options were given."
+                "Subblock jtagdp requires an arm_debug_id block option, but no block options were given."
             ));
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let obj = instance.to_object(py);
         let args = PyTuple::new(py, &["default".to_object(py), "default".to_object(py)]);
         let id;
@@ -398,7 +398,7 @@ impl JtagDP {
                 arm_debug_id,
                 {
                     if let Some(opts) = block_options {
-                        if let Some(default_ir_size) = opts.get_item("default_ir_size") {
+                        if let Some(default_ir_size) = opts.get_item("default_ir_size")? {
                             if let Ok(_default_ir_size) = default_ir_size.extract::<usize>() {
                                 Some(_default_ir_size)
                             } else {
@@ -415,7 +415,7 @@ impl JtagDP {
                 },
                 {
                     if let Some(opts) = block_options {
-                        if let Some(default_idcode) = opts.get_item("default_idcode") {
+                        if let Some(default_idcode) = opts.get_item("default_idcode")? {
                             if let Ok(_default_idcode) = default_idcode.extract::<u32>() {
                                 Some(_default_idcode)
                             } else {
@@ -432,7 +432,7 @@ impl JtagDP {
                 },
                 {
                     if let Some(opts) = block_options {
-                        if let Some(dpacc_select) = opts.get_item("dpacc_select") {
+                        if let Some(dpacc_select) = opts.get_item("dpacc_select")? {
                             if let Ok(_dpacc_select) = dpacc_select.extract::<u32>() {
                                 Some(_dpacc_select)
                             } else {
@@ -449,7 +449,7 @@ impl JtagDP {
                 },
                 {
                     if let Some(opts) = block_options {
-                        if let Some(apacc_select) = opts.get_item("apacc_select") {
+                        if let Some(apacc_select) = opts.get_item("apacc_select")? {
                             if let Ok(_apacc_select) = apacc_select.extract::<u32>() {
                                 Some(_apacc_select)
                             } else {
@@ -472,7 +472,7 @@ impl JtagDP {
         Ok(())
     }
 
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits, **write_opts))]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -485,7 +485,7 @@ impl JtagDP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits, **verify_opts))]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -517,11 +517,16 @@ impl MemAP {
     }
 
     #[classmethod]
-    fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+    fn model_init(
+        _cls: &PyType,
+        py: Python,
+        instance: &PyAny,
+        block_options: Option<&PyDict>,
+    ) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
         if let Some(opts) = block_options {
-            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+            if let Some(ad_id) = opts.get_item("arm_debug_id")? {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
@@ -543,7 +548,7 @@ impl MemAP {
         let addr;
         //let csw_reset;
         if let Some(ap_opts_dict) = block_options {
-            if let Some(ap_addr) = ap_opts_dict.get_item("ap") {
+            if let Some(ap_addr) = ap_opts_dict.get_item("ap")? {
                 addr = ap_addr.extract::<usize>()?;
             } else {
                 addr = 0;
@@ -552,8 +557,6 @@ impl MemAP {
             addr = 0;
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let obj = instance.to_object(py);
         let args = PyTuple::new(py, &["default".to_object(py), "default".to_object(py)]);
         let mem_ap_id;
@@ -574,7 +577,7 @@ impl MemAP {
     /// a BitCollection).
     /// Assumes that all posturing has been completed - that is, the bits' data, overlay
     /// status, etc. is current.
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits, **write_opts))]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -589,7 +592,7 @@ impl MemAP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits, **verify_opts))]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -604,7 +607,7 @@ impl MemAP {
         Ok(())
     }
 
-    #[args(capture_opts = "**")]
+    #[pyo3(signature=(bits, **capture_opts))]
     fn capture_register(&self, bits: &PyAny, capture_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();

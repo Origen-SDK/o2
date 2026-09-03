@@ -20,16 +20,15 @@ of axing it entirely out of your *Sphinx app*.
 The Origen Theme's Parent
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-First, recall that Origen's theme is not built from scratch but an 
-:sphinx_creating_themes:`extension <>` of another theme, the
-:bootstrap4_sphinx_theme:`Sphinx Bootstrap4 Theme <>`, which partially gives the
-webpages their look and enables :bootstrap4_widgets:`Bootstrap4 widgets <>`
-out of the box.
+On current Python versions, Origen uses the `PyData Sphinx Theme
+<https://pydata-sphinx-theme.readthedocs.io/>`_ and layers its branding,
+navigation defaults, logo, favicon, and CSS on top. Consult the PyData theme's
+``html_theme_options`` documentation when extending this mode.
 
-The *Bootstrap4 theme* also has its own set of
-:bootstrap4_sphinx_theme_options:`html_theme_options <>`.
-Most of the user-facing ones have been hijacked by the *origen theme* (See the |ose_theme_opts| for more),
-but others supported by the *Bootstrap4 theme* are also fair game for customization.
+Older supported Python versions that cannot install the modern theme use the
+bundled ``origen`` theme, which extends the
+:bootstrap4_sphinx_theme:`Sphinx Bootstrap4 Theme <>`. Its Bootstrap options
+remain available only in that compatibility mode.
 
 Overriding Origen's Theme
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -39,8 +38,10 @@ If something in Origen's theme is not to your liking, your Sphinx app can
 templates, only overriding aspects given by your project's template,
 :sphinx_creating_themes:`inherit from <>` ``origen/web/sphinx_ext/theme/<template>.html``.
 
-Since Origen inherits from the :bootstrap4_sphinx_theme:`sphinxbootstrap4 <>` theme,
-templates to extend that may :bootstrap4_sphinx_theme_templates:`reside there as well <>`.
+The active parent templates come from ``pydata_sphinx_theme`` on current
+Python versions and from :bootstrap4_sphinx_theme:`sphinxbootstrap4 <>` in the
+legacy compatibility mode. Keep overrides limited to stable Sphinx template
+blocks where possible, since parent-theme internals can change between releases.
 
 Extending Themes
 ^^^^^^^^^^^^^^^^
@@ -63,13 +64,10 @@ so breaking away from the Origen theme will only impact those options.
 Though a bit more involved, it is encouraged to inherit from Origen's theme where possible rather
 than break away from it entirely, the former of which will maintain the highest degree of functionality.
 
-.. raw:: html
+.. note::
 
-  <div class="alert alert-info" role="alert">
-    Setting the theme to <code>None</code> in your <code>conf.py</code> will revert your
-    theme to Sphinx's default: 
-    <a href="{{ app.config.extlinks['sphinx_alabaster_theme'][0]|replace('%s', '') }}">the Alabaster theme</a>.
-  </div>
+   Setting the theme to ``None`` in your ``conf.py`` will revert your
+   theme to Sphinx's default: :sphinx_alabaster_theme:`the Alabaster theme <>`.
 
 Recap
 -----
@@ -78,8 +76,9 @@ Recap
   degree of functionality.
 * The |ose_theme| can be extended, allowing for a project-specific vibe without having to entirely
   ditch the features Origen's theme provides.
-* The |ose_theme| itself :sphinx_creating_themes:`extends <>` the
-  :bootstrap4_sphinx_theme:`sphinxbootstrap4 theme <>`.
+* On current Python versions the extension configures and brands the PyData
+  Sphinx Theme; the bundled Bootstrap-derived theme remains the fallback for
+  older supported Python versions.
 * If you do opt to move away from Origen's theme entirely, some of the |ose| features will not
   work properly but the general integration between the
   *Origen application*, *Sphinx app*, and Origen CLI will still be maintained.

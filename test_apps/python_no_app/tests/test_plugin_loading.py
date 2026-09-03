@@ -25,11 +25,13 @@ class TestLoadingGlobalPlugins(ConfigCommon):
     def test_plugins_are_collected_by_default(self):
         retn = in_new_origen_proc(mod=config_funcs)
         assert retn['configs'] == []
+        # TODO consistent plugin loading
         assert set(retn['plugins']) == set(self.plugins.python_no_app_collected_pl_names)
 
         # Test from CLI
         retn = self.get_configs_and_plugins_from_cli(bypass_config_lookup=True)
         assert retn['configs'] == []
+        # TODO consistent plugin loading
         assert set(retn['plugins']) == set(self.plugins.python_no_app_collected_pl_names)
 
     def test_plugins_are_accessible(self):
@@ -41,6 +43,7 @@ class TestLoadingGlobalPlugins(ConfigCommon):
         assert pls.names == self.plugins.python_no_app_config_pl_names
         # TODO
         assert isinstance(pl, origen.application.Base)
+        assert isinstance(pl, origen.core.plugins.Plugin)
         # assert isinstance(pl, _origen.plugins.Plugin)
         # TODO
         assert pl.is_plugin == True

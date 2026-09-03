@@ -1,0 +1,29 @@
+# Workspace directories
+/.origen
+/tmp
+/.ref
+/log
+/.session
+
+# Output directories
+/output
+/web/source/_static/build
+/web/source/interbuild
+/dist
+
+{% if app_gen -%}
+# Release scribe dry-run output and release notes
+config/history.generated.dry_run.toml
+release_note.txt
+{% endif -%}
+
+# Cache directories
+__pycache__
+.pytest_cache
+
+# Editor cruft
+*.swp
+*.swo
+*~
+*.pylintrc
+.vscode

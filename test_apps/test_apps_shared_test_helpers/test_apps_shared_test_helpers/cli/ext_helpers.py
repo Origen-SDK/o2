@@ -78,16 +78,45 @@ def do_action(actions, phase):
             elif action == "display_current_command":
                 cc = origen.current_command
                 print(f"Class: {cc.__class__.__name__}")
+                cs = cc.source
+                print(f"Command Src Class: {cs.__class__.__name__}")
+                st = cs.source_type
+                print(f"Src Type Class: {st.__class__.__name__}")
+                print(f"Src Plugin Class: {cs.plugin.__class__.__name__}")
                 print(f"Base Cmd: {cc.base_cmd}")
                 print(f"Sub Cmds: {cc.subcmds}")
                 print(f"Args: {cc.args}")
+                print(f"Arg Indices: {cc.arg_indices}")
                 print(f"Exts: {dict(cc.exts)}")
+                print(f"Src Path: {cs.path}")
+                print(f"Src Plugin: {cs.plugin.name}")
+                print(f"Src Type: {st}")
+                print(f"Src is_core_cmd: {st.is_core_cmd}")
+                print(f"Src is_plugin_cmd: {st.is_plugin_cmd}")
+                print(f"Src is_aux_cmd: {st.is_aux_cmd}")
+                print(f"Src is_app_cmd: {st.is_app_cmd}")
+                print(f"Src root name: {st.root_name}")
             elif action == "show_ext_mods":
                 # TEST_NEEDED CLI check for extension mods
                 for n, e in origen.current_command.exts.items():
                     print(f"{n}: {e.mod}")
+            elif action == "show_arg_indices":
+                print(origen.current_command.arg_indices)
+            elif action == "show_ext_arg_indices":
+                print({ n: v.arg_indices for n, v in origen.current_command.exts.items() })
             elif action == "no_action":
                 pass
             else:
                 raise RuntimeError(f"No action '{action}' is known!")
             print(f"End Action {p_out} CMD: {action}")
+
+def get_action_results(output, actions):
+    retn = {}
+    for action in actions:
+        a = {}
+        r = output.split(f"Start Action Before CMD: {action}")[1].strip()
+        a["Before"], r = r.split(f"End Action Before CMD: {action}")
+        r = output.split(f"Start Action After CMD: {action}")[1].strip()
+        a["After"], r = r.split(f"End Action After CMD: {action}")
+        retn[action] = a
+    return retn

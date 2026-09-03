@@ -9,7 +9,7 @@ end
 flags
 
 user EXTRA_TESTS = 0;
-user PRB2_ENABLE = 1;
+user PRB2_ENABLE = 0;
 
 end
 -----------------------------------------------------------------

@@ -1,0 +1,12 @@
+STIL 1.0 {
+  Design D22;
+}
+
+Environment {
+  NameMaps "93kPorts" {
+    SignalGroups {
+		abus_pins "wavetbl_name=WFT,port=pAbus,xfact=1,expand_loops=1,repeat_compression=1,pattern_comments=on";
+		bbus_pins "wavetbl_name=WFT,port=pBbus,xfact=1,expand_loops=1,repeat_compression=1,pattern_comments=on";		
+    }
+  }	
+}

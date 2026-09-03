@@ -35,6 +35,49 @@ Configuring Your Application
 Configuration Options
 ^^^^^^^^^^^^^^^^^^^^^
 
+Application behavior is split between two files:
+
+``config/application.toml``
+   Application identity and defaults such as targets, mode, revision control,
+   sessions, publishing, and documentation paths.
+
+``config/origen.toml``
+   Origen runtime and site services such as package sources, users, LDAP,
+   mailer, plugins, and auxiliary commands.
+
+Keep secrets out of both files. Use the user/session credential APIs or the
+organization's secret-management mechanism.
+
+Environment Variable Mapping
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Configuration keys can be overridden through prefixed environment variables.
+Use this for CI and deployment-specific values, not as a substitute for
+committed defaults. Document required overrides in the application README and
+fail with a clear message when a mandatory value is missing.
+
+Target Defaults
+^^^^^^^^^^^^^^^
+
+Default targets are an ordered list in ``application.toml``:
+
+.. code-block:: toml
+
+   target = ["dut/eagle", "tester/smt7"]
+
+Users can override them with ``origen target`` commands or command-line target
+options. Keep defaults usable for a safe development workflow; production-only
+targets should not be the only way to boot the application.
+
+Configuration Changes
+^^^^^^^^^^^^^^^^^^^^^^
+
+Add tests for configuration that affects model structure, generated output, or
+external services. When introducing a key, document its type, default,
+precedence, security implications, and whether changing it is backward
+compatible.
+^^^^^^^^^^^^^^^^^^^^^
+
 .. _app-config-output-dir:
 
 Output Directory

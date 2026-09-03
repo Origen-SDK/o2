@@ -1,0 +1,93 @@
+{
+    "class_name": "com.amd.testmethod.ate.TsenSensorRead",
+    "parameters": {
+        "activateSpec.afterRunActivateSpec": {
+            "kind": "string",
+            "value": null
+        },
+        "binning.binnable": {
+            "kind": "boolean",
+            "value": "false"
+        },
+        "enableSoftset": {
+            "kind": "boolean",
+            "value": "false"
+        },
+        "registerSetupPinList": {
+            "kind": "string",
+            "value": null
+        },
+        "testDescription.baseClass": {
+            "kind": "string",
+            "value": null
+        },
+        "testDescription.componentHash": {
+            "kind": "string",
+            "value": null
+        },
+        "testDescription.paramRefGroup": {
+            "kind": "string",
+            "value": null
+        },
+        "testDescription.subClass": {
+            "kind": "string",
+            "value": null
+        }
+    },
+    "collections": {
+        "softsetPatternInfo": {
+            "parameters": {
+                "patternName": {
+                    "kind": "string",
+                    "value": null
+                },
+                "pinNames": {
+                    "kind": "string",
+                    "value": null
+                },
+                "profileName": {
+                    "kind": "string",
+                    "value": null
+                }
+            }
+        },
+        "tsen": {
+            "parameters": {
+                "sensorAverageVariable": {
+                    "kind": "string",
+                    "value": null
+                },
+                "Y1Variable": {
+                    "kind": "string",
+                    "value": null
+                },
+                "tdiodeTemperatureVariable": {
+                    "kind": "string",
+                    "value": null
+                },
+                "zDataDeltaLimit": {
+                    "kind": "double",
+                    "value": "0.0"
+                }
+            },
+            "collections": {
+                "registers": {
+                    "parameters": {
+                        "name": {
+                            "kind": "string",
+                            "value": null
+                        },
+                        "zHighLimit": {
+                            "kind": "double",
+                            "value": "0.0"
+                        },
+                        "zLowLimit": {
+                            "kind": "double",
+                            "value": "-Infinity"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

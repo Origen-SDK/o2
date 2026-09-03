@@ -3,6 +3,7 @@ from collections import UserDict
 import importlib, os
 from pathlib import Path
 import _origen
+from origen_metal.utils.version import pep440
 
 def collect_plugins():
     pls = Plugins()
@@ -19,6 +20,12 @@ def from_origen_cli(plugins):
     origen._plugins = pls
     return origen._plugins
 
+class Plugin:
+    @property
+    def version(self):
+        import importlib_metadata
+        return pep440(importlib_metadata.version(self.name))
+
 class Plugins(UserDict):
     def __init__(self):
         UserDict.__init__(self)
@@ -33,7 +40,8 @@ class Plugins(UserDict):
 
     def register(self, name):
         a = importlib.import_module(f'{name}.application')
-        app = a.Application(root=Path(os.path.abspath(
+        a_pl = type("Application", (Plugin, a.Application), {})
+        app = a_pl(root=Path(os.path.abspath(
             a.__file__)).parent.parent,
                             name=name)
         self.data[name] = app

@@ -230,6 +230,34 @@ pub trait RevisionControlAPI: std::fmt::Debug {
     ) -> Result<Outcome>;
 
     fn system(&self) -> &str;
+
+    fn remote_url(&self) -> Result<String> {
+        bail!(
+            "The {} revision-control driver does not expose a remote URL",
+            self.system()
+        )
+    }
+
+    fn current_branch(&self) -> Result<String> {
+        bail!(
+            "The {} revision-control driver does not expose a current branch",
+            self.system()
+        )
+    }
+
+    fn tag_exists(&self, _tagname: &str) -> Result<bool> {
+        bail!(
+            "The {} revision-control driver does not support tag queries",
+            self.system()
+        )
+    }
+
+    fn confirm_latest_ref(&self, _branch: &str) -> Result<(bool, [String; 2])> {
+        bail!(
+            "The {} revision-control driver does not support upstream comparison",
+            self.system()
+        )
+    }
 }
 
 impl RevisionControlAPI for RevisionControl {
@@ -259,6 +287,22 @@ impl RevisionControlAPI for RevisionControl {
 
     fn is_initialized(&self) -> Result<bool> {
         self.driver.is_initialized()
+    }
+
+    fn current_branch(&self) -> Result<String> {
+        self.driver.current_branch()
+    }
+
+    fn remote_url(&self) -> Result<String> {
+        self.driver.remote_url()
+    }
+
+    fn tag_exists(&self, tagname: &str) -> Result<bool> {
+        self.driver.tag_exists(tagname)
+    }
+
+    fn confirm_latest_ref(&self, branch: &str) -> Result<(bool, [String; 2])> {
+        self.driver.confirm_latest_ref(branch)
     }
 
     fn checkin(
