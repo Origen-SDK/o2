@@ -1,0 +1,78 @@
+
+waveform generic
+	signal
+		CS_ENABLE : input
+			dutpin[P1:1]
+			atepin[CSENAB:1];
+		A-BUS [15..0] : input radix hexadecimal
+			dutpin[P2:2, P3:3, P4:4, P5:5, P6:6, P7:7, P8:8, P9:9, P10:10, P11:11,
+				P12:12, P13:13, P14:14, P15:15, P16:16, P17:17]
+			atepin[ABUS15:2, ABUS14:3, ABUS13:4, ABUS12:5, ABUS11:6, ABUS10:7,
+				ABUS9:8, ABUS8:9, ABUS7:10, ABUS6:11, ABUS5:12,
+				ABUS4:13, ABUS3:14, ABUS2:15, ABUS1:16, ABUS0:17];
+		LOAD : input
+			dutpin[P18:18]
+			atepin[LOAD:18];
+	end
+	timeplate Fetch period 300nS
+		CS_ENABLE := input[0pS:P, 30nS:S];
+		A-BUS := input[0pS:D, 120nS:S, 260nS:D];
+		LOAD := input[0pS:P, 100nS:S];
+		ENP := input[0pS:P, 50nS:S];
+		DR := input[0pS:P, 100nS:S];
+		RO := input[0pS:U, 70nS:S, 180nS:U];
+		D-BUS := output[0pS:X, 100nS:Q, 250nS:X];
+		DB-BUS := output[0pS:X, 100nS:Q, 250nS:X];
+		AD-BUS := input[0pS:P, 100nS:S];
+	end
+	timeplate R_W period 200nS
+		CS_ENABLE := input[0pS:P, 30nS:S];
+		A-BUS := input[0pS:D, 60nS:S, 190nS:D];
+		LOAD := input[0pS:S];
+		ENP := input[0pS:S];
+		DR := input[0pS:S];
+		RO := input[0pS:U, 40nS:S, 180nS:U];
+		D-BUS := output[0pS:X, 60nS:Q, 190nS:X];
+		DB-BUS := output[0pS:X, 40nS:Q, 180nS:X];
+		AD-BUS := input[0pS:P, 60nS:S];
+	end
+	symbolic DB-BUS input radix hexadecimal
+		RESET := [1ED8];
+		JMP := [BE43];
+		LDA := [062D];
+	end
+	symbolic DB-BUS output radix binary
+	end
+	pattern group_ALL (CS_ENABLE,A-BUS,LOAD,ENP,DR,RO,D-BUS,DB-BUS:I,DB-BUS:O, AD-BUS:I,AD-BUS:O)
+		repeat 5
+		vector(0, 0pS, Startup) := [1 FFFF 0 0 0 1 3D66 RESET ---------------- AD -- ];
+		{ This is the COMMENT for the first row. This STARTUP TimePlate allows the tester
+		to start ALL stimulus at the LOW state, and initializes the device.}
+		vector(5, 2.5uS, Fetch) := [1 ADBB 0 0 1 0 3CDA ---- 0011111000000100 BB -- ];
+		{ During the FETCH cycle, the address on the A-Bus is “fetched” and will be valid
+		(displayed) on the D-Bus until after the next FETCH cycle.}
+		vector(6, 3uS, Write) := [0 8D18 0 1 0 0 ADBB JMP ---------------- -- 99 ];
+		{ The WRITE cycle contains “mid-cycle I/O” on the DB-Bus.}
+		vector(7, 3.4uS, Fetch) := [0 EF57 0 1 0 1 ADBB ---- 1100001001000100 98 -- ];
+		vector(8, 3.7uS, R_W) := [0 82DD 1 0 1 0 EF57 ---- 0110000001110101 7B -- ];
+		call sub1();
+		vector(15, 5.7uS, Write) := [0 8D18 0 1 0 0 ADBB JMP ---------------- -- 99 ];
+		vector(16, 6.1uS, Fetch) := [0 EF57 0 1 0 1 ADBB ---- 1100001001000100 98 -- ];
+		vector(17, 6.4uS, R_W) := [0 82DD 1 0 1 0 EF57 ---- 0110000001110101 7B -- ];
+		vector(18, 6.6uS, Write) := [0 2927 1 1 0 0 AA03 LDA ---------------- -- 81 ];
+		vector(19, 7uS, Fetch) := [0 84F5 0 1 1 1 AA03 ---- 0100000110110111 A4 -- ];
+		vector(20, 7.3uS, R_W) := [1 8DB4 1 0 1 1 84F5 ---- 1100001100010001 97 -- ];
+		call sub1();
+		vector(27, 9.3uS, Write) := [0 7306 1 1 0 0 84F5 00DF ---------------- -- 17 ];
+		vector(28, 33.1uS, Fetch) := [0 9DF1 1 1 0 1 140F ---- 0010100101000010 98 -- ];
+		{ This is the LAST vector row}
+	end
+	subroutine sub1()
+		vector(0, 0pS, Write) := [1 59E7 1 0 1 1 EF57 5FC9 ---------------- -- 65 ];
+		vector(1, 400nS, Fetch) := [0 E327 0 0 0 0 EF57 ---- 0111100101000100 BF -- ];
+		vector(2, 700nS, R_W) := [0 28E7 1 0 1 1 E327 ---- 1101001110000110 CA -- ];
+		vector(3, 900nS, Write) := [1 898B 1 1 0 1 E327 5F8B ---------------- -- A0 ];
+		vector(4, 1.3uS, Fetch) := [1 AA03 0 0 0 1 E327 ---- 1001111010101101 83 -- ];
+		vector(5, 1.6uS, R_W) := [0 1ECD 1 0 1 0 AA03 ---- 0010001101010101 23 -- ];
+	end
+end

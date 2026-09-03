@@ -1,0 +1,373 @@
+// Multiple waveform programs in a single file (multi-time domain support)
+wgl_source = { SOI ~ waveform_program+ ~ EOI }
+
+waveform_program = { ^"waveform" ~ name ~ waveform_parameters? ~ waveform_block* ~ EOS }
+
+waveform_parameters = { "(" ~ (^"freerunningclock")? ~ name ~ ")" }
+
+waveform_block = _{
+      include_invocation
+    | macro_definition
+    | equation_sheet
+    | equation_defaults
+    | formats
+    | global_mode
+    | pattern
+    | pin_groups 
+    | registers
+    | scan_cells
+    | scan_chain
+    | scan_state
+    | signals
+    | subroutine
+    | symbolic
+    | time_gens
+    | time_plate
+    | timing_sets
+}
+
+//#############################################################################
+//# 2.5.3.1 Signals
+//#############################################################################
+signals = { ^"signal" ~ signal_decl* ~ EOS }
+signal_decl = { name ~ bus_or_group? ~ (":" ~ signal_attributes)? ~ pstate? ~ ";" }
+bus_or_group = _{ bus_range | group_members | mux_members }
+bus_range = { "[" ~ integer ~ ".." ~ integer ~ "]" }
+group_members = { "[" ~ signal_reference_list? ~ "]"}
+signal_reference_list = _{ signal_reference ~ ("," ~ signal_reference)* }
+signal_reference = { name ~ range? }
+range = { "[" ~ integer ~ (".." ~ integer)? ~ "]" }
+mux_members = { mux_part_list? ~ range? }
+mux_part_list = { "[" ~ identifier ~ ("," ~ identifier)+ ~ "]" }
+signal_attributes = {
+    mux? ~ signal_direction? ~ free_running_clock? ~ strobe* ~ data_bit_count? ~ wide? ~ radix? ~ dut_pins? ~ ate_pins?
+}
+mux = { ^"mux" }
+data_bit_count = {"{" ~ ^"Databitcount" ~ integer ~ "}" }
+wide = {"{" ~ ^"Wide" ~ integer ~ "}" }
+signal_direction = { signal_direction_string ~ signal_direction_type? }
+signal_direction_string = { ^"input" | ^"output" | ^"bidir" }
+signal_direction_type = { ^"reference" | ^"timing" }
+free_running_clock = {
+    (^"freerunningclock")?
+    ~ ^"period" ~ (time | name)
+    ~ ^"leadingedge" ~ (time | name)
+    ~ ^"trailingedge" ~ (time | name)
+    ~ ^"offstate" ~ ("0" | "1" | "D" | "U")
+}
+strobe = { (^"in" | ^"out") ~ ^"when" ~ "[" ~ identifier ~ state_character ~ "]" }
+radix = { ^"radix" ~ radix_type }
+radix_type = { ^"binary" | ^"octal" | ^"decimal" | ^"hexadecimal" | ^"hex" | ^"symbolic" }
+dut_pins = { ^"dutpin" ~ "[" ~ dut_pin_or_group ~ ("," ~ dut_pin_or_group)* ~ "]" }
+dut_pin_or_group = _{ pin_info | dut_pin_group }
+dut_pin_group = { "(" ~ pin_info ~ ("," ~ pin_info)* ~ ")" }
+pin_info = { pin_name | pin_number }
+pin_name = { (name | integer) ~ pin_number? }
+pin_number = { ":" ~ (name | integer) }
+ate_pins = { ^"atepin" ~ "[" ~ ate_pin_or_group ~ ("," ~ ate_pin_or_group)* ~ "]" }
+ate_pin_or_group = _{ ate_pin_info | ate_pin_group }
+ate_pin_group = { "(" ~ ate_pin_info ~ ("," ~ ate_pin_info)* ~ ")" }
+ate_pin_info = { pin_info ~ (^"tg" ~ "[" ~ name ~ ("," ~ name)* ~ "]")? }
+pstate = { ^"initialp" ~ "[" ~ tds_state ~ "]" }
+tds_state = {
+      "D" | "U" | "N" | "Z" | "S" | "C" 
+    | "P" | "L" | "H" | "X" | "T" | "Q" 
+    | "R" | "0" | "1" | "F" | "?"
+}
+
+//#############################################################################
+//# 2.5.3.2 Scan Cells
+//#############################################################################
+scan_cells = { ^"scanCell" ~ scan_cell_decl* ~ EOS }
+scan_cell_decl = { name ~ scan_group? ~ (":" ~ radix)? ~ ";" }
+scan_group = { "[" ~ (scan_range | scan_group_members)? ~ "]" }
+scan_range = { integer ~ ".." ~ integer }
+scan_group_members = { cell_reference ~ ("," ~ cell_reference)* }
+cell_reference = { name ~ range? }
+
+//#############################################################################
+//# 2.5.3.3 Scan State
+//#############################################################################
+scan_state = { ^"scanState" ~ scan_state_decl* ~ EOS }
+scan_state_decl = { name ~ ":=" ~ state_vector_element* ~ ";" }
+state_vector_element = { name ~ "(" ~ state_string* ~ ")" }
+
+//#############################################################################
+//# 2.5.3.4 Scan Chain
+//#############################################################################
+scan_chain = { ^"scanChain" ~ chain_decl* ~ EOS }
+chain_decl = { name ~ "[" ~ chain_members ~ "]" ~ (":" ~ radix)? ~ ";" }
+chain_members = _{ out_edge_signal_only | in_edge_signal? ~ chain_mem_list ~ out_edge_signal? }
+out_edge_signal_only = { "," ~ name }
+in_edge_signal = { name ~ "," }
+out_edge_signal = { "," ~ name }
+chain_mem_list = _{ chain_mem_reference ~ ("," ~ chain_mem_reference)* }
+chain_mem_reference = _{ chain_mem_invert | cell_reference }
+chain_mem_invert = { "!" }
+
+//#############################################################################
+//# 2.5.3.5 TimePlates
+//#############################################################################
+time_plate = { ^"timeplate" ~ identifier ~ time_plate_decl ~ EOS }
+time_plate_decl = _{ ^"period" ~ time_reference ~ (^"timeset" ~ integer)? ~ channel* }
+time_reference = { time | name }
+time = { (float | integer) ~ time_unit }
+time_unit = { ^"fs" | ^"ps" | ^"ns" | ^"us" | ^"ms" | ^"sec" }
+channel = { signal_reference_list ~ ":=" ~ track }
+// 2026: FirstEvent is no longer required; tracks may start with a non-zero Event
+track = { signal_direction? ~ ("[" ~ event_list_inner ~ "]")? ~ ";"}
+event_list_inner = _{ first_event ~ ("," ~ event)* | event ~ ("," ~ event)* }
+first_event = { "0" ~ time_unit ~ ":" ~ tds_state ~ (track_selector | event_qualifier)? }
+event = { time_reference ~ ":" ~ tds_state ~ event_qualifier? }
+track_selector  = { single_quote ~ "{" ~ (integer | ASCII_ALPHANUMERIC) ~ "}" }
+event_qualifier = { single_quote ~ event_qualifier_string }
+event_qualifier_string = { ^"edge" | ^"window" }
+
+//#############################################################################
+//# 2.5.3.6 Patterns and 2.5.3.7 Subroutines
+//#############################################################################
+pattern = { ^"pattern" ~ name ~ "(" ~ pattern_parameters ~ ")" ~ pattern_row* ~ EOS }
+subroutine = { ^"subroutine" ~ identifier ~ "()" ~ pattern_row* ~ EOS }
+pattern_parameters = _{ pattern_param ~ ("," ~ pattern_param)* }
+pattern_param = { name ~ range? ~ (":" ~ pattern_param_dir)? }
+pattern_param_dir = { ("I" | "O") }
+pattern_row = { vector_label? ~ (loop_stmt | repeat | scan_row) }
+vector_label = { name ~ ":" }
+// Note: The spec allows an optional loopName after "end" for documentation, but
+// PEG greedily consumes the next identifier (e.g. "Repeat") as the loop name.
+// We omit the trailing identifier to avoid this ambiguity.
+loop_stmt = { ^"loop" ~ identifier? ~ integer ~ pattern_row* ~ ^"end" }
+repeat = { (^"repeat" ~ integer)? ~ (vector | call | offset) }
+vector = { ^"vector" ~ address ~ ":=" ~ pattern_expression ~ time_comment? ~ ";" }
+address = { "(" ~ address_element ~ ("," ~ address_element)* ~ ")" }
+address_element = _{ address_increment | time | integer | identifier }
+address_increment = { "+" }
+pattern_expression = { "[" ~ ( placeholder | state_string_with_selector | state_string | identifier)* ~ "]" }
+placeholder = { "-"+ }
+state_string_with_selector = { state_string ~ "(" ~ identifier ~ ")"}
+time_comment = { "(" ~ time ~ ")" }
+call = { ^"call" ~ identifier ~ "()" ~ ";" }
+offset = { ^"skip" ~ time ~ ";" }
+scan_row = { ^"scan" ~ address ~ ":=" ~ scan_row_list ~ ";"}
+scan_row_list = _{ scan_row_element ~ ("," ~ scan_row_element)*}
+scan_row_element = _{ pattern_expression | anonymous_scan_run | scan_run }
+// Classic scan run: input[chain:state]
+scan_run = { scan_dir ~ "[" ~ name ~ ":" ~ name ~ "]" }
+// 2026 Anonymous scan run: input signalName(stateVector)
+anonymous_scan_run = { scan_dir ~ name ~ ("," ~ name)* ~ "(" ~ state_string* ~ ")" }
+scan_dir = { ^"input" | ^"output" | ^"feedback" }
+
+//#############################################################################
+//# 2.5.3.8 Symbolics
+//#############################################################################
+symbolic = { ^"symbolic" ~ signal_reference ~ sym_direction? ~ radix ~ symbolic_assignment* ~ EOS }
+sym_direction = { sym_direction_string ~ sym_direction_type? }
+sym_direction_string = { ^"input" | ^"output" }
+sym_direction_type = { ^"reference" | ^"timing" }
+symbolic_assignment = { name? ~ ":=" ~ sym_pattern_expression ~ ";" }
+sym_pattern_expression = _{ "[" ~ (state_string | identifier)* ~ "]" }
+
+//#############################################################################
+//# 2.5.4.1 EquationSheet
+//#############################################################################
+equation_sheet = { ^"equationsheet" ~ name ~ expression_decl* ~ EOS }
+expression_decl = { ^"exprset" ~ name ~ variable_decl* ~ EOS }
+
+//#############################################################################
+//# 2.5.4.2 ExprSet
+//#############################################################################
+variable_decl = { name ~ ":=" ~ expression? ~ ("[" ~ min_max ~ "]")? ~ ";" }
+expression = _{ 
+      positive
+    | negative
+    | pre_increment
+    | pre_decrement
+    | built_in_func_call
+    | paren_expression
+    | post_increment
+    | post_decrement
+    | binary_expression
+    | term
+}
+term = { factor ~ ((multiply | divide) ~ factor)* }
+factor = _{ power_expr | atom }
+power_expr = { atom ~ pow ~ atom }
+atom = _{ built_in_var | constant | name }
+binary_expression = { term ~ ((add | subtract) ~ term)+ }
+pre_increment = { "++" ~ atom }
+pre_decrement = { "--" ~ atom }
+post_increment = { atom ~ "++" }
+post_decrement = { atom ~ "--" }
+positive = { "+" ~ atom }
+negative = { "-" ~ atom }
+paren_expression = { "(" ~ expression ~ ")" }
+built_in_func_call = { built_in_func ~ "(" ~ expression ~ ("," ~ expression)? ~ ")" }
+built_in_func = { 
+      "ACOS" | "ASIN" | "ATAN" | "CEIL" | "COS" | "COSH" | "EXP" | "FABS" | "FLOOR"
+    | "LOG" | "LOG10" | "SIN" | "SINH" | "SQRT" | "TAN" | "TANH" | "ATAN2" | "POW"
+}
+built_in_var = { "PI" | "E" | "DEG" }
+add = { "+" }
+subtract = { "-" }
+multiply = { "*" }
+divide = { "/" }
+pow = { "^" }
+constant = { (float | integer) ~ scale? ~ eq_unit? }
+scale = { "p" | "n" | "u" | "m" }
+eq_unit = { "A" | "V" | "S" | "H" }
+min_max = { max_only | min_and_max | min_only }
+min_only = { constant }
+max_only = { ("," ~ constant) }
+min_and_max = { constant ~ "," ~ constant }
+
+//#############################################################################
+//# 2.5.4.2 EquationDefaults
+//#############################################################################
+equation_defaults = { ^"equationdefaults" ~ defaults_decl* ~ EOS }
+defaults_decl = _{ default_pair ~ ("," ~ default_pair)* ~ ";" }
+default_pair = { name ~ ":" ~ name }
+
+//#############################################################################
+//# 2.5.5.1 Formats
+//#############################################################################
+formats = { ^"format" ~ format_decl* ~ EOS }
+format_decl = { name ~ ":" ~ "[" ~ tds_state_list ~ "]" ~ ";" }
+tds_state_list = _{ tds_state ~ ("," ~ tds_state)* }
+
+//#############################################################################
+//# 2.5.5.2 Registers
+//#############################################################################
+registers = { ^"register" ~ "(" ~ pin_list ~ ")" ~ register_decl* ~ EOS }
+pin_list = { name ~ ("," ~ name)* }
+register_decl = { name ~ ":" ~ "[" ~ format_spec* ~ "]" ~ ";" }
+format_spec = { name | "-" }
+
+//#############################################################################
+//# 2.5.5.3 Pin Groups
+//#############################################################################
+pin_groups = { ^"pingroup" ~ pin_group_decl* ~ EOS }
+pin_group_decl = { identifier ~ ":" ~ "[" ~ pin_group_list? ~ "]" ~ ";" }
+pin_group_list = _{ identifier ~ ("," ~ identifier)* }
+
+//#############################################################################
+//# 2.5.5.4 TimeGens
+//#############################################################################
+time_gens = { ^"timegen" ~ tg_decl* ~ EOS }
+tg_decl = { name ~ ("[" ~ integer ~ "]")? ~ ":" ~ tg_type ~ ";" }
+tg_type = { ^"force" | ^"compare" | ^"direction" }
+
+//#############################################################################
+//# 2.5.5.5 TimingSets
+//#############################################################################
+timing_sets = { ^"timeset" ~ integer ~ tg_assign* ~ EOS }
+tg_assign = { name ~ ("[" ~ integer ~ "]")? ~ ":=" ~ time_reference ~ tg_repeat? ~ ";" }
+tg_repeat = { ^"repeat" ~ integer }
+
+//#############################################################################
+//# 2.6.1.1 Macro Definition
+//#############################################################################
+macro_definition = { ^"macro" ~ name ~ ("(" ~ macro_parameter_list ~ ")")? ~ macro_body ~ ^"endmacro" }
+macro_parameter_list = _{ identifier ~ ("," ~ identifier)* }
+macro_body = { (!^"endmacro" ~ ANY)+ }
+
+//#############################################################################
+//# 2.6.1.2 Macro Invocation
+//#############################################################################
+macro_invocation = { name ~ ("(" ~ argument_list ~ ")")? }
+argument_list = _{ identifier ~ ("," ~ identifier)* }
+
+//#############################################################################
+//# 2.6.2 Include Files
+//#############################################################################
+include_invocation = { ^"include" ~ quoted_string ~ ";" }
+
+//#############################################################################
+//# 2.6.3 Annotations
+//#############################################################################
+// Note: Annotations use {curly braces} and can appear almost anywhere in WGL.
+// Treating them as COMMENT allows pest to silently consume them between any
+// two tokens.  A future enhancement could capture annotation content into the
+// AST by adding explicit annotation references at each grammar level.
+annotation = { "{" ~ (!"}" ~ ANY)* ~ "}" }
+
+//#############################################################################
+//# 2.6.4.1 pmode Attribute
+//#############################################################################
+global_mode = { ^"pmode" ~ "[" ~ pmode_option ~ "]" ~ ";" }
+pmode_option = { 
+      ^"dont_care" 
+    | ^"last_force"
+    | ^"last_drive"
+    | ^"force_or_z"
+    | ^"advantest"
+    | ^"ims" }
+
+//############################################################################
+//# Identifiers
+//############################################################################
+name = { identifier | quoted_string }
+
+quoted_string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+
+identifier = @{ identifier_character_first ~ (identifier_character)* }
+identifier_character_first = { ASCII_ALPHA | identifier_special_character }
+identifier_character = { ASCII_ALPHA | ASCII_DIGIT | identifier_special_character }
+identifier_special_character = {
+    "$" | "%" | "&" | "'" | "*" | "-" | "." | "/" | "<" | 
+    "=" | ">" | "?" | "^" | "_" | "`" | "|" | "~" | "@" | "\\" 
+}
+
+//#############################################################################
+//# Numbers
+//#############################################################################
+digit = { ASCII_DIGIT }
+hexdigit = { ASCII_HEX_DIGIT }
+octdigit = { ASCII_OCT_DIGIT }
+
+hex_number = @{ hexdigit+ }
+oct_number = @{ octdigit+ }
+
+state_character = { bin_state_digit | hex_state_digit | oct_state_digit }
+state_string = { bin_state_string | hex_state_string | oct_state_string }
+bin_state_string = @{ bin_state_digit+ }
+hex_state_string = @{ hex_state_digit+ }
+oct_state_string = @{ oct_state_digit+ }
+bin_state_digit = { ASCII_BIN_DIGIT | "Z" | "X" }
+hex_state_digit = { ASCII_HEX_DIGIT | "Z" | "X" }
+oct_state_digit = { ASCII_OCT_DIGIT | "Z" | "X"  }
+
+integer = @{ digit+ }
+signed_integer = @{ integer | (minus ~ integer) }
+float = @{ signed_integer ~ point ~ integer }
+point = { "." }
+
+plus = { "+" }
+minus = { "-" }
+
+//#############################################################################
+//# Comments and Whitespace
+//#############################################################################
+EOS = _{ ^"end" }
+
+single_quote = _{ "'" | "\u{2019}" }
+
+// WGL uses # for comments (not //)
+pound_comment = _{ "#" ~ (!N ~ ANY)* }
+
+space = _{ " " | "\t" }
+
+// Optional space, including newlines and comments
+s = _{ (space | N | pound_comment)* }
+
+// Required space, including newlines and comments
+S = _{ (space | N | pound_comment)+ }
+
+// Optional end of line
+n = _{ NEWLINE? }
+
+// Required end of line
+N = _{ NEWLINE }
+
+// For Pest implicit whitespace insertion
+WHITESPACE = _{ space | NEWLINE }
+COMMENT = _{ pound_comment | annotation }

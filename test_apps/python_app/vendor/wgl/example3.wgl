@@ -1,0 +1,57 @@
+waveform equation_test_case
+	signal
+		clk :input;
+		ale :input;
+		RE :input;
+		OE :input;
+		dbus[0..3]:output;
+	end
+	equationsheet AC_control
+		exprset worst
+			Vcc := 4.75V;
+			TempDegC := 70;
+			Textern := 10nS;
+		end
+		exprset best
+			Vcc := 5.5V;
+			TempDegC := 0;
+			Textern := 0nS;
+		end
+		exprset typical
+			Vcc := 5V;
+			TempDegC := 20;
+			Textern := 5nS;
+		end
+	end
+	equationsheet AC_timing
+		exprset eq1
+			Vil := Vcc - 3.0;
+			Vih := Vcc - 1.0;
+			cycle_time := TempDegC/100*1nS + 5V/Vcc*1nS + 100nS;
+			tclk1 := 20nS;
+			tclk2 := tclk1 + 20nS;
+			t1 := TempDegC/100*1nS + 5V/Vcc*1nS + Textern + 10nS;
+			t2 := 20nS + t1;
+			t3 := t2 + tclk1;
+			t4 := cycle_time - 30nS;
+			t5 := cycle_time - 10nS;
+		end
+	end
+	equationdefaults
+		AC_timing:eq1;
+		AC_control:typical;
+	end
+	timeplate ts1 period cycle_time
+		clk := input[0pS:D, tclk1:U, tclk2:D, 90nS:U];
+		ale := input[0pS:D, t1:S, 80nS:D];
+		RE := input[0pS:D, t2:S, t3:D];
+		OE := input[0pS:P, 10nS:S];
+		dbus[0..3] := output[0pS:X, t4:Q, t5:X];
+	end
+	pattern group_ALL (clk, ale, RE, OE, dbus)
+		vector(0, ts1) := [- 1 1 1 1011];
+		vector(0, ts1) := [- 0 0 0 XXXX];
+		vector(0, ts1) := [- 0 0 0 XXXX];
+		vector(0, ts1) := [- 1 1 1 1111];
+	end
+end
