@@ -255,7 +255,10 @@ fn normalize_index(index: isize, len: usize) -> PyResult<usize> {
 }
 
 fn sliced_indices(slice: &PySlice, len: usize) -> PyResult<Vec<usize>> {
-    let indices = slice.indices(len as i64)?;
+    let length = len.try_into().map_err(|_| {
+        pyo3::exceptions::PyOverflowError::new_err("ICL result length exceeds Python slice limits")
+    })?;
+    let indices = slice.indices(length)?;
     let mut output = Vec::with_capacity(indices.slicelength as usize);
     let mut index = indices.start;
     for _ in 0..indices.slicelength {
