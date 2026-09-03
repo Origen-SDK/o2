@@ -1,4 +1,4 @@
-//! Moves any comments between 'enddefinitions' node (in header) and start of 
+//! Moves any comments between 'enddefinitions' node (in header) and start of
 //! data section to the beginning of the data section
 
 use super::super::nodes::VCD;
@@ -12,12 +12,10 @@ pub struct Sectioner {
 }
 
 impl Sectioner {
-    pub fn run(
-        node: &Node<VCD>,
-    ) -> Result<Node<VCD>> {
+    pub fn run(node: &Node<VCD>) -> Result<Node<VCD>> {
         let mut p = Sectioner {
             collect_comments: false,
-            collected_comments: Vec::new()
+            collected_comments: Vec::new(),
         };
         Ok(node.process(&mut p)?.unwrap())
     }
@@ -33,11 +31,11 @@ impl Processor<VCD> for Sectioner {
                 Return::Unmodified
             }
             VCD::Comment(val) => {
-                if self.collect_comments{
-                    self.collected_comments.push(node!(VCD::Comment, val.clone()));
+                if self.collect_comments {
+                    self.collected_comments
+                        .push(node!(VCD::Comment, val.clone()));
                     Return::None
-                }
-                else {
+                } else {
                     Return::Unmodified
                 }
             }
@@ -51,7 +49,7 @@ impl Processor<VCD> for Sectioner {
 
                 Return::ReplaceChildren(nodes)
             }
-            _ => Return::Unmodified
+            _ => Return::Unmodified,
         };
         Ok(result)
     }

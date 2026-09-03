@@ -33,8 +33,8 @@ pub mod framework;
 pub mod frontend;
 pub mod prog_gen;
 pub mod stil;
-pub mod vcd;
 pub mod utils;
+pub mod vcd;
 use std::fmt::Display;
 use std::sync::Mutex;
 

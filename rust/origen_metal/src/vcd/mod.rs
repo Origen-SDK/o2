@@ -1,15 +1,14 @@
 // This file defines the public API for consuming VCD
 
-mod nodes;
+pub mod nodes;
 mod parser;
-mod processors;
+pub mod processors;
 use crate::ast::Node;
 use crate::Result as OrigenResult;
-use nodes::VCD;
+pub use nodes::VCD;
 use std::path::Path;
 
 pub fn from_file(path: &Path) -> OrigenResult<Node<VCD>> {
-    println!("{}", path.display());
     let ast = parser::parse_file(path)?;
     let ast = processors::sectioner::Sectioner::run(&ast)?;
     let ast = processors::scoper::Scoper::run(&ast)?;
@@ -31,7 +30,7 @@ pub enum ScopeType {
     fork,
     function,
     module,
-    task
+    task,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
@@ -53,7 +52,7 @@ pub enum VarType {
     tri,
     wand,
     wire,
-    wor
+    wor,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
@@ -64,11 +63,11 @@ pub enum TimeUnit {
     ns,
     us,
     ms,
-    s
+    s,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
 pub enum ValueChangeType {
     Scalar,
-    Vector
+    Vector,
 }

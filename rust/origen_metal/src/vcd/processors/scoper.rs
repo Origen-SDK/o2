@@ -5,16 +5,14 @@ use crate::ast::Node;
 use crate::ast::{Processor, Return};
 use crate::Result;
 
-pub struct Scoper { 
+pub struct Scoper {
     scope_path: Vec<String>,
 }
 
 impl Scoper {
-    pub fn run(
-        node: &Node<VCD>,
-    ) -> Result<Node<VCD>> {
+    pub fn run(node: &Node<VCD>) -> Result<Node<VCD>> {
         let mut p = Scoper {
-            scope_path: Vec::new()
+            scope_path: Vec::new(),
         };
         Ok(node.process(&mut p)?.unwrap())
     }
@@ -34,16 +32,25 @@ impl Processor<VCD> for Scoper {
                 Return::Unmodified
             }
             VCD::UpScope => {
-                self.scope_path.pop().expect("upscope should be matched in vcd header");
+                self.scope_path
+                    .pop()
+                    .expect("upscope should be matched in vcd header");
                 Return::Unmodified
             }
             VCD::Var(t, size, identifier, reference, _) => {
                 let var_scope = self.scope_path.join(".");
-                let node = node!(VCD::Var, t.clone(), size.clone(), identifier.clone(), reference.clone(), Some(var_scope));
+                let node = node!(
+                    VCD::Var,
+                    t.clone(),
+                    size.clone(),
+                    identifier.clone(),
+                    reference.clone(),
+                    Some(var_scope)
+                );
                 Return::Replace(node)
             }
             VCD::DataSection => Return::ProcessChildren,
-            _ => Return::Unmodified
+            _ => Return::Unmodified,
         };
         Ok(result)
     }
