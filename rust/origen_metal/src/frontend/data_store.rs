@@ -1,7 +1,6 @@
 use super::DataStoreCategoryFrontendAPI;
 use crate::Result;
 use crate::{Outcome, TypedValue, TypedValueMap, TypedValueVec};
-use std::fmt::Display;
 
 // TODO needed?
 #[derive(Debug, Clone, Display, PartialEq)]

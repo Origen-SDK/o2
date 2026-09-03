@@ -1,4 +1,3 @@
-#![feature(specialization)]
 #![allow(incomplete_features)]
 #[macro_use]
 extern crate lazy_static;
@@ -16,7 +15,6 @@ extern crate strum_macros;
 pub mod core;
 pub mod generator;
 pub mod precludes;
-pub mod prog_gen;
 pub mod services;
 pub mod standards;
 pub mod testers;
@@ -90,9 +88,6 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
-    /// This is analogous to the TEST for test program duration, it provides a similar API for
-    /// pushing nodes to the current flow, FLOW.push(my_node), etc.
-    pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
@@ -171,6 +166,10 @@ pub fn initialize(
     STATUS.set_fe_pkg_loc(fe_pkg_loc);
     STATUS.set_fe_exe_loc(fe_exe_loc);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
+    if let Some(app) = app() {
+        origen_metal::PROG_GEN_CONFIG.set_app_name(app.name());
+    }
+    origen_metal::PROG_GEN_CONFIG.set_debug_enabled(crate::STATUS.is_debug_enabled());
 }
 
 pub fn app() -> Option<&'static Application> {
@@ -221,7 +220,7 @@ pub fn origen_config_metadata<'a>() -> RwLockReadGuard<'a, OrigenConfigMetadata>
     ORIGEN_CONFIG_METADATA.read().unwrap()
 }
 
-pub (crate) fn set_origen_config_metadata(new: OrigenConfigMetadata) {
+pub(crate) fn set_origen_config_metadata(new: OrigenConfigMetadata) {
     let mut m = ORIGEN_CONFIG_METADATA.write().unwrap();
     *m = new;
 }
@@ -294,29 +293,5 @@ pub fn trace_error<T: Attrs>(node: &Node<T>, error: Error) -> Result<()> {
         bail!("{}\n{}", error, &help)
     } else {
         bail!("{}", error)
-    }
-}
-
-// TODO change name?
-#[cfg(all(test, not(origen_skip_frontend_tests)))]
-mod tests {
-    pub fn run_python(code: &str) -> crate::Result<()> {
-        let mut c = std::process::Command::new("origen");
-        c.arg("exec");
-        c.arg("python");
-        c.arg("-c");
-        c.arg(&format!("import origen; {}", code));
-        // Assume we're in the root of the Origen rust package
-        let mut f = std::env::current_dir().unwrap();
-        f.pop();
-        f.pop();
-        f.push("test_apps/python_app");
-        c.current_dir(f);
-        let res = c.output().unwrap();
-        println!("status: {}", res.status);
-        println!("{:?}", std::str::from_utf8(&res.stdout).unwrap());
-        println!("{:?}", std::str::from_utf8(&res.stderr).unwrap());
-        assert_eq!(res.status.success(), true);
-        Ok(())
     }
 }

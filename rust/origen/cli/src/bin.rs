@@ -5,24 +5,25 @@ extern crate serde;
 #[macro_use]
 extern crate origen_metal;
 
-mod framework;
+mod _generated;
 mod commands;
+mod framework;
 mod python;
 
+use clap::error::ErrorKind as ClapErrorKind;
 use clap::Command;
+use framework::{
+    add_verbosity_opts, VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_OPT_NAME, VOV_OPT_NAME,
+};
+use framework::{AppCmds, AuxCmds, CmdHelps, Extensions, Plugins};
 use indexmap::map::IndexMap;
 use origen::{Result, STATUS};
 use std::iter::FromIterator;
 use std::process::exit;
-use framework::{Extensions, Plugins, AuxCmds, AppCmds, CmdHelps};
-use framework::{
-    VERBOSITY_OPT_NAME, VERBOSITY_KEYWORDS_OPT_NAME, VOV_OPT_NAME,
-    add_verbosity_opts,
-};
-use clap::error::ErrorKind as ClapErrorKind;
+use std::sync::OnceLock;
 
-use VERBOSITY_OPT_NAME as V_OPT_NAME;
 use VERBOSITY_KEYWORDS_OPT_NAME as VKS_OPT_NAME;
+use VERBOSITY_OPT_NAME as V_OPT_NAME;
 
 // #[derive(Clone)]
 // pub struct CommandHelp {
@@ -36,26 +37,87 @@ pub mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+static ORIGEN_FE_AVAILABLE: OnceLock<bool> = OnceLock::new();
+
+#[macro_export]
+macro_rules! origen_fe_available {
+    () => {{
+        *crate::ORIGEN_FE_AVAILABLE.get().unwrap_or(&false) == true
+    }};
+}
+
 // This is the entry point for the Origen CLI tool
 fn main() -> Result<()> {
+    // The pre-parser deliberately tolerates unknown application/plugin
+    // arguments, which means Clap cannot reliably retain global verbosity
+    // options that occur after an unknown token. Scan these two orthogonal
+    // globals directly so help and parse errors still honor their logging
+    // settings before the complete command tree exists.
+    let raw_args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    let mut scanned_verbosity = 0u8;
+    let mut scanned_vks = Vec::new();
+    let mut missing_vk_value = false;
+    let mut version_only_invocation = true;
+    let mut saw_short_v = false;
+    let raw: Vec<&str> = raw_args.iter().filter_map(|a| a.to_str()).collect();
+    let mut i = 0;
+    while i < raw.len() {
+        let arg = raw[i];
+        if arg == "--" || arg == commands::exec::BASE_CMD {
+            version_only_invocation = false;
+            break;
+        }
+        if arg == "--verbose" || arg == "--verbosity" {
+            scanned_verbosity = scanned_verbosity.saturating_add(1);
+        } else if arg.starts_with('-') && arg.len() > 1 && arg[1..].chars().all(|c| c == 'v') {
+            scanned_verbosity = scanned_verbosity.saturating_add((arg.len() - 1) as u8);
+            saw_short_v = true;
+        } else if arg == "--verbosity_keywords" || arg == "--vk" {
+            i += 1;
+            if let Some(value) = raw.get(i).filter(|v| !v.starts_with('-')) {
+                scanned_vks.extend(value.split(',').map(str::to_string));
+            } else {
+                missing_vk_value = true;
+            }
+        } else if let Some(value) = arg
+            .strip_prefix("--verbosity_keywords=")
+            .or_else(|| arg.strip_prefix("--vk="))
+        {
+            scanned_vks.extend(value.split(',').map(str::to_string));
+        } else {
+            version_only_invocation = false;
+        }
+        i += 1;
+    }
+    if missing_vk_value {
+        eprintln!(
+            "error: a value is required for '--verbosity_keywords <verbosity_keywords>' but none was supplied"
+        );
+        std::process::exit(2);
+    }
+    if version_only_invocation && saw_short_v {
+        scanned_verbosity = scanned_verbosity.saturating_sub(1);
+    }
     // Create a mini-app to handle verbose and verbosity keyword arguments and run any commands that should be run
     // earlier in the flow (e.g.: exec). Call this the "pre-phase" app.
     // Exits if a pre-phase command was handled, otherwise, set verbosity settings and continue with the main flow
     // Note: pre-phase runs before plugins or extensions are available. By definition, commands executing during pre-phase are not extendable.
     macro_rules! pre_phase_app {
         () => {{
-            add_verbosity_opts(Command::new("")
-                .disable_version_flag(true)
-                .allow_external_subcommands(true)
-                .disable_help_flag(true)
-                .allow_hyphen_values(true),
-                true
+            add_verbosity_opts(
+                Command::new("")
+                    .disable_version_flag(true)
+                    .allow_external_subcommands(true)
+                    .disable_help_flag(true)
+                    .ignore_errors(true),
+                true,
             )
-        }}
+        }};
     }
 
     let mut pre_phase_app = pre_phase_app!();
     pre_phase_app = commands::exec::add_prephase_cmds(pre_phase_app);
+    pre_phase_app = commands::env::add_prephase_cmds(pre_phase_app);
 
     let mut print_help = false;
     let mut verbosity;
@@ -70,14 +132,14 @@ fn main() -> Result<()> {
     macro_rules! origen_init {
         () => {{
             origen::initialize(
-                Some(verbosity),
-                vks,
+                Some(scanned_verbosity),
+                scanned_vks.clone(),
                 exe,
                 Some(built_info::PKG_VERSION.to_string()),
                 None,
                 None,
             )
-        }}
+        }};
     }
 
     match pre_phase_app.try_get_matches() {
@@ -85,66 +147,93 @@ fn main() -> Result<()> {
             verbosity = *m.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
             verbosity += m.get_one::<u8>(VOV_OPT_NAME).unwrap_or(&0);
             vks = match m.get_many::<String>(VKS_OPT_NAME) {
-                Some(vks) => vks.map( |vk| vk.to_owned()).collect::<Vec<String>>(),
-                None => vec!()
+                Some(vks) => vks.map(|vk| vk.to_owned()).collect::<Vec<String>>(),
+                None => vec![],
             };
 
             macro_rules! run_pre_phase_cmd {
                 ($cmd_mod:ident, $subc:expr) => {{
                     origen_init!();
                     exit(commands::$cmd_mod::run_pre_phase(&$subc)?);
-                }}
+                }};
             }
 
             match m.subcommand() {
                 Some((commands::exec::BASE_CMD, subc)) => {
-                    run_pre_phase_cmd!(exec, subc);
-                },
+                    // `ignore_errors` lets the lightweight pre-parser collect
+                    // verbosity from otherwise invalid invocations. Only run
+                    // exec here when its required command was actually parsed;
+                    // the full parser must report missing-argument errors.
+                    if subc.get_one::<String>("cmd").is_some() {
+                        run_pre_phase_cmd!(exec, subc);
+                    }
+                }
+                Some((commands::env::BASE_CMD, subc))
+                    if subc.subcommand_matches("migrate").is_some() =>
+                {
+                    let strict = add_verbosity_opts(
+                        Command::new("")
+                            .disable_version_flag(true)
+                            .disable_help_flag(true),
+                        true,
+                    );
+                    let strict = commands::env::add_prephase_cmds(strict);
+                    if let Ok(strict_matches) = strict.try_get_matches_from(std::env::args_os()) {
+                        let strict_env = strict_matches
+                            .subcommand_matches(commands::env::BASE_CMD)
+                            .unwrap();
+                        run_pre_phase_cmd!(env, strict_env);
+                    }
+                }
                 // "External subcommand" received, which in this case is either a non-pre-prephase or invalid command.
                 // Either way, let the main flow handle it.
                 Some((_ext, ext_args)) => {
                     // Args under "" are external subcommand args
-                    match ext_args.get_many::<String>("") {
+                    match ext_args.get_many::<std::ffi::OsString>("") {
                         Some(args) => {
                             // Need to repeatedly parse the args to overcome handling of corner cases.
                             // Use a dummy app that just accepts verbosity and keywords. Parse this until empty.
                             let mut dummy = pre_phase_app!().no_binary_name(true);
-                            let mut reduced = args.map(|a| a.to_owned()).collect::<Vec<String>>();
+                            let mut reduced = args
+                                .map(|a| a.to_owned())
+                                .collect::<Vec<std::ffi::OsString>>();
                             loop {
                                 match dummy.try_get_matches_from_mut(reduced.clone()) {
                                     Ok(dm) => {
                                         verbosity += dm.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
                                         verbosity += dm.get_one::<u8>(VOV_OPT_NAME).unwrap_or(&0);
                                         match dm.get_many::<String>(VKS_OPT_NAME) {
-                                            Some(vkws) => vks.append(&mut vkws.map( |vk| vk.to_owned()).collect::<Vec<String>>()),
+                                            Some(vkws) => vks.append(
+                                                &mut vkws
+                                                    .map(|vk| vk.to_owned())
+                                                    .collect::<Vec<String>>(),
+                                            ),
                                             None => {}
                                         };
 
                                         match dm.subcommand() {
                                             Some((_ext, dm_args)) => {
-                                                match dm_args.get_many::<String>("") {
+                                                match dm_args.get_many::<std::ffi::OsString>("") {
                                                     Some(dm_args) => {
-                                                        reduced = dm_args.map(|a| a.to_owned()).collect::<Vec<String>>();
+                                                        reduced = dm_args
+                                                            .map(|a| a.to_owned())
+                                                            .collect::<Vec<std::ffi::OsString>>();
                                                     }
-                                                    None => {
-                                                        break
-                                                    }
+                                                    None => break,
                                                 }
-                                            },
-                                            None => {
-                                                break
-                                            },
+                                            }
+                                            None => break,
                                         }
-                                    },
+                                    }
                                     Err(e) => {
                                         e.exit();
-                                    },
+                                    }
                                 }
                             }
-                        },
+                        }
                         None => {}
                     }
-                },
+                }
                 _ => {
                     // No subcommand, or options only. Set the verbosity based on previous handling of options.
                     // The only options here will be verbosity and vks. Knock one of the -v flags off and set
@@ -159,53 +248,52 @@ fn main() -> Result<()> {
                             // E.g.: origen --verbose --vk blah
                             //  should display help, not version
                             print_help = true;
-                        },
+                        }
                         _ => {
-                            // All other cases, it was given, so knock off a -v flag off
-                            // origen -vvv => origen (version) -vv
-                            verbosity -= 1;
+                            // A supplied short -v is also the legacy version
+                            // trigger. The direct argv scan above preserves the
+                            // requested logging level for the main parser.
                         }
                     }
                 }
             }
             origen_init!();
-        },
+        }
         Err(_e) => {
             // Any mis-use of pre-phase commands or unknown args/subcommands will be handled by the full app.
             // Fallback to manually discerning the verbosity/keywords for the main phase
             let mut dummy = pre_phase_app!().no_binary_name(true);
-            let mut reduced: Vec<String> = std::env::args().skip(1).collect();
+            let mut reduced: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
             verbosity = 0;
-            vks = vec!();
+            vks = vec![];
             loop {
                 match dummy.try_get_matches_from_mut(reduced.clone()) {
                     Ok(dm) => {
                         verbosity += dm.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
                         verbosity += dm.get_one::<u8>(VOV_OPT_NAME).unwrap_or(&0);
                         match dm.get_many::<String>(VKS_OPT_NAME) {
-                            Some(vkws) => vks.append(&mut vkws.map( |vk| vk.to_owned()).collect::<Vec<String>>()),
+                            Some(vkws) => vks
+                                .append(&mut vkws.map(|vk| vk.to_owned()).collect::<Vec<String>>()),
                             None => {}
                         };
 
                         match dm.subcommand() {
                             Some((_ext, dm_args)) => {
-                                match dm_args.get_many::<String>("") {
+                                match dm_args.get_many::<std::ffi::OsString>("") {
                                     Some(dm_args) => {
-                                        reduced = dm_args.map(|a| a.to_owned()).collect::<Vec<String>>();
+                                        reduced = dm_args
+                                            .map(|a| a.to_owned())
+                                            .collect::<Vec<std::ffi::OsString>>();
                                     }
-                                    None => {
-                                        break
-                                    }
+                                    None => break,
                                 }
-                            },
-                            None => {
-                                break
-                            },
+                            }
+                            None => break,
                         }
-                    },
+                    }
                     Err(e) => {
                         e.exit();
-                    },
+                    }
                 }
             }
             origen_init!();
@@ -225,10 +313,27 @@ fn main() -> Result<()> {
     let app_cmds: Option<AppCmds>;
     let mut extensions = Extensions::new();
     let plugins = match Plugins::new(&mut extensions) {
-        Ok(pl) => pl,
+        Ok(pl) => {
+            if ORIGEN_FE_AVAILABLE.set(true).is_err() {
+                bail!("Could not set ORIGEN_BACKEND_AVAILABLE");
+            }
+            pl
+        }
         Err(e) => {
-            log_error!("Failed to collect plugins. Encountered error: {}", e);
-            None
+            if ORIGEN_FE_AVAILABLE.set(false).is_err() {
+                bail!("Could not set ORIGEN_BACKEND_AVAILABLE");
+            }
+            if python::is_backend_origen_mod_missing_err(&e) {
+                // _origen is available but plugins failed to load
+                log_error!("Failed to collect plugins. Encountered error: {}", e);
+                None
+            } else {
+                // _origen isn't available. This could be an error in retrieving plugins.
+                // Print a warning instead of error, while logging the error
+                log_trace!("Failed to collect plugins. Encountered error: {}", e);
+                log_warning!("Failed to collect plugins: _origen module missing");
+                None
+            }
         }
     };
     let aux_cmds = AuxCmds::new(&mut extensions)?;
@@ -254,164 +359,167 @@ fn main() -> Result<()> {
     let mut app = Command::new("")
         .arg_required_else_help(true)
         .disable_version_flag(true)
-        .before_help("Origen, The Semiconductor Developer's Kit")
-        .version(&*version);
+        .before_help(format!(
+            "Origen, The Semiconductor Developer's Kit\n\n{}",
+            version
+        ))
+        .version(version.clone());
     app = add_verbosity_opts(app, false);
 
     /************************************************************************************/
     /******************** Global only commands ******************************************/
     /************************************************************************************/
     // if !STATUS.is_app_present {
-        //************************************************************************************/
-        // let proj_help = "Manage multi-repository project areas and workspaces";
-        // origen_commands.push(CommandHelp {
-        //     name: "proj".to_string(),
-        //     help: proj_help.to_string(),
-        //     shortcut: None,
-        // });
+    //************************************************************************************/
+    // let proj_help = "Manage multi-repository project areas and workspaces";
+    // origen_commands.push(CommandHelp {
+    //     name: "proj".to_string(),
+    //     help: proj_help.to_string(),
+    //     shortcut: None,
+    // });
 
-        // app = app
-        //     .subcommand(
-        //         Command::new("proj")
-        //             .display_order(1)
-        //             .about(proj_help)
-        //             .arg_required_else_help(true)
-        //             .subcommand(Command::new("init")
-        //                 .display_order(5)
-        //                 .about("Initialize a new project directory (create an initial project BOM)")
-        //                 .arg(Arg::new("dir")
-        //                     .action(SetArg)
-        //                     .help("The path to the project directory to initialize (PWD will be used by default if not given)")
-        //                     .value_name("DIR")
-        //                 )
-        //             )
-        //             .subcommand(Command::new("packages")
-        //                 .display_order(7)
-        //                 .about("Displays the IDs of all packages and package groups defined by the BOM")
-        //             )
-        //             .subcommand(Command::new("create")
-        //                 .display_order(10)
-        //                 .about("Create a new project workspace from the project BOM")
-        //                 .arg(Arg::new("path")
-        //                     .help("The path to the new workspace directory")
-        //                     .action(SetArg)
-        //                     .value_name("PATH")
-        //                     .required(true)
-        //                 )
-        //             )
-        //             .subcommand(Command::new("update")
-        //                 .display_order(15)
-        //                 .about("Update an existing project workspace per its current BOM")
-        //                 .arg(Arg::new("force")
-        //                     .short('f')
-        //                     .long("force")
-        //                     .required(false)
-        //                     .action(SetArgTrue)
-        //                     .help("Force the update and potentially lose any local modifications")
-        //                 )
-        //                 .arg(Arg::new("links")
-        //                     .short('l')
-        //                     .long("links")
-        //                     .required(false)
-        //                     .action(SetArgTrue)
-        //                     .help("Update the workspace links")
-        //                 )
-        //                 .arg(Arg::new("packages")
-        //                     .value_name("PACKAGES")
-        //                     .action(AppendArgs)
-        //                     .multiple(true)
-        //                     .help("Packages and/or groups to be updated, run 'origen proj packages' to see a list of possible package IDs")
-        //                     .required_unless("links")
-        //                     .required(true)
-        //                 )
-        //             )
-        //             .subcommand(Command::new("mods")
-        //                 .display_order(20)
-        //                 .about("Display a list of modified files within the given package(s)")
-        //                 .arg(Arg::new("packages")
-        //                     .help("Package(s) to look for modifications in, use 'all' to see the modification to all packages")
-        //                     .action(AppendArgs)
-        //                     .multiple(true)
-        //                     .value_name("PACKAGES")
-        //                     .required(true)
-        //                 )
-        //             )
-        //             .subcommand(Command::new("clean")
-        //                 .display_order(20)
-        //                 .about("Revert all local modifications within the given package(s)")
-        //                 .arg(Arg::new("packages")
-        //                     .help("Package(s) to revert local modifications in, use 'all' to clean all packages")
-        //                     .action(AppendArgs)
-        //                     .multiple(true)
-        //                     .value_name("PACKAGES")
-        //                     .required(true)
-        //                 )
-        //             )
-        //             .subcommand(Command::new("tag")
-        //                 .display_order(20)
-        //                 .about("Apply the given tag to the current view of the given package(s)")
-        //                 .arg(Arg::new("name")
-        //                     .help("Name of the tag to be applied")
-        //                     .action(SetArg)
-        //                     .value_name("NAME")
-        //                     .required(true)
-        //                 )
-        //                 .arg(Arg::new("packages")
-        //                     .help("Package(s) to be tagged, use 'all' to tag all packages")
-        //                     .multiple(true)
-        //                     .action(AppendArgs)
-        //                     .value_name("PACKAGES")
-        //                     .required(true)
-        //                 )
-        //                 .arg(Arg::new("force")
-        //                     .short('f')
-        //                     .long("force")
-        //                     .required(false)
-        //                     .action(SetArgTrue)
-        //                     .help("Force the application of the tag even if there are local modifications")
-        //                 )
-        //                 .arg(Arg::new("message")
-        //                     .short('m')
-        //                     .long("message")
-        //                     .required(false)
-        //                     .action(SetArg)
-        //                     .help("A message to be applied with the tag")
-        //                 )
-        //             )
-        //             .subcommand(Command::new("bom")
-        //                 .display_order(25)
-        //                 .about("View the active BOM in the current or given directory")
-        //                 .arg(Arg::new("dir")
-        //                     .action(SetArg)
-        //                     .help("The path to a directory (PWD will be used by default if not given)")
-        //                     .value_name("DIR")
-        //                 )
-        //             )
-        //     );
+    // app = app
+    //     .subcommand(
+    //         Command::new("proj")
+    //             .display_order(1)
+    //             .about(proj_help)
+    //             .arg_required_else_help(true)
+    //             .subcommand(Command::new("init")
+    //                 .display_order(5)
+    //                 .about("Initialize a new project directory (create an initial project BOM)")
+    //                 .arg(Arg::new("dir")
+    //                     .action(SetArg)
+    //                     .help("The path to the project directory to initialize (PWD will be used by default if not given)")
+    //                     .value_name("DIR")
+    //                 )
+    //             )
+    //             .subcommand(Command::new("packages")
+    //                 .display_order(7)
+    //                 .about("Displays the IDs of all packages and package groups defined by the BOM")
+    //             )
+    //             .subcommand(Command::new("create")
+    //                 .display_order(10)
+    //                 .about("Create a new project workspace from the project BOM")
+    //                 .arg(Arg::new("path")
+    //                     .help("The path to the new workspace directory")
+    //                     .action(SetArg)
+    //                     .value_name("PATH")
+    //                     .required(true)
+    //                 )
+    //             )
+    //             .subcommand(Command::new("update")
+    //                 .display_order(15)
+    //                 .about("Update an existing project workspace per its current BOM")
+    //                 .arg(Arg::new("force")
+    //                     .short('f')
+    //                     .long("force")
+    //                     .required(false)
+    //                     .action(SetArgTrue)
+    //                     .help("Force the update and potentially lose any local modifications")
+    //                 )
+    //                 .arg(Arg::new("links")
+    //                     .short('l')
+    //                     .long("links")
+    //                     .required(false)
+    //                     .action(SetArgTrue)
+    //                     .help("Update the workspace links")
+    //                 )
+    //                 .arg(Arg::new("packages")
+    //                     .value_name("PACKAGES")
+    //                     .action(AppendArgs)
+    //                     .multiple(true)
+    //                     .help("Packages and/or groups to be updated, run 'origen proj packages' to see a list of possible package IDs")
+    //                     .required_unless("links")
+    //                     .required(true)
+    //                 )
+    //             )
+    //             .subcommand(Command::new("mods")
+    //                 .display_order(20)
+    //                 .about("Display a list of modified files within the given package(s)")
+    //                 .arg(Arg::new("packages")
+    //                     .help("Package(s) to look for modifications in, use 'all' to see the modification to all packages")
+    //                     .action(AppendArgs)
+    //                     .multiple(true)
+    //                     .value_name("PACKAGES")
+    //                     .required(true)
+    //                 )
+    //             )
+    //             .subcommand(Command::new("clean")
+    //                 .display_order(20)
+    //                 .about("Revert all local modifications within the given package(s)")
+    //                 .arg(Arg::new("packages")
+    //                     .help("Package(s) to revert local modifications in, use 'all' to clean all packages")
+    //                     .action(AppendArgs)
+    //                     .multiple(true)
+    //                     .value_name("PACKAGES")
+    //                     .required(true)
+    //                 )
+    //             )
+    //             .subcommand(Command::new("tag")
+    //                 .display_order(20)
+    //                 .about("Apply the given tag to the current view of the given package(s)")
+    //                 .arg(Arg::new("name")
+    //                     .help("Name of the tag to be applied")
+    //                     .action(SetArg)
+    //                     .value_name("NAME")
+    //                     .required(true)
+    //                 )
+    //                 .arg(Arg::new("packages")
+    //                     .help("Package(s) to be tagged, use 'all' to tag all packages")
+    //                     .multiple(true)
+    //                     .action(AppendArgs)
+    //                     .value_name("PACKAGES")
+    //                     .required(true)
+    //                 )
+    //                 .arg(Arg::new("force")
+    //                     .short('f')
+    //                     .long("force")
+    //                     .required(false)
+    //                     .action(SetArgTrue)
+    //                     .help("Force the application of the tag even if there are local modifications")
+    //                 )
+    //                 .arg(Arg::new("message")
+    //                     .short('m')
+    //                     .long("message")
+    //                     .required(false)
+    //                     .action(SetArg)
+    //                     .help("A message to be applied with the tag")
+    //                 )
+    //             )
+    //             .subcommand(Command::new("bom")
+    //                 .display_order(25)
+    //                 .about("View the active BOM in the current or given directory")
+    //                 .arg(Arg::new("dir")
+    //                     .action(SetArg)
+    //                     .help("The path to a directory (PWD will be used by default if not given)")
+    //                     .value_name("DIR")
+    //                 )
+    //             )
+    //     );
 
-        // //************************************************************************************/
-        // let new_help = "Create a new Origen application";
-        // origen_commands.push(CommandHelp {
-        //     name: "new".to_string(),
-        //     help: new_help.to_string(),
-        //     shortcut: None,
-        // });
-        // app = app.subcommand(
-        //     Command::new("new").about(new_help).arg(
-        //         Arg::new("name")
-        //             .help("The lowercased and underscored name of the new application")
-        //             .action(SetArg)
-        //             .required(true)
-        //             .number_of_values(1)
-        //             .value_name("NAME"),
-        //     )
-        //     .arg(Arg::new("setup")
-        //         .help("Don't create the new app's virtual environment after building (need to manually run 'origen env setup' within the new app workspace before using it in that case)")
-        //         .long("no-setup")
-        //         .required(false)
-        //         .action(SetArgTrue)
-        //     ),
-        // );
+    // //************************************************************************************/
+    // let new_help = "Create a new Origen application";
+    // origen_commands.push(CommandHelp {
+    //     name: "new".to_string(),
+    //     help: new_help.to_string(),
+    //     shortcut: None,
+    // });
+    // app = app.subcommand(
+    //     Command::new("new").about(new_help).arg(
+    //         Arg::new("name")
+    //             .help("The lowercased and underscored name of the new application")
+    //             .action(SetArg)
+    //             .required(true)
+    //             .number_of_values(1)
+    //             .value_name("NAME"),
+    //     )
+    //     .arg(Arg::new("setup")
+    //         .help("Don't create the new app's virtual environment after building (need to manually run 'origen env setup' within the new app workspace before using it in that case)")
+    //         .long("no-setup")
+    //         .required(false)
+    //         .action(SetArgTrue)
+    //     ),
+    // );
     // }
 
     commands::plugin::add_helps(&mut helps, plugins.as_ref());
@@ -422,15 +530,20 @@ fn main() -> Result<()> {
     commands::credentials::add_helps(&mut helps);
     commands::interactive::add_helps(&mut helps);
 
+    commands::env::add_helps(&mut helps);
     if STATUS.is_app_present {
         commands::app::add_helps(&mut helps, app_cmds.as_ref().unwrap());
-        commands::env::add_helps(&mut helps);
         commands::generate::add_helps(&mut helps);
         commands::target::add_helps(&mut helps);
+        commands::save_ref::add_helps(&mut helps);
+        commands::web::add_helps(&mut helps);
+    } else {
+        commands::new::add_helps(&mut helps);
     }
 
     if STATUS.is_origen_present {
         commands::develop_origen::add_helps(&mut helps);
+        commands::rc::add_helps(&mut helps);
     }
 
     helps.apply_exts(&extensions);
@@ -448,11 +561,13 @@ fn main() -> Result<()> {
     app = commands::plugins::add_commands(app, &helps, &extensions)?;
     app = commands::aux_cmds::add_commands(app, &helps, &aux_cmds, &extensions)?;
 
+    app = commands::env::add_commands(app, &helps, &extensions)?;
     /************************************************************************************/
     /******************** Origen dev commands *******************************************/
     /************************************************************************************/
     if STATUS.is_origen_present {
         app = commands::develop_origen::add_commands(app, &helps, &extensions)?;
+        app = commands::rc::add_commands(app, &helps, &extensions)?;
     }
 
     /************************************************************************************/
@@ -460,334 +575,303 @@ fn main() -> Result<()> {
     /************************************************************************************/
     if STATUS.is_app_present {
         app = commands::app::add_commands(app, &helps, app_cmds.as_ref().unwrap(), &extensions)?;
-        app = commands::env::add_commands(app, &helps, &extensions)?;
         app = commands::generate::add_commands(app, &helps, &extensions)?;
+        app = commands::save_ref::add_commands(app, &helps, &extensions)?;
+        app = commands::web::add_commands(app, &helps, &extensions)?;
 
-//         /************************************************************************************/
-//         let new_help = "Generate a new block, flow, pattern, etc. for your application";
-//         origen_commands.push(CommandHelp {
-//             name: "new".to_string(),
-//             help: new_help.to_string(),
-//             shortcut: None,
-//         });
-//         app = app.subcommand(
-//             Command::new("new")
-//             .about(new_help)
-//             .arg_required_else_help(true)
-//             .subcommand(Command::new("dut")
-//                 .display_order(5)
-//                 .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
-//                 .long_about(
-// "This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
-// reg file, controller, target, timesets, pins, etc.
+        //         /************************************************************************************/
+        //         let new_help = "Generate a new block, flow, pattern, etc. for your application";
+        //         origen_commands.push(CommandHelp {
+        //             name: "new".to_string(),
+        //             help: new_help.to_string(),
+        //             shortcut: None,
+        //         });
+        //         app = app.subcommand(
+        //             Command::new("new")
+        //             .about(new_help)
+        //             .arg_required_else_help(true)
+        //             .subcommand(Command::new("dut")
+        //                 .display_order(5)
+        //                 .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
+        //                 .long_about(
+        // "This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
+        // reg file, controller, target, timesets, pins, etc.
 
-// The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
-// by a forward slash.
+        // The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
+        // by a forward slash.
 
-// Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
+        // Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
 
-// Examples:
-//   origen new dut                # Creates <app_name>/blocks/dut/...
-//   origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
-//   origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
-//                 .arg(Arg::new("name")
-//                     .action(SetArg)
-//                     .required(false)
-//                     .help("The name of the new DUT")
-//                     .value_name("NAME")
-//                 )
-//             )
-//             .subcommand(Command::new("block")
-//                 .display_order(5)
-//                 .about("Create a new block, see 'origen new block -h' for more info")
-//                 .long_about(
-// "This generator creates a block (e.g. to represent RAM, ATD, Flash, DAC, etc.) and all of the associated
-// resources for it, e.g. a reg file, controller, timesets, etc.
+        // Examples:
+        //   origen new dut                # Creates <app_name>/blocks/dut/...
+        //   origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
+        //   origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
+        //                 .arg(Arg::new("name")
+        //                     .action(SetArg)
+        //                     .required(false)
+        //                     .help("The name of the new DUT")
+        //                     .value_name("NAME")
+        //                 )
+        //             )
+        //             .subcommand(Command::new("block")
+        //                 .display_order(5)
+        //                 .about("Create a new block, see 'origen new block -h' for more info")
+        //                 .long_about(
+        // "This generator creates a block (e.g. to represent RAM, ATD, Flash, DAC, etc.) and all of the associated
+        // resources for it, e.g. a reg file, controller, timesets, etc.
 
-// The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optionally with
-// additional parent sub-block names after the initial type.
+        // The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optionally with
+        // additional parent sub-block names after the initial type.
 
-// Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
-// within that block's 'blocks/' directory, rather than a primary top-level block.
+        // Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
+        // within that block's 'blocks/' directory, rather than a primary top-level block.
 
-// Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
+        // Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
 
-// Examples:
-//   origen new block dac                  # Creates <app_name>/blocks/dac/...
-//   origen new block adc/adc8bit          # Creates <app_name>/blocks/adc/derivatives/adc8bit/...
-//   origen new block adc/adc16bit         # Creates <app_name>/blocks/adc/derivatives/adc16bit/...
-//   origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
+        // Examples:
+        //   origen new block dac                  # Creates <app_name>/blocks/dac/...
+        //   origen new block adc/adc8bit          # Creates <app_name>/blocks/adc/derivatives/adc8bit/...
+        //   origen new block adc/adc16bit         # Creates <app_name>/blocks/adc/derivatives/adc16bit/...
+        //   origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
 
-//   # Example of creating a nested sub-block
-//   origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/blocks/bist/...")
-//                 .arg(Arg::new("name")
-//                     .action(SetArg)
-//                     .required(true)
-//                     .help("The name of the new block, including its parents if applicable")
-//                     .value_name("NAME")
-//                 )
-//                 .arg(
-//                     Arg::new("parent")
-//                         .short('p')
-//                         .long("parent")
-//                         .help("Create the new block nested within this existing block")
-//                         .action(SetArg)
-//                         .required(false)
-//                         .value_name("PARENT")
-//                 )
-//             )
-//         );
+        //   # Example of creating a nested sub-block
+        //   origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/blocks/bist/...")
+        //                 .arg(Arg::new("name")
+        //                     .action(SetArg)
+        //                     .required(true)
+        //                     .help("The name of the new block, including its parents if applicable")
+        //                     .value_name("NAME")
+        //                 )
+        //                 .arg(
+        //                     Arg::new("parent")
+        //                         .short('p')
+        //                         .long("parent")
+        //                         .help("Create the new block nested within this existing block")
+        //                         .action(SetArg)
+        //                         .required(false)
+        //                         .value_name("PARENT")
+        //                 )
+        //             )
+        //         );
 
-//         /************************************************************************************/
-//         let c_help = "Compile templates";
-//         origen_commands.push(CommandHelp {
-//             name: "compile".to_string(),
-//             help: c_help.to_string(),
-//             shortcut: Some("c".to_string()),
-//         });
-//         app = app.subcommand(
-//             Command::new("compile")
-//                 .about(c_help)
-//                 .visible_alias("c")
-//                 .arg(
-//                     Arg::new("files")
-//                         .help("The name of the file(s) to be generated")
-//                         .action(AppendArgs)
-//                         .value_name("FILES")
-//                         .multiple(true)
-//                         .required(true),
-//                 )
-//                 .arg(
-//                     Arg::new("target")
-//                         .short('t')
-//                         .long("target")
-//                         .help("Override the default target currently set by the workspace")
-//                         .action(AppendArgs)
-//                         .use_delimiter(true)
-//                         .multiple(true)
-//                         .number_of_values(1)
-//                         .value_name("TARGET"),
-//                 )
-//                 .arg(
-//                     Arg::new("mode")
-//                         .short('m')
-//                         .long("mode")
-//                         .help("Override the default execution mode currently set by the workspace")
-//                         .action(SetArg)
-//                         .value_name("MODE"),
-//                 ),
-//         );
+        //         /************************************************************************************/
+        //         let c_help = "Compile templates";
+        //         origen_commands.push(CommandHelp {
+        //             name: "compile".to_string(),
+        //             help: c_help.to_string(),
+        //             shortcut: Some("c".to_string()),
+        //         });
+        //         app = app.subcommand(
+        //             Command::new("compile")
+        //                 .about(c_help)
+        //                 .visible_alias("c")
+        //                 .arg(
+        //                     Arg::new("files")
+        //                         .help("The name of the file(s) to be generated")
+        //                         .action(AppendArgs)
+        //                         .value_name("FILES")
+        //                         .multiple(true)
+        //                         .required(true),
+        //                 )
+        //                 .arg(
+        //                     Arg::new("target")
+        //                         .short('t')
+        //                         .long("target")
+        //                         .help("Override the default target currently set by the workspace")
+        //                         .action(AppendArgs)
+        //                         .use_delimiter(true)
+        //                         .multiple(true)
+        //                         .number_of_values(1)
+        //                         .value_name("TARGET"),
+        //                 )
+        //                 .arg(
+        //                     Arg::new("mode")
+        //                         .short('m')
+        //                         .long("mode")
+        //                         .help("Override the default execution mode currently set by the workspace")
+        //                         .action(SetArg)
+        //                         .value_name("MODE"),
+        //                 ),
+        //         );
 
         app = commands::target::add_commands(app, &helps, &extensions)?;
 
-//         /************************************************************************************/
-//         let t_help = "Create, Build, and View Web Documentation";
-//         origen_commands.push(CommandHelp {
-//             name: "web".to_string(),
-//             help: t_help.to_string(),
-//             shortcut: Some("w".to_string()),
-//         });
-//         app = app.subcommand(
-//             Command::new("web")
-//                 .about(t_help)
-//                 .arg_required_else_help(true)
-//                 .visible_alias("w")
-//                 .subcommand(
-//                     Command::new("build") // What I think this command should be called
-//                         .about("Builds the web documentation")
-//                         .visible_alias("b")
-//                         .visible_alias("compile") // If coming from O1
-//                         .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
-//                         .arg(
-//                             Arg::new("view")
-//                                 .long("view")
-//                                 .help("Launch your web browser after the build")
-//                                 .action(SetArgTrue),
-//                         )
-//                         .arg(
-//                             Arg::new("clean")
-//                                 .long("clean")
-//                                 .help(
-//                                     "Clean up directories from previous builds and force a rebuild",
-//                                 )
-//                                 .action(SetArgTrue),
-//                         )
-//                         .arg(
-//                             Arg::new("release")
-//                                 .long("release")
-//                                 .short('r')
-//                                 .help("Release (deploy) the resulting web pages")
-//                                 .action(SetArgTrue),
-//                         )
-//                         .arg(
-//                             Arg::new("archive")
-//                                 .long("archive")
-//                                 .short('a')
-//                                 .help("Archive the resulting web pages after building")
-//                                 .action(SetArg)
-//                                 .multiple(false)
-//                                 .min_values(0),
-//                         )
-//                         .arg(
-//                             Arg::new("as-release")
-//                                 .long("as-release")
-//                                 .help("Build webpages with release checks")
-//                                 .action(SetArgTrue),
-//                         )
-//                         .arg(
-//                             Arg::new("release-with-warnings")
-//                                 .long("release-with-warnings")
-//                                 .help("Release webpages even if warnings persists")
-//                                 .action(SetArgTrue),
-//                         )
-//                         .arg(
-//                             Arg::new("no-api")
-//                                 .long("no-api")
-//                                 .help("Skip building the API")
-//                                 .action(SetArgTrue),
-//                         )
-//                         .arg(
-//                             Arg::new("sphinx-args")
-//                                 .long("sphinx-args")
-//                                 .help(
-//                                     "Additional arguments to pass to the 'sphinx-build' command
-//   Argument will passed as a single string and appended to the build command
-//   E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
-//      -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'",
-//                                 )
-//                                 .action(SetArg)
-//                                 .multiple(false)
-//                                 .allow_hyphen_values(true),
-//                         ), // .arg(Arg::new("pdf")
-//                            //     .long("pdf")
-//                            //     .help("Create a PDF of resulting web pages")
-//                            //     .action(SetArgTrue)
-//                            // )
-//                 )
-//                 .subcommand(
-//                     Command::new("view")
-//                         .about("Launches your web browser to view previously built documentation")
-//                         .visible_alias("v"),
-//                 )
-//                 .subcommand(
-//                     Command::new("clean")
-//                         .about("Cleans the output directory and all cached files"),
-//                 ),
-//         );
+    //         /************************************************************************************/
+    //         let t_help = "Create, Build, and View Web Documentation";
+    //         origen_commands.push(CommandHelp {
+    //             name: "web".to_string(),
+    //             help: t_help.to_string(),
+    //             shortcut: Some("w".to_string()),
+    //         });
+    //         app = app.subcommand(
+    //             Command::new("web")
+    //                 .about(t_help)
+    //                 .arg_required_else_help(true)
+    //                 .visible_alias("w")
+    //                 .subcommand(
+    //                     Command::new("build") // What I think this command should be called
+    //                         .about("Builds the web documentation")
+    //                         .visible_alias("b")
+    //                         .visible_alias("compile") // If coming from O1
+    //                         .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
+    //                         .arg(
+    //                             Arg::new("view")
+    //                                 .long("view")
+    //                                 .help("Launch your web browser after the build")
+    //                                 .action(SetArgTrue),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("clean")
+    //                                 .long("clean")
+    //                                 .help(
+    //                                     "Clean up directories from previous builds and force a rebuild",
+    //                                 )
+    //                                 .action(SetArgTrue),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("release")
+    //                                 .long("release")
+    //                                 .short('r')
+    //                                 .help("Release (deploy) the resulting web pages")
+    //                                 .action(SetArgTrue),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("archive")
+    //                                 .long("archive")
+    //                                 .short('a')
+    //                                 .help("Archive the resulting web pages after building")
+    //                                 .action(SetArg)
+    //                                 .multiple(false)
+    //                                 .min_values(0),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("as-release")
+    //                                 .long("as-release")
+    //                                 .help("Build webpages with release checks")
+    //                                 .action(SetArgTrue),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("release-with-warnings")
+    //                                 .long("release-with-warnings")
+    //                                 .help("Release webpages even if warnings persists")
+    //                                 .action(SetArgTrue),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("no-api")
+    //                                 .long("no-api")
+    //                                 .help("Skip building the API")
+    //                                 .action(SetArgTrue),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("sphinx-args")
+    //                                 .long("sphinx-args")
+    //                                 .help(
+    //                                     "Additional arguments to pass to the 'sphinx-build' command
+    //   Argument will passed as a single string and appended to the build command
+    //   E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
+    //      -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'",
+    //                                 )
+    //                                 .action(SetArg)
+    //                                 .multiple(false)
+    //                                 .allow_hyphen_values(true),
+    //                         ), // .arg(Arg::new("pdf")
+    //                            //     .long("pdf")
+    //                            //     .help("Create a PDF of resulting web pages")
+    //                            //     .action(SetArgTrue)
+    //                            // )
+    //                 )
+    //                 .subcommand(
+    //                     Command::new("view")
+    //                         .about("Launches your web browser to view previously built documentation")
+    //                         .visible_alias("v"),
+    //                 )
+    //                 .subcommand(
+    //                     Command::new("clean")
+    //                         .about("Cleans the output directory and all cached files"),
+    //                 ),
+    //         );
 
-//         /************************************************************************************/
-//         let mailer_help =
-//             "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
-//         origen_commands.push(CommandHelp {
-//             name: "mailer".to_string(),
-//             help: mailer_help.to_string(),
-//             shortcut: None,
-//         });
-//         app = app.subcommand(
-//             Command::new("mailer")
-//                 .about(mailer_help)
-//                 .arg_required_else_help(true)
-//                 .subcommand(
-//                     Command::new("send")
-//                         .about("Quickly send an email")
-//                         .arg(
-//                             Arg::new("body")
-//                                 .help("Email message body")
-//                                 .long("body")
-//                                 .action(SetArg)
-//                                 .required(true)
-//                                 .value_name("BODY")
-//                                 .index(1),
-//                         )
-//                         .arg(
-//                             Arg::new("subject")
-//                                 .help("Email subject line")
-//                                 .long("subject")
-//                                 .short('s')
-//                                 .action(SetArg)
-//                                 .value_name("SUBJECT"),
-//                         )
-//                         .arg(
-//                             Arg::new("to")
-//                                 .help("Recipient list")
-//                                 .long("to")
-//                                 .short('t')
-//                                 .action(AppendArgs)
-//                                 .required(true)
-//                                 .multiple(true)
-//                                 .value_name("TO"),
-//                         ),
-//                 )
-//                 .subcommand(
-//                     Command::new("test")
-//                         .about("Send a test email")
-//                         .arg(
-//                             Arg::new("to")
-//                                 .help(
-//                                     "Recipient list. If omitted, will be sent to the current user",
-//                                 )
-//                                 .long("to")
-//                                 .short('t')
-//                                 .action(AppendArgs)
-//                                 .required(false)
-//                                 .multiple(true)
-//                                 .value_name("TO"),
-//                         ),
-//                 ),
-//         );
+    //         /************************************************************************************/
+    //         let mailer_help =
+    //             "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
+    //         origen_commands.push(CommandHelp {
+    //             name: "mailer".to_string(),
+    //             help: mailer_help.to_string(),
+    //             shortcut: None,
+    //         });
+    //         app = app.subcommand(
+    //             Command::new("mailer")
+    //                 .about(mailer_help)
+    //                 .arg_required_else_help(true)
+    //                 .subcommand(
+    //                     Command::new("send")
+    //                         .about("Quickly send an email")
+    //                         .arg(
+    //                             Arg::new("body")
+    //                                 .help("Email message body")
+    //                                 .long("body")
+    //                                 .action(SetArg)
+    //                                 .required(true)
+    //                                 .value_name("BODY")
+    //                                 .index(1),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("subject")
+    //                                 .help("Email subject line")
+    //                                 .long("subject")
+    //                                 .short('s')
+    //                                 .action(SetArg)
+    //                                 .value_name("SUBJECT"),
+    //                         )
+    //                         .arg(
+    //                             Arg::new("to")
+    //                                 .help("Recipient list")
+    //                                 .long("to")
+    //                                 .short('t')
+    //                                 .action(AppendArgs)
+    //                                 .required(true)
+    //                                 .multiple(true)
+    //                                 .value_name("TO"),
+    //                         ),
+    //                 )
+    //                 .subcommand(
+    //                     Command::new("test")
+    //                         .about("Send a test email")
+    //                         .arg(
+    //                             Arg::new("to")
+    //                                 .help(
+    //                                     "Recipient list. If omitted, will be sent to the current user",
+    //                                 )
+    //                                 .long("to")
+    //                                 .short('t')
+    //                                 .action(AppendArgs)
+    //                                 .required(false)
+    //                                 .multiple(true)
+    //                                 .value_name("TO"),
+    //                         ),
+    //                 ),
+    //         );
 
-//         /************************************************************************************/
-//         let mode_help = "Set/view the default execution mode";
-//         origen_commands.push(CommandHelp {
-//             name: "mode".to_string(),
-//             help: mode_help.to_string(),
-//             shortcut: Some("m".to_string()),
-//         });
-//         app = app.subcommand(
-//             Command::new("mode")
-//                 .about(mode_help)
-//                 .visible_alias("m")
-//                 .arg(
-//                     Arg::new("mode")
-//                         .help("The name of the mode to be set as the default mode")
-//                         .action(SetArg)
-//                         .value_name("MODE"),
-//                 ),
-//         );
-
-//         /************************************************************************************/
-//         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
-//         origen_commands.push(CommandHelp {
-//             name: "save_ref".to_string(),
-//             help: save_ref_help.to_string(),
-//             shortcut: None,
-//         });
-//         app = app.subcommand(
-//             Command::new("save_ref")
-//                 .about(save_ref_help)
-//                 .arg(
-//                     Arg::new("files")
-//                         .help("The name of the file(s) to be saved")
-//                         .action(SetArg)
-//                         .value_name("FILES")
-//                         .multiple(true)
-//                         .required_unless_one(&["new", "changed"]),
-//                 )
-//                 .arg(
-//                     Arg::new("new")
-//                         .long("new")
-//                         .required(false)
-//                         .action(SetArgTrue)
-//                         .help("Update all NEW file references from the last generate run"),
-//                 )
-//                 .arg(
-//                     Arg::new("changed")
-//                         .long("changed")
-//                         .required(false)
-//                         .action(SetArgTrue)
-//                         .help("Update all CHANGED file references from the last generate run"),
-//                 ),
-//         );
+    //         /************************************************************************************/
+    //         let mode_help = "Set/view the default execution mode";
+    //         origen_commands.push(CommandHelp {
+    //             name: "mode".to_string(),
+    //             help: mode_help.to_string(),
+    //             shortcut: Some("m".to_string()),
+    //         });
+    //         app = app.subcommand(
+    //             Command::new("mode")
+    //                 .about(mode_help)
+    //                 .visible_alias("m")
+    //                 .arg(
+    //                     Arg::new("mode")
+    //                         .help("The name of the mode to be set as the default mode")
+    //                         .action(SetArg)
+    //                         .value_name("MODE"),
+    //                 ),
+    //         );
+    } else {
+        app = commands::new::add_commands(app, &helps, &extensions)?;
     }
 
     let mut all_cmds_and_aliases = vec![];
@@ -803,52 +887,60 @@ fn main() -> Result<()> {
             // TODO test that aliases vs. command names at the same level are safe (clap should fail earlier for this)
             match app.try_get_matches_from_mut(["origen", top_cmd]) {
                 Ok(_) => {
-                    top_app_cmd_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
+                    top_app_cmd_aliases.insert(top_cmd.to_string(), vec![top_cmd.to_string()]);
                     top_app_replacements.push(["app", "commands", top_cmd]);
-                },
-                Err(e) => {
-                    match e.kind {
-                        ClapErrorKind::DisplayHelp |
-                        ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand |
-                        ClapErrorKind::DisplayVersion |
-                        ClapErrorKind::UnknownArgument => {
-                            top_app_cmd_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
-                            top_app_replacements.push(["app", "commands", top_cmd]);
-                        },
-                        _ => {}
+                }
+                Err(e) => match e.kind() {
+                    ClapErrorKind::DisplayHelp
+                    | ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+                    | ClapErrorKind::DisplayVersion
+                    | ClapErrorKind::InvalidSubcommand
+                    | ClapErrorKind::UnknownArgument => {
+                        top_app_cmd_aliases.insert(top_cmd.to_string(), vec![top_cmd.to_string()]);
+                        top_app_replacements.push(["app", "commands", top_cmd]);
                     }
+                    _ => {}
                 },
             }
-            let current_top_cmd_aliases = app.find_subcommand("app").unwrap().find_subcommand("commands").unwrap().find_subcommand(top_cmd).unwrap().get_all_aliases().map( |a| a.to_string()).collect::<Vec<String>>();
+            let current_top_cmd_aliases = app
+                .find_subcommand("app")
+                .unwrap()
+                .find_subcommand("commands")
+                .unwrap()
+                .find_subcommand(top_cmd)
+                .unwrap()
+                .get_all_aliases()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>();
             for a in current_top_cmd_aliases.iter() {
                 match app.try_get_matches_from_mut(["origen", a]) {
                     Ok(_) => {
                         if let Some(aliases) = top_app_cmd_aliases.get_mut(top_cmd) {
                             aliases.push(a.to_string());
                         } else {
-                            top_app_cmd_aliases.insert(top_cmd.to_string(), vec!(a.to_string()));
+                            top_app_cmd_aliases.insert(top_cmd.to_string(), vec![a.to_string()]);
                         }
-                    },
-                    Err(e) => {
-                        match e.kind {
-                            ClapErrorKind::DisplayHelp |
-                            ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand |
-                            ClapErrorKind::DisplayVersion |
-                            ClapErrorKind::UnknownArgument => {
-                                if let Some(aliases) = top_app_cmd_aliases.get_mut(top_cmd) {
-                                    aliases.push(a.to_string());
-                                } else {
-                                    top_app_cmd_aliases.insert(top_cmd.to_string(), vec!(a.to_string()));
-                                }
-                            },
-                            _ => {}
+                    }
+                    Err(e) => match e.kind() {
+                        ClapErrorKind::DisplayHelp
+                        | ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+                        | ClapErrorKind::DisplayVersion
+                        | ClapErrorKind::InvalidSubcommand
+                        | ClapErrorKind::UnknownArgument => {
+                            if let Some(aliases) = top_app_cmd_aliases.get_mut(top_cmd) {
+                                aliases.push(a.to_string());
+                            } else {
+                                top_app_cmd_aliases
+                                    .insert(top_cmd.to_string(), vec![a.to_string()]);
+                            }
                         }
+                        _ => {}
                     },
                 }
             }
         }
 
-        let mut strs = vec!();
+        let mut strs = vec![];
         if !top_app_cmd_aliases.is_empty() {
             let mut len = 0;
             for (n, aliases) in top_app_cmd_aliases.iter() {
@@ -863,12 +955,15 @@ fn main() -> Result<()> {
                 }
                 strs.push((s, l, n))
             }
-            for r in top_app_replacements.iter() {
-                app = app.replace(r[2], r);
-            }
             after_help_str += "APP COMMAND SHORTCUTS:\nThe following shortcuts to application commands are available:\n";
             for s in strs.iter() {
-                after_help_str += &format!("    {s}{:<w$} => {c}\n", "", w=(len - s.1), s=s.0, c=s.2);
+                after_help_str += &format!(
+                    "    {s}{:<w$} => {c}\n",
+                    "",
+                    w = (len - s.1),
+                    s = s.0,
+                    c = s.2
+                );
             }
             after_help_str += "\n";
         }
@@ -879,27 +974,36 @@ fn main() -> Result<()> {
             for top_cmd in pl.top_commands.iter() {
                 if !all_cmds_and_aliases.contains(top_cmd) {
                     if let Some(cmd_aliases) = top_pl_cmd_aliases.get_mut(n) {
-                        cmd_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
+                        cmd_aliases.insert(top_cmd.to_string(), vec![top_cmd.to_string()]);
                     } else {
                         let mut pl_aliases = IndexMap::new();
-                        pl_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
+                        pl_aliases.insert(top_cmd.to_string(), vec![top_cmd.to_string()]);
                         top_pl_cmd_aliases.insert(n.to_string(), pl_aliases);
                         all_cmds_and_aliases.push(top_cmd.to_string());
                     }
                 }
 
-                let current_top_cmd_aliases = app.find_subcommand("plugin").unwrap().find_subcommand(n).unwrap().find_subcommand(top_cmd).unwrap().get_all_aliases().map( |a| a.to_string()).collect::<Vec<String>>();
+                let current_top_cmd_aliases = app
+                    .find_subcommand("plugin")
+                    .unwrap()
+                    .find_subcommand(n)
+                    .unwrap()
+                    .find_subcommand(top_cmd)
+                    .unwrap()
+                    .get_all_aliases()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<String>>();
                 for a in current_top_cmd_aliases.iter() {
                     if !all_cmds_and_aliases.contains(a) {
                         if let Some(pl_aliases) = top_pl_cmd_aliases.get_mut(n) {
                             if let Some(cmd_aliases) = pl_aliases.get_mut(top_cmd) {
                                 cmd_aliases.push(a.to_string());
                             } else {
-                                pl_aliases.insert(top_cmd.to_string(), vec!(a.to_string()));
+                                pl_aliases.insert(top_cmd.to_string(), vec![a.to_string()]);
                             }
                         } else {
                             let mut pl_aliases = IndexMap::new();
-                            pl_aliases.insert(top_cmd.to_string(), vec!(a.to_string()));
+                            pl_aliases.insert(top_cmd.to_string(), vec![a.to_string()]);
                             top_pl_cmd_aliases.insert(n.to_string(), pl_aliases);
                         }
                         all_cmds_and_aliases.push(a.to_string());
@@ -908,7 +1012,7 @@ fn main() -> Result<()> {
             }
         }
 
-        let mut strs = vec!();
+        let mut strs = vec![];
         if !top_pl_cmd_aliases.is_empty() {
             let mut len = 0;
             for (pln, pl_aliases) in top_pl_cmd_aliases.iter() {
@@ -924,13 +1028,15 @@ fn main() -> Result<()> {
                 }
             }
 
-            for r in top_pl_replacements.iter() {
-                app = app.replace(r[2], r);
-            }
-
             after_help_str += "PLUGIN COMMAND SHORTCUTS:\nThe following shortcuts to plugin commands are available:\n";
             for s in strs.iter() {
-                after_help_str += &format!("    {s}{:<w$} => {c}\n", "", w=(len - s.1), s=s.0, c=s.2);
+                after_help_str += &format!(
+                    "    {s}{:<w$} => {c}\n",
+                    "",
+                    w = (len - s.1),
+                    s = s.0,
+                    c = s.2
+                );
             }
             after_help_str += "\n";
         }
@@ -940,27 +1046,36 @@ fn main() -> Result<()> {
         for top_cmd in ns.top_commands.iter() {
             if !all_cmds_and_aliases.contains(top_cmd) {
                 if let Some(cmd_aliases) = top_aux_cmd_aliases.get_mut(n) {
-                    cmd_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
+                    cmd_aliases.insert(top_cmd.to_string(), vec![top_cmd.to_string()]);
                 } else {
                     let mut ns_aliases = IndexMap::new();
-                    ns_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
+                    ns_aliases.insert(top_cmd.to_string(), vec![top_cmd.to_string()]);
                     top_aux_cmd_aliases.insert(n.to_string(), ns_aliases);
                 }
                 all_cmds_and_aliases.push(top_cmd.to_string());
             }
 
-            let current_top_cmd_aliases = app.find_subcommand("auxillary_commands").unwrap().find_subcommand(n).unwrap().find_subcommand(top_cmd).unwrap().get_all_aliases().map( |a| a.to_string()).collect::<Vec<String>>();
+            let current_top_cmd_aliases = app
+                .find_subcommand("auxillary_commands")
+                .unwrap()
+                .find_subcommand(n)
+                .unwrap()
+                .find_subcommand(top_cmd)
+                .unwrap()
+                .get_all_aliases()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>();
             for a in current_top_cmd_aliases.iter() {
                 if !all_cmds_and_aliases.contains(a) {
                     if let Some(ns_aliases) = top_aux_cmd_aliases.get_mut(n) {
                         if let Some(cmd_aliases) = ns_aliases.get_mut(top_cmd) {
                             cmd_aliases.push(a.to_string());
                         } else {
-                            ns_aliases.insert(top_cmd.to_string(), vec!(a.to_string()));
+                            ns_aliases.insert(top_cmd.to_string(), vec![a.to_string()]);
                         }
                     } else {
                         let mut ns_aliases = IndexMap::new();
-                        ns_aliases.insert(top_cmd.to_string(), vec!(a.to_string()));
+                        ns_aliases.insert(top_cmd.to_string(), vec![a.to_string()]);
                         top_aux_cmd_aliases.insert(n.to_string(), ns_aliases);
                     }
                     all_cmds_and_aliases.push(a.to_string());
@@ -969,7 +1084,7 @@ fn main() -> Result<()> {
         }
     }
     if !top_aux_cmd_aliases.is_empty() {
-        let mut strs = vec!();
+        let mut strs = vec![];
         let mut len = 0;
         for (auxn, aux_aliases) in top_aux_cmd_aliases.iter() {
             for (cmdn, cmda) in aux_aliases {
@@ -984,49 +1099,138 @@ fn main() -> Result<()> {
             }
         }
 
-        for r in top_aux_replacements.iter() {
-            app = app.replace(r[2], r);
-        }
-
         after_help_str += "AUX COMMAND SHORTCUTS:\nThe following shortcuts to auxillary commands are available:\n";
         for s in strs.iter() {
-            after_help_str += &format!("    {s}{:<w$} => {c}\n", "", w=(len - s.1), s=s.0, c=s.2);
+            after_help_str += &format!(
+                "    {s}{:<w$} => {c}\n",
+                "",
+                w = (len - s.1),
+                s = s.0,
+                c = s.2
+            );
         }
         after_help_str += "\n";
     }
 
     after_help_str += "See 'origen <command> -h' for more information on a specific command.";
-    app = app.after_help(&*after_help_str);
+    app = app.after_help(after_help_str.clone());
 
-    let matches = app.get_matches_mut();
+    // Clap 3's experimental `Command::replace` supported shortcuts which
+    // expanded a top-level token into a nested command path. Clap 4 removed
+    // that API, so normalize argv explicitly before parsing while preserving
+    // the same externally visible shortcut behavior.
+    let mut invocation_args: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    // The command may be preceded by value-less global flags ('origen -v <cmd>'
+    // parses fine for a full command path, so a shortcut has to accept it too).
+    // Only flags that are known to take no value are skipped; anything else
+    // stops the scan so an option's value can never be mistaken for a command.
+    fn is_valueless_global_flag(arg: &str) -> bool {
+        matches!(arg, "--verbose" | "--no_targets" | "--no_target")
+            || (arg.len() > 1
+                && arg.starts_with('-')
+                && !arg.starts_with("--")
+                && arg[1..].chars().all(|c| c == 'v'))
+    }
+
+    let command_position = {
+        let mut position = None;
+        for (index, arg) in invocation_args.iter().enumerate().skip(1) {
+            match arg.to_str() {
+                Some(text) if is_valueless_global_flag(text) => continue,
+                Some(_) => {
+                    position = Some(index);
+                    break;
+                }
+                None => break,
+            }
+        }
+        position
+    };
+    if let Some(requested) = command_position
+        .and_then(|index| invocation_args.get(index))
+        .and_then(|arg| arg.to_str())
+    {
+        if let Some(replacement) = top_app_replacements
+            .iter()
+            .chain(top_pl_replacements.iter())
+            .chain(top_aux_replacements.iter())
+            .find(|replacement| replacement[2] == requested)
+        {
+            let index = command_position.unwrap();
+            invocation_args.splice(
+                index..index + 1,
+                replacement
+                    .iter()
+                    .map(|part| std::ffi::OsString::from(part)),
+            );
+        }
+    }
+    let matches = app.clone().get_matches_from(invocation_args);
 
     macro_rules! run_cmd_match_case {
         ($cmd:ident, $cmd_name:ident) => {
-            commands::$cmd::run(matches.subcommand_matches(commands::$cmd::$cmd_name).unwrap(), &app, &extensions, plugins.as_ref())?
+            commands::$cmd::run(
+                matches
+                    .subcommand_matches(commands::$cmd::$cmd_name)
+                    .unwrap(),
+                &app,
+                &extensions,
+                plugins.as_ref(),
+            )?
         };
         ($cmd:ident) => {
-            commands::$cmd::run(matches.subcommand_matches(commands::$cmd::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref())?
-        }
+            commands::$cmd::run(
+                matches
+                    .subcommand_matches(commands::$cmd::BASE_CMD)
+                    .unwrap(),
+                &app,
+                &extensions,
+                plugins.as_ref(),
+            )?
+        };
     }
 
     macro_rules! run_non_ext_cmd_match_case {
         ($cmd:ident, $cmd_name:ident) => {
-            commands::$cmd::run(matches.subcommand_matches(commands::$cmd::$cmd_name).unwrap())?
+            commands::$cmd::run(
+                matches
+                    .subcommand_matches(commands::$cmd::$cmd_name)
+                    .unwrap(),
+            )?
         };
         ($cmd:ident) => {
-            commands::$cmd::run(matches.subcommand_matches(commands::$cmd::BASE_CMD).unwrap())?
-        }
+            commands::$cmd::run(
+                matches
+                    .subcommand_matches(commands::$cmd::BASE_CMD)
+                    .unwrap(),
+            )?
+        };
     }
 
     match matches.subcommand_name() {
-        Some(commands::app::BASE_CMD) => commands::app::run(matches.subcommand_matches(commands::app::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
-        // Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
+        Some(commands::app::BASE_CMD) => commands::app::run(
+            matches.subcommand_matches(commands::app::BASE_CMD).unwrap(),
+            &app,
+            &extensions,
+            plugins.as_ref(),
+            &app_cmds.as_ref().unwrap(),
+        )?,
+        Some(commands::new::BASE_CMD) => run_non_ext_cmd_match_case!(new),
         // Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some(commands::env::BASE_CMD) => run_non_ext_cmd_match_case!(env),
         Some(commands::eval::BASE_CMD) => run_cmd_match_case!(eval),
         Some(commands::develop_origen::BASE_CMD) => run_non_ext_cmd_match_case!(develop_origen),
+        Some(commands::rc::BASE_CMD) => run_non_ext_cmd_match_case!(rc),
         Some(commands::interactive::BASE_CMD) => run_cmd_match_case!(interactive),
-        Some(commands::aux_cmds::BASE_CMD) => commands::aux_cmds::run(matches.subcommand_matches(commands::aux_cmds::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &aux_cmds)?,
+        Some(commands::aux_cmds::BASE_CMD) => commands::aux_cmds::run(
+            matches
+                .subcommand_matches(commands::aux_cmds::BASE_CMD)
+                .unwrap(),
+            &app,
+            &extensions,
+            plugins.as_ref(),
+            &aux_cmds,
+        )?,
         Some(commands::generate::BASE_CMD) => run_cmd_match_case!(generate),
         // Some("compile") => {
         //     let m = matches.subcommand_matches("compile").unwrap();
@@ -1046,6 +1250,7 @@ fn main() -> Result<()> {
         //     );
         // }
         Some(commands::target::BASE_CMD) => run_non_ext_cmd_match_case!(target),
+        Some(commands::web::BASE_CMD) => run_cmd_match_case!(web),
         // Some("web") => {
         //     let cmd = matches.subcommand_matches("web").unwrap();
         //     let subcmd = cmd.subcommand().unwrap();
@@ -1167,12 +1372,19 @@ fn main() -> Result<()> {
         //     let matches = matches.subcommand_matches("mode").unwrap();
         //     commands::mode::run(matches.get_one::<&str>("mode").map(|s| *s));
         // }
-        // Some("save_ref") => {
-        //     let matches = matches.subcommand_matches("save_ref").unwrap();
-        //     commands::save_ref::run(matches);
-        // }
+        Some(commands::save_ref::BASE_CMD) => {
+            let matches = matches
+                .subcommand_matches(commands::save_ref::BASE_CMD)
+                .unwrap();
+            commands::save_ref::run(matches)?;
+        }
         Some(commands::plugin::BASE_CMD) => run_cmd_match_case!(plugin),
-        Some(commands::plugins::BASE_CMD) => commands::plugins::run(matches.subcommand_matches(commands::plugins::BASE_CMD).unwrap(), plugins.as_ref())?,
+        Some(commands::plugins::BASE_CMD) => commands::plugins::run(
+            matches
+                .subcommand_matches(commands::plugins::BASE_CMD)
+                .unwrap(),
+            plugins.as_ref(),
+        )?,
         Some(invalid_cmd) => {
             // This case shouldn't happen as clap should've previously kicked out on any invalid command
             unreachable!("Uncaught invalid command encountered: '{}'", invalid_cmd);
@@ -1182,130 +1394,178 @@ fn main() -> Result<()> {
                 // No subcommands or "-v" used, but verbose and/or vks used.
                 // This will register as no subcommand, but actually want to display help, not version
                 app.print_help()?;
-                return Ok(())
+                return Ok(());
             }
             // To get here means the user has typed "origen -v", which officially means
             // verbosity level 1 with no command, but really want version with verbosity level 0
-            let mut max_len = 0;
+            let mut max_len = 6; //'Origen' by default
             let mut versions: IndexMap<String, (bool, bool, String)> = IndexMap::new();
-            if STATUS.is_app_present {
-                let cmd = "from origen.boot import run_cmd; run_cmd('_version_');";
-                let mut output_lines = "".to_string();
 
-                let res = python::run_with_callbacks(
-                    cmd,
-                    Some(&mut |line| {
-                        output_lines += &format!("{}\n", line);
-                    }),
-                    None,
-                );
-                output_lines.pop();
+            let cmd = "from origen.boot import run_cmd; run_cmd('_version_');";
+            let mut output_lines = "".to_string();
+            let mut error_lines = "".to_string();
 
-                match res {
-                    Ok(_) => {
-                        let lines = output_lines.split("\n").collect::<Vec<&str>>();
-                        if lines.len() == 0 || lines.len() == 1 {
-                            log_error!(
-                                "Unable to parse in-application version output. Expected newlines:"
-                            );
-                            log_error!("{}", output_lines);
-                        } else {
-                            let mut phase = 0;
-                            let mut current = "".to_string();
-                            let mut is_private = false;
-                            let mut is_okay = false;
-                            let mut ver_or_message = "".to_string();
-                            for l in lines {
-                                if phase == 0 {
-                                    let ver = parse_version_token(l);
-                                    current = ver.0;
-                                    is_private = ver.1;
-                                    if !is_private && current.len() > max_len {
-                                        max_len = current.len();
-                                    }
-                                    phase += 1;
-                                } else if phase == 1 {
-                                    match origen::utility::status_to_bool(l) {
-                                        Ok(stat) => is_okay = stat,
-                                        Err(e) => {
-                                            log_error!("{}", e.msg);
-                                            log_error!("Unable to parse version information");
-                                            break;
-                                        }
-                                    }
-                                    phase += 1;
-                                } else if phase == 2 {
-                                    match l.chars().next() {
-                                        Some(t) => {
-                                            if t == '\t' {
-                                                ver_or_message += &l[1..];
-                                            } else {
-                                                versions.insert(
-                                                    current.to_string(),
-                                                    (
-                                                        is_okay,
-                                                        is_private,
-                                                        ver_or_message.to_string(),
-                                                    ),
-                                                );
-                                                let ver = parse_version_token(l);
-                                                current = ver.0;
-                                                is_private = ver.1;
-                                                if !is_private && current.len() > max_len {
-                                                    max_len = current.len();
-                                                }
-                                                ver_or_message = "".to_string();
-                                                phase = 1;
-                                            }
-                                        }
-                                        None => {
-                                            log_error!("Unable to parse in-application version output - unexpected empty line:");
-                                            log_error!("{}", output_lines);
-                                        }
-                                    }
-                                } else {
-                                    log_error!("Unable to parse in-application version output:");
-                                    log_error!("{}", output_lines);
+            let res = python::run_with_callbacks(
+                cmd,
+                Some(&mut |line| {
+                    output_lines += &format!("{}\n", line);
+                }),
+                Some(&mut |line| {
+                    error_lines += &format!("{}\n", line);
+                }),
+            );
+            output_lines.pop();
+            match res {
+                Ok(_) => {
+                    let lines = output_lines.split("\n").collect::<Vec<&str>>();
+                    if lines.len() == 0 || lines.len() == 1 {
+                        log_error!(
+                            "Unable to parse in-application version output. Expected newlines:"
+                        );
+                        log_error!("{}", output_lines);
+                    } else {
+                        let mut phase = 0;
+                        let mut current = "".to_string();
+                        let mut is_private = false;
+                        let mut is_okay = false;
+                        let mut ver_or_message = "".to_string();
+                        for l in lines {
+                            if phase == 0 {
+                                let ver = parse_version_token(l);
+                                current = ver.0;
+                                is_private = ver.1;
+                                if !is_private && current.len() > max_len {
+                                    max_len = current.len();
                                 }
-                            }
-
-                            if phase == 2 {
-                                versions.insert(
-                                    current.clone(),
-                                    (is_okay, is_private, ver_or_message.clone()),
-                                );
+                                phase += 1;
+                            } else if phase == 1 {
+                                match origen::utility::status_to_bool(l) {
+                                    Ok(stat) => is_okay = stat,
+                                    Err(e) => {
+                                        log_error!("{}", e.msg);
+                                        log_error!("Unable to parse version information");
+                                        break;
+                                    }
+                                }
+                                phase += 1;
+                            } else if phase == 2 {
+                                match l.chars().next() {
+                                    Some(t) => {
+                                        if t == '\t' {
+                                            ver_or_message += &l[1..];
+                                        } else {
+                                            versions.insert(
+                                                current.to_string(),
+                                                (is_okay, is_private, ver_or_message.to_string()),
+                                            );
+                                            let ver = parse_version_token(l);
+                                            current = ver.0;
+                                            is_private = ver.1;
+                                            if !is_private && current.len() > max_len {
+                                                max_len = current.len();
+                                            }
+                                            ver_or_message = "".to_string();
+                                            phase = 1;
+                                        }
+                                    }
+                                    None => {
+                                        log_error!("Unable to parse in-application version output - unexpected empty line:");
+                                        log_error!("{}", output_lines);
+                                    }
+                                }
                             } else {
-                                log_error!("Unable to parse in-application version output - unexpected format:");
+                                log_error!("Unable to parse in-application version output:");
                                 log_error!("{}", output_lines);
                             }
                         }
-                    }
-                    Err(e) => {
-                        log_error!(
-                            "Couldn't boot app to determine the in-application Origen version"
-                        );
-                        log_error!("Received Error:");
-                        log_error!("");
-                        log_error!("{}", e);
-                        if output_lines != "" {
-                            log_error!("");
-                            log_error!("The following was also captured:");
-                            log_error!("");
+
+                        if phase == 2 {
+                            versions.insert(
+                                current.clone(),
+                                (is_okay, is_private, ver_or_message.clone()),
+                            );
+                        } else {
+                            log_error!("Unable to parse in-application version output - unexpected format:");
                             log_error!("{}", output_lines);
                         }
-                        exit(1);
                     }
+                    versions.insert(
+                        "CLI".to_string(),
+                        (
+                            true,
+                            STATUS.is_app_present,
+                            STATUS.cli_version().unwrap().to_pep440()?.to_string(),
+                        ),
+                    );
                 }
-            } else {
-                versions.insert(
-                    "Origen".to_string(),
-                    (true, false, STATUS.origen_version.to_string()),
-                );
-                versions.insert(
-                    "CLI".to_string(),
-                    (true, false, built_info::PKG_VERSION.to_string()),
-                );
-                max_len = 6; // 'Origen'
+                Err(_e) => {
+                    if error_lines.contains(*python::NO_ORIGEN_BOOT_MODULE_ERROR) {
+                        // Module not found error
+                        if STATUS.is_app_present {
+                            // Inside an app. This is problematic - origen should be available here
+                            for err in error_lines.lines() {
+                                log_error!("{}", err);
+                            }
+
+                            versions.insert(
+                                "Origen".to_string(),
+                                (true, false, "No Origen Module Available".to_string()),
+                            );
+                            versions.insert(
+                                "App".to_string(),
+                                (
+                                    true,
+                                    false,
+                                    "Unable To Parse Version Information".to_string(),
+                                ),
+                            );
+                        } else {
+                            // Outside of an app
+                            // If the CLI only is used, this will be expected.
+                            // In this case, treat it as info, not an error.
+                            // Log the error for verbose output though.
+                            for err in error_lines.lines() {
+                                log_debug!("{}", err);
+                            }
+
+                            versions.insert(
+                                "Origen".to_string(),
+                                (true, false, "No Origen Module Available".to_string()),
+                            );
+                        }
+                    } else {
+                        // Unrecognized error
+                        for err in error_lines.lines() {
+                            log_error!("{}", err);
+                        }
+                        versions.insert(
+                            "Origen".to_string(),
+                            (
+                                true,
+                                false,
+                                "Errors Encountered Retrieving Origen Version Info".to_string(),
+                            ),
+                        );
+                        if STATUS.is_app_present {
+                            versions.insert(
+                                "App".to_string(),
+                                (
+                                    true,
+                                    false,
+                                    "Unable To Parse Version Information".to_string(),
+                                ),
+                            );
+                        }
+                    }
+                    versions.insert(
+                        "CLI".to_string(),
+                        (
+                            true,
+                            STATUS.is_app_present,
+                            STATUS.cli_version().unwrap().to_pep440()?.to_string(),
+                        ),
+                    );
+                }
             }
 
             for (n, v) in versions.iter() {

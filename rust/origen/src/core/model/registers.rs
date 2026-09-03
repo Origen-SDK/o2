@@ -1,6 +1,6 @@
 //! See section 3.5.1 in this doc for a good description of the IP-XACT data
 //! structures upon which this is based:
-//! https://www.accellera.org/images/downloads/standards/ip-xact/IP-XACT_User_Guide_2018-02-16.pdf
+//! <https://www.accellera.org/images/downloads/standards/ip-xact/IP-XACT_User_Guide_2018-02-16.pdf>
 
 pub mod address_block;
 pub mod bit;

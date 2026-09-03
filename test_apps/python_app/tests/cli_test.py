@@ -1,7 +1,12 @@
-import pytest, pathlib
+import pytest, pathlib, sys
 import subprocess
 import os
 import origen
+
+pytest.register_assert_rewrite("t_invocation_env")
+
+sys.path.insert(-1, str(pathlib.Path(__file__).parent.parent.parent.joinpath("no_workspace")))
+from t_invocation_env import T_InvocationBaseTests
 
 from cli.tests__app_cmd_building import T_AppCmdBuilding
 from cli.tests__core_cmds import T_AppWorkspaceCoreCommands
@@ -47,10 +52,10 @@ def test_origen_v():
     # Process is done
     # Read std out
     first_stdout_line = process.stdout.readline()
-    assert "App:" in first_stdout_line
+    assert "Origen" in first_stdout_line
+    assert " 2." in first_stdout_line
     second_stdout_line = process.stdout.readline()
-    assert "Origen" in second_stdout_line
-    assert " 2." in second_stdout_line
+    assert "App:" in second_stdout_line
 
 def test_bad_command():
     process = subprocess.Popen([f'{origen_cli}', 'thisisnotacommand'],
@@ -67,3 +72,9 @@ class TestAuxCommandsAreAdded:
 class TestModeOpts():
     def test_():
         fail
+
+class TestAppInvocation(T_InvocationBaseTests):
+    @classmethod
+    def set_params(cls):
+        cls.invocation = cls.PyProjectSrc.App
+        cls.target_pyproj_dir = pathlib.Path(__file__).parent.parent

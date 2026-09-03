@@ -1,6 +1,6 @@
 import origen
 from origen.application import Base
-from origen.utility.publishers.poetry import Poetry
+from origen.utility.publishers.uv import UV
 from origen.utility.results import BuildResult, UploadResult
 from origen.utility import github
 
@@ -13,10 +13,10 @@ class Application(Base):
         self.rust_dir = self.app_dir.joinpath("../../rust").absolute()
 
 
-class Publisher(Poetry):
+class Publisher(UV):
     def __init__(self, **config):
         self.cargo_release_cmd = ["cargo", "build", "--release"]
-        Poetry.__init__(self, **config)
+        UV.__init__(self, **config)
         self.build_package_command_opts["add_env"] = {
             "ORIGEN__COPY_BUILD_TARGET": "0"
         }
@@ -48,7 +48,7 @@ class Publisher(Poetry):
             origen.logger.error(msg)
             return BuildResult(succeeded=False, message=msg)
 
-        return Poetry.build_package(self)
+        return UV.build_package(self)
 
     def upload(self, build_result, dry_run):
         # The mechanism to actually build, load, and publish the libraries is

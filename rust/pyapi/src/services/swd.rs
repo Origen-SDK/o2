@@ -32,7 +32,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn write_ap(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -42,7 +42,7 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let mut ack = Acknowledgements::Ok;
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
         }
@@ -52,7 +52,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn verify_ap(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -62,10 +62,10 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let (mut ack, mut parity) = (Acknowledgements::Ok, None);
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
-            if let Some(_parity) = args.get_item("parity") {
+            if let Some(_parity) = args.get_item("parity")? {
                 parity = Some(_parity.extract::<u32>()? != 0);
             }
         }
@@ -75,7 +75,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn write_dp(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -85,7 +85,7 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let mut ack = Acknowledgements::Ok;
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
         }
@@ -95,7 +95,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn verify_dp(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -105,10 +105,10 @@ impl SWD {
         let service = services.get_mut_service(self.id)?;
         let (mut ack, mut parity) = (Acknowledgements::Ok, None);
         if let Some(args) = kwargs {
-            if let Some(_ack) = args.get_item("acknowledge") {
+            if let Some(_ack) = args.get_item("acknowledge")? {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
-            if let Some(_parity) = args.get_item("parity") {
+            if let Some(_parity) = args.get_item("parity")? {
                 parity = Some(_parity.extract::<u32>()? != 0);
             }
         }

@@ -25,7 +25,10 @@ use pyo3::prelude::*;
 pub use _frontend::Frontend;
 pub use py_data_stores::{PyDataStoreCategory, PyDataStores};
 pub use py_frontend::PyFrontend;
-pub use py_frontend::{with_mut_py_frontend, with_py_frontend, with_required_rc, with_py_data_stores, with_mut_py_data_stores, with_required_mut_py_category, with_required_py_category};
+pub use py_frontend::{
+    with_mut_py_data_stores, with_mut_py_frontend, with_py_data_stores, with_py_frontend,
+    with_required_mut_py_category, with_required_py_category, with_required_rc,
+};
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let fm = PyModule::new(py, "frontend")?;
@@ -79,6 +82,7 @@ pub(crate) fn reset(_py: Python) -> PyResult<()> {
     with_frontend_mod(|py, m| m.setattr(PY_FRONTEND, py.None()))
 }
 
+#[cfg(debug_assertions)]
 use super::framework::outcomes::Outcome as PyOutcome;
 #[cfg(debug_assertions)]
 use pyo3::types::{PyDict, PyList};
@@ -227,7 +231,8 @@ pub(crate) fn backend_get_category(
 }
 
 #[cfg(debug_assertions)]
-#[pyfunction(opts = "**")]
+#[pyfunction]
+#[pyo3(signature=(category, data_store, **opts))]
 pub(crate) fn backend_get_class(
     _py: Python,
     category: &str,

@@ -1,13 +1,12 @@
 pub mod big_uint_helpers;
+pub mod command_helpers;
 pub mod file_actions;
 pub mod file_utils;
-pub mod location;
-pub mod command_helpers;
 pub mod github;
+pub mod location;
 pub mod num_helpers;
 pub mod release_scribe;
 pub mod sessions;
-pub mod version;
 
 use crate::{Result, STATUS};
 use std::path::{Path, PathBuf};

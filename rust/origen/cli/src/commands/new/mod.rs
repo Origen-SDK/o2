@@ -1,120 +1,261 @@
-// This implements the new application command, for the code generators, e.g. 'origen new dut' etc.,
-// see new_resource.rs
+use crate::_generated::python::PYTHONS;
+use crate::commands::_prelude::*;
+use crate::python::get_current_user_and_email;
+use origen_metal::tera::{Context, Tera};
+use std::env;
+use std::fs::{create_dir, File};
+use std::path::{Path, PathBuf};
+use std::process::exit;
 
-mod new_resource;
+pub const BASE_CMD: &'static str = "new";
+pub const WS_CMD: &'static str = "workspace";
+pub const APP_CMD: &'static str = "application";
+pub const PL_CMD: &'static str = "plugin";
 
-use clap::ArgMatches;
-use origen::STATUS;
-use phf::map::Map;
-use phf::phf_map;
-use std::path::PathBuf;
-use tera::{Context, Tera};
+lazy_static! {
+    static ref APP_NS_DIR: &'static str = "app_namespace_dir/";
+}
 
 // This includes a map of all template files, it is built by cli/build.rs at compile time.
 // All files in each sub-directory of commands/new/templates are accessible via a map named after the
 // uppercased sub_directory, e.g.
-//      PYTHON_APP = { "pyproject.toml" => "[tool.poetry]...", "config/application.toml" => "..." }
+//      PYTHON_APP = { "pyproject.toml" => "[project]...", "config/application.toml" => "..." }
 //
 // Doing it this way means that we can just drop new files into the templates dirs and they will
 // automatically be picked up and included in the new app.
 include!(concat!(env!("OUT_DIR"), "/new_app_templates.rs"));
 
-struct App {
-    name: String,
-    dir: PathBuf,
+macro_rules! common_new_args {
+    ( $cmd: expr, $new_type: expr ) => {{
+        $cmd.arg(req_sv_arg!("name", "NAME", concat!($new_type, " name")))
+            .arg(
+                sv_opt!("desc", "DESC", concat!("Description of the ", $new_type))
+                    .visible_alias("description"),
+            )
+            .arg(sv_opt!("path", "PATH", "Path to build the new workspace").short('p'))
+    }};
 }
 
-pub fn run(matches: &ArgMatches) {
-    if STATUS.is_app_present {
-        new_resource::run(matches);
-        return;
-    }
-    let name = matches.get_one::<&str>("name").unwrap();
-    if &name.to_lowercase() != name {
-        display_red!("ERROR: ");
-        displayln!("The application name must be lowercased");
-        std::process::exit(1);
-    }
-    let app_dir = std::env::current_dir().unwrap().join(name);
-
-    if app_dir.exists() {
-        if !app_dir.read_dir().unwrap().next().is_none() {
-            display_red!("ERROR: ");
-            displayln!("A directory with that name already exists and is not empty, please delete it or use a new name and try again");
-            std::process::exit(1);
+gen_core_cmd_funcs__no_exts__no_app_opts!(
+    BASE_CMD,
+    "Create a new origen environment (e.g., app, workspace)",
+    { |cmd: App| { cmd.arg_required_else_help(true) } },
+    core_subcmd__no_exts__no_app_opts!(WS_CMD, "Create a new workspace", {
+        |cmd: App| {
+            cmd.visible_alias("ws")
+                .arg(req_sv_arg!("name", "NAME", "Workspace name"))
+                .arg(
+                    sv_opt!("desc", "DESC", "Description of the workspace")
+                        .visible_alias("description"),
+                )
+                .arg(sv_opt!("path", "PATH", "Path to build the new workspace").short('p'))
         }
-    } else {
-        std::fs::create_dir(&app_dir)
-            .expect("Could you create the new application directory, do you have permission?");
-    }
+    }),
+    core_subcmd__no_exts__no_app_opts!(PL_CMD, "Create a new workspace", {
+        |cmd: App| common_new_args!(cmd, "Plugin").visible_alias("pl")
+    }),
+    // TODO origen new - support new app
+    core_subcmd__no_exts__no_app_opts!(APP_CMD, "Create a new application", {
+        |cmd: App| {
+            common_new_args!(cmd, "Application").visible_alias("app")
+            // .arg(sv_opt!("dut", "DUT NAME", "Use a different DUT name (default: dut). Cannot be used with --no_dut"))
+            // .arg(sf_opt!("no_dut", "Do not create a DUT. Cannot be used with --dut <DUT NAME>"))
+        }
+    })
+);
 
-    let mut context = Context::new();
-    //// Converting this to a vector here as the template was printing out the package list
-    //// in reverse order when given the index map
-    //let packages: Vec<&Package> = bom.packages.iter().map(|(_id, pkg)| pkg).collect();
-    context.insert("app_name", name);
-    context.insert("origen_version", &origen::STATUS.origen_version.to_string());
-    let mut user_info = "".to_string();
-    let users = crate::om::users();
-    if let Ok(u) = users.current_user() {
-        if let Ok(username) = u.username() {
-            user_info += &username;
-            match u.get_email() {
-                Ok(e) => {
-                    if let Some(email) = e {
-                        user_info += &format!(" <{}>", &email);
+pub fn current_user_to_author() -> Result<String> {
+    let info = get_current_user_and_email()?;
+    Ok(format!("{} {} <{}>", info.0, info.1, info.2))
+}
+
+pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
+    if let Some((n, subcmd)) = invocation.subcommand() {
+        let mut context = Context::new();
+        let name = subcmd.get_one::<String>("name").unwrap();
+
+        let mut out_dir;
+        if let Some(path) = subcmd.get_one::<String>("path") {
+            let p = PathBuf::from(path);
+            if p.is_relative() {
+                out_dir = env::current_dir()?;
+                out_dir.push(&p);
+            } else {
+                out_dir = p;
+            }
+        } else {
+            out_dir = env::current_dir()?;
+            out_dir.push(&name);
+        }
+
+        //  Check output dir but hold off until other checks have passed
+        if out_dir.exists() {
+            // Check directory is empty
+            if !out_dir.read_dir()?.next().is_none() {
+                log_error!("Target directory {} is not empty!", &out_dir.display());
+                exit(1);
+            }
+        }
+
+        context.insert("name", name);
+        context.insert(
+            "desc",
+            subcmd.get_one::<String>("desc").unwrap_or(&"".to_string()),
+        );
+
+        // Add author to context
+        let mut author = "".to_string();
+        if origen_fe_available!() {
+            match current_user_to_author() {
+                Ok(n) => author = n,
+                Err(e) => {
+                    log_warning!(
+                        "Errors occurred getting the current username and email from origen: {}",
+                        e
+                    );
+                }
+            }
+        } else {
+            if let Err(e) = origen_metal::try_lookup_and_set_current_user() {
+                log_warning!("Errors occurred populating current user: {}", e);
+            } else {
+                let users = origen_metal::users();
+                match users.current_user() {
+                    Ok(u) => match u.username() {
+                        Ok(username) => match u.get_email() {
+                            Ok(e) => {
+                                if let Some(email) = e {
+                                    author += &format!("{} <{}>", &username, &email);
+                                } else {
+                                    log_warning!("Could not retrieve user email. Only including username in 'author'");
+                                    author += &username;
+                                }
+                            }
+                            Err(e) => {
+                                log_warning!("Cannot retrieve current user's email: {}", e.msg);
+                            }
+                        },
+                        Err(e) => {
+                            log_warning!("Cannot retrieve current user: {}", e.msg);
+                        }
+                    },
+                    Err(e) => {
+                        log_warning!("Errors occurred populating current user: {}", e);
                     }
                 }
-                Err(e) => {
-                    display_redln!("{}", e.msg);
+            }
+        }
+        context.insert("author", &author);
+
+        // Add Python, Origen, and other library versions
+        let origen_version = origen::STATUS
+            .origen_version
+            .to_string()
+            .replace("-dev.", ".dev")
+            .replace("-alpha.", ".a")
+            .replace("-beta.", ".b");
+        context.insert("origen_version", &origen_version);
+        context.insert(
+            "python_version",
+            &format!(
+                ">={},<{}",
+                PYTHONS[2].strip_prefix("python").unwrap(),
+                "3.13"
+            ),
+        );
+        log_trace!("'origen new' context: {:?}", context);
+
+        let mut tera = Tera::default();
+        for (n, contents) in SHARED.entries() {
+            tera.add_raw_template(&format!("shared/{}", n), contents)?;
+        }
+
+        let (app_gen, pl_gen, ws_gen, path_base): (bool, bool, bool, &str);
+        match n {
+            WS_CMD => {
+                app_gen = false;
+                pl_gen = false;
+                ws_gen = true;
+                path_base = "workspace";
+                for (n, contents) in WORKSPACE.entries() {
+                    tera.add_raw_template(&format!("{}/{}", path_base, n), contents)?;
+                }
+            }
+            PL_CMD => {
+                app_gen = false;
+                pl_gen = true;
+                ws_gen = false;
+                path_base = "plugin";
+
+                for (n, contents) in PY_APP.entries() {
+                    tera.add_raw_template(&format!("{}/{}", path_base, n), contents)?;
+                }
+            }
+            APP_CMD => {
+                app_gen = true;
+                pl_gen = false;
+                ws_gen = false;
+                path_base = "application";
+                for (name, contents) in PY_APP.entries() {
+                    tera.add_raw_template(&format!("{}/{}", path_base, name), contents)?;
+                }
+            }
+            _ => unreachable_invalid_subc!(n),
+        }
+        context.insert("app_gen", &app_gen);
+        context.insert("pl_gen", &pl_gen);
+        context.insert("ws_gen", &ws_gen);
+
+        if !out_dir.exists() {
+            create_dir(&out_dir)?;
+        }
+
+        let base_prefix = format!("{}/", path_base);
+        let mut errored = false;
+        for t in tera.get_template_names() {
+            if let Some(p) = t.strip_prefix(&base_prefix) {
+                let path;
+                if let Ok(p2) = Path::new(p).strip_prefix(*APP_NS_DIR) {
+                    log_debug!(
+                        "Moving template from '{}' space to '{}' space",
+                        *APP_NS_DIR,
+                        name
+                    );
+                    path = out_dir.join(name).join(p2);
+                } else {
+                    path = out_dir.join(p);
+                }
+                displayln!("Rendering template...");
+                displayln!("    {}", t);
+                displayln!("=>  {}", path.display());
+
+                std::fs::create_dir_all(path.parent().unwrap_or_else(|| Path::new("")))?;
+                let f = File::create(path)?;
+
+                match tera.render_to(t, &context, f) {
+                    Ok(()) => {
+                        display_greenln!("    Success!");
+                    }
+                    Err(e) => {
+                        errored = true;
+                        display_redln!("    {}", origen_metal::Error::from(e));
+                    }
                 }
             }
         }
-    }
-    context.insert("user_info", &user_info);
 
-    let new_app = App {
-        name: name.to_string(),
-        dir: app_dir,
-    };
-
-    new_app.apply_template(&PY_APP, &context);
-
-    if !matches.contains_id("no-setup") {
-        new_app.setup();
-    }
-}
-
-impl App {
-    fn apply_template(&self, template: &Map<&str, &str>, context: &Context) {
-        let mut tera = Tera::default();
-
-        for (file, content) in template.entries() {
-            let contents = tera.render_str(content, &context).unwrap();
-
-            let file = file.replace("app_namespace_dir", &self.name);
-            let path = self.dir.join(file.clone());
-
-            if !path.parent().unwrap().exists() {
-                std::fs::create_dir_all(&path.parent().unwrap())
-                    .expect("Couldn't create dir within the new app");
-            }
-
-            display_green!("      create  ");
-            displayln!("{}", &file);
-
-            std::fs::write(&path, &contents).expect("Couldn't create a file within the new app");
+        if errored {
+            display_redln!(
+                "Failed to create new {}. Please review output logs for errors message.",
+                path_base
+            );
+            bail!("Failed to create new {}", path_base)
+        } else {
+            display_greenln!("Created new {}:", path_base);
+            display_greenln!("    {}", &out_dir.display());
+            Ok(())
         }
-    }
-
-    fn setup(&self) {
-        std::env::set_current_dir(&self.dir).expect("Couldn't cd to the new app");
-
-        let _ = std::process::Command::new("origen")
-            .arg("env")
-            .arg("setup")
-            .spawn()
-            .expect("Couldn't execute origen setup")
-            .wait();
+    } else {
+        unreachable!()
     }
 }

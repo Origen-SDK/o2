@@ -73,7 +73,8 @@ def all_from_category(category):
 
 class Target:
     ''' Represents a single, unresolved target, in any namespace '''
-    def __init__(self, name, category, config, namespace):
+    def __init__(self, app, name, category, config, namespace):
+        self.app = app
         self.namespace = namespace
         self.name = name
         self.category = category
@@ -127,12 +128,11 @@ class Target:
         if self.is_substitution:
             f.write(f'.. |{n}| replace:: {self.target}\n')
         elif self.is_extlink:
+            url = self.app.config.extlinks[self.target][0] % ""
             if self.text:
-                f.write(
-                    f'.. |{n}| replace:: :{self.target}:`{self.text} <>`\n')
+                f.write(f'.. |{n}| replace:: `{self.text} <{url}>`__\n')
             else:
-                f.write(
-                    f'.. |{n}| replace:: :{self.target}:`{self.name} <>`\n')
+                f.write(f'.. |{n}| replace:: `{self.name} <{url}>`__\n')
         elif self.is_ref:
             if self.text:
                 f.write(
@@ -160,9 +160,9 @@ class Target:
                 )
         elif self.is_abslink:
             if self.text:
-                f.write(f'.. |{n}| replace:: `{self.text} <{self.target}>`\n')
+                f.write(f'.. |{n}| replace:: `{self.text} <{self.target}>`__\n')
             else:
-                f.write(f'.. |{n}| replace:: `<{self.target}>`\n')
+                f.write(f'.. |{n}| replace:: `<{self.target}>`__\n')
         else:
             logger.error(
                 f"Target '{n}' has unknown category '{self.category}'\n")
@@ -203,7 +203,8 @@ class ShorthandDefs:
                         logger.warn(
                             f"Clashing target: '{n}' has already been set to '{all_flattened[n]}'"
                         )
-                    all_flattened[n] = Target(n, category, t, self.namespace)
+                    all_flattened[n] = Target(self.app, n, category, t,
+                                              self.namespace)
 
         for c in self.categories:
             targets = self.opts.get(c, {})

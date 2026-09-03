@@ -28,36 +28,38 @@ impl BaseError for Error {
 
 // To add a conversion from other type of errors
 
+#[cfg(feature = "python")]
 impl std::convert::From<Error> for pyo3::PyErr {
     fn from(err: Error) -> pyo3::PyErr {
         pyo3::exceptions::PyRuntimeError::new_err(err.to_string())
     }
 }
 
+#[cfg(feature = "python")]
 impl std::convert::From<pyo3::PyErr> for Error {
     fn from(err: pyo3::PyErr) -> Self {
-        let gil = pyo3::Python::acquire_gil();
-        let py = gil.python();
-        Error::new(&format!(
-            "Encountered Exception '{}' with message: {}{}",
-            err.get_type(py).name().unwrap(),
-            {
-                let r = err.value(py).call_method0("__str__").unwrap();
-                r.extract::<String>().unwrap()
-            },
-            {
-                let tb = err.traceback(py);
-                let m = py.import("traceback").unwrap();
-                let temp = pyo3::types::PyTuple::new(py, &[tb]);
-                let et = m.call_method1("extract_tb", temp).unwrap();
+        pyo3::Python::with_gil(|py| {
+            Error::new(&format!(
+                "Encountered Exception '{}' with message: {}{}",
+                err.get_type(py).name().unwrap(),
+                {
+                    let r = err.value(py).call_method0("__str__").unwrap();
+                    r.extract::<String>().unwrap()
+                },
+                {
+                    let tb = err.traceback(py);
+                    let m = py.import("traceback").unwrap();
+                    let temp = pyo3::types::PyTuple::new(py, &[tb]);
+                    let et = m.call_method1("extract_tb", temp).unwrap();
 
-                let temp = pyo3::types::PyTuple::new(py, &[et]);
-                let text_list = m.call_method1("format_list", temp).unwrap();
-                let text = text_list.extract::<Vec<String>>().unwrap();
+                    let temp = pyo3::types::PyTuple::new(py, &[et]);
+                    let text_list = m.call_method1("format_list", temp).unwrap();
+                    let text = text_list.extract::<Vec<String>>().unwrap();
 
-                format!("\nWith traceback:\n{}", text.join(""))
-            }
-        ))
+                    format!("\nWith traceback:\n{}", text.join(""))
+                }
+            ))
+        })
     }
 }
 
@@ -127,6 +129,12 @@ impl std::convert::From<lettre::address::AddressError> for Error {
     }
 }
 
+impl std::convert::From<email_address::Error> for Error {
+    fn from(err: email_address::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
 impl std::convert::From<toml::de::Error> for Error {
     fn from(err: toml::de::Error) -> Self {
         Error::new(&err.to_string())
@@ -175,11 +183,11 @@ impl std::convert::From<keyring::Error> for Error {
     }
 }
 
-//impl std::convert::From<anyhow::Error> for Error {
-//    fn from(err: anyhow::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<anyhow::Error> for Error {
+    fn from(err: anyhow::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 // On failure, the original OS string is returned
 // https://doc.rust-lang.org/std/ffi/struct.OsString.html#method.into_string
@@ -226,4 +234,41 @@ impl std::convert::From<std::str::ParseBoolError> for Error {
     fn from(err: std::str::ParseBoolError) -> Self {
         Error::new(&err.to_string())
     }
+}
+
+impl std::convert::From<tera::Error> for Error {
+    fn from(err: tera::Error) -> Self {
+        let mut msg = format!("{:?}", err.kind);
+        if err.source().is_some() {
+            msg += "\n";
+            msg += &unchain_error(&err).join("\n");
+        }
+        Error::new(&msg)
+    }
+}
+
+impl std::convert::From<glob::PatternError> for Error {
+    fn from(err: glob::PatternError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<minijinja::Error> for Error {
+    fn from(err: minijinja::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+fn unchain_error(err: &dyn std::error::Error) -> Vec<String> {
+    let mut msg = vec![];
+    let mut inner = err.source();
+    loop {
+        if let Some(s) = inner {
+            msg.push(s.to_string());
+            inner = s.source();
+        } else {
+            break;
+        }
+    }
+    msg
 }

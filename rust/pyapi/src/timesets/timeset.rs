@@ -188,12 +188,10 @@ impl Timeset {
     }
 
     #[getter]
-    fn get_default_period(&self) -> PyResult<PyObject> {
+    fn get_default_period(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let timeset = dut._get_timeset(self.model_id, &self.name)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(match timeset.default_period {
             Some(p) => p.to_object(py),
             None => py.None(),
@@ -210,11 +208,9 @@ impl Timeset {
 
     #[allow(non_snake_case)]
     #[getter]
-    fn get___period__(&self) -> PyResult<PyObject> {
+    fn get___period__(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let timeset = dut._get_timeset(self.model_id, &self.name)?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(match &timeset.period_as_string {
             Some(p) => p.clone().to_object(py),
             None => py.None(),
@@ -222,18 +218,21 @@ impl Timeset {
     }
 
     #[getter]
-    fn wavetables(&self) -> PyResult<Py<WavetableContainer>> {
+    fn wavetables(&self, py: Python) -> PyResult<Py<WavetableContainer>> {
         let t_id;
         {
             t_id = self.get_origen_id()?;
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(pywavetable_container!(py, self.model_id, t_id, &self.name))
     }
 
-    #[args(_kwargs = "**")]
-    fn add_wavetable(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    #[pyo3(signature=(name, **_kwargs))]
+    fn add_wavetable(
+        &self,
+        py: Python,
+        name: &str,
+        _kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let t_id;
         {
@@ -241,14 +240,12 @@ impl Timeset {
         }
         dut.create_wavetable(t_id, name)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let tset = dut._get_timeset(self.model_id, &self.name).unwrap();
         Ok(pywavetable!(py, tset, t_id, name)?)
     }
 
     #[getter]
-    fn symbol_map(&self) -> PyResult<PyObject> {
+    fn symbol_map(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let t_id;
         {
@@ -256,8 +253,6 @@ impl Timeset {
         }
         let tester = origen::tester();
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(Py::new(
             py,
             crate::timesets::timeset::SymbolMap {
@@ -275,7 +270,7 @@ impl Timeset {
     }
 
     #[getter]
-    fn symbol_maps(&self) -> PyResult<Vec<PyObject>> {
+    fn symbol_maps(&self, py: Python) -> PyResult<Vec<PyObject>> {
         let dut = DUT.lock().unwrap();
         let t = dut._get_timeset(self.model_id, &self.name).unwrap();
         let t_id;
@@ -283,8 +278,6 @@ impl Timeset {
             t_id = t.id;
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let retn = t
             .pin_action_resolvers
             .keys()
@@ -330,8 +323,8 @@ pub struct Wavetable {
 
 #[pymethods]
 impl Wavetable {
-    #[args(_kwargs = "**")]
-    fn add_waves(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    #[pyo3(signature=(name, **_kwargs))]
+    fn add_waves(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let w_id;
         {
@@ -339,25 +332,21 @@ impl Wavetable {
         }
         dut.create_wave_group(w_id, name, Option::None)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let wt = dut.get_wavetable(self.timeset_id, &self.name).unwrap();
         Ok(pywave_group!(py, wt, name)?)
     }
 
-    #[args(_kwargs = "**")]
-    fn add_wave(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        self.add_waves(name, _kwargs)
+    #[pyo3(signature=(name, **_kwargs))]
+    fn add_wave(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+        self.add_waves(py, name, _kwargs)
     }
 
     #[getter]
-    fn get_waves(&self) -> PyResult<Py<WaveGroupContainer>> {
+    fn get_waves(&self, py: Python) -> PyResult<Py<WaveGroupContainer>> {
         let w_id;
         {
             w_id = self.get_origen_id()?;
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(pywave_group_container!(
             py,
             self.model_id,
@@ -391,24 +380,20 @@ impl Wavetable {
     ///         }
     ///     }
     ///
-    fn applied_waves(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn applied_waves(&self, py: Python) -> PyResult<PyObject> {
         let empty: [PyObject; 0] = [];
         let t = PyTuple::new(py, &empty);
-        self.applied_waves_for(t, None)
+        self.applied_waves_for(py, t, None)
     }
 
     /// Same as :meth:`applied_waves` but supports internal filtering of the return values.
-    #[args(pins = "*")]
+    #[pyo3(signature=(*pins, indicators))]
     fn applied_waves_for(
         &self,
+        py: Python,
         pins: &PyTuple,
         indicators: Option<Vec<String>>,
     ) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let dut = DUT.lock().unwrap();
         let wt = dut._get_wavetable(self.timeset_id, &self.name)?;
         let waves = wt.applied_waves(
@@ -420,9 +405,7 @@ impl Wavetable {
     }
 
     #[getter]
-    fn get_symbol_map(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn get_symbol_map(&self, py: Python) -> PyResult<PyObject> {
         let tester = origen::tester();
         match tester.focused_tester_name() {
             Some(name) => Ok(Py::new(py, SymbolMap::new(self.timeset_id, name))
@@ -442,13 +425,11 @@ impl Wavetable {
     // Evaluates and returns the period.
     // Returns None if no period was specified or an error if it could not be evaluated.
     #[getter]
-    pub fn get_period(&self) -> PyResult<PyObject> {
+    pub fn get_period(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let wt = dut.get_wavetable(self.timeset_id, &self.name);
         let p = wt.unwrap().eval(Option::None)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match p {
             Some(_p) => Ok(_p.to_object(py)),
             None => Ok(py.None()),
@@ -465,10 +446,10 @@ impl Wavetable {
             wt.set_period(Some(Box::new(p)))?;
         } else if let Ok(p) = period.extract::<f64>() {
             wt.set_period(Some(Box::new(p)))?;
-        } else if period.get_type().name()? == "NoneType" {
+        } else if period.get_type().qualname()? == "NoneType" {
             wt.set_period(Option::None)?;
         } else {
-            return super::super::type_error!(format!("Could not interpret 'period' argument as Numeric, String, or NoneType! (class '{}')", period.get_type().name()?));
+            return super::super::type_error!(format!("Could not interpret 'period' argument as Numeric, String, or NoneType! (class '{}')", period.get_type().qualname()?));
         };
         Ok(())
     }
@@ -476,13 +457,11 @@ impl Wavetable {
     // Returns the period as a string before evaluation.
     #[allow(non_snake_case)]
     #[getter]
-    pub fn get___period__(&self) -> PyResult<PyObject> {
+    pub fn get___period__(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let wt = dut.get_wavetable(self.timeset_id, &self.name);
         let p = &wt.unwrap().period;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match p {
             Some(_p) => Ok(_p.to_object(py)),
             None => Ok(py.None()),
@@ -517,8 +496,8 @@ pub struct WaveGroup {
 
 #[pymethods]
 impl WaveGroup {
-    #[args(_kwargs = "**")]
-    fn add_wave(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    #[pyo3(signature=(name, **_kwargs))]
+    fn add_wave(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let wgrp_id;
         {
@@ -529,7 +508,7 @@ impl WaveGroup {
         }
         let mut derived_from = Option::None;
         if let Some(args) = _kwargs {
-            if let Some(_derived_from) = args.get_item("derived_from") {
+            if let Some(_derived_from) = args.get_item("derived_from")? {
                 if let Ok(_waves) = _derived_from.extract::<String>() {
                     derived_from = Some(vec![_waves]);
                 } else if let Ok(_waves) = _derived_from.extract::<Vec<String>>() {
@@ -541,20 +520,16 @@ impl WaveGroup {
         }
         dut.create_wave(wgrp_id, name, derived_from)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let wgrp = dut.get_wave_group(self.wavetable_id, &self.name).unwrap();
         Ok(pywave!(py, wgrp, name)?)
     }
 
     #[getter]
-    fn get_waves(&self) -> PyResult<Py<WaveContainer>> {
+    fn get_waves(&self, py: Python) -> PyResult<Py<WaveContainer>> {
         let wgrp_id;
         {
             wgrp_id = self.get_origen_id()?;
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(pywave_container!(
             py,
             self.model_id,
@@ -603,9 +578,7 @@ pub struct Wave {
 #[pymethods]
 impl Wave {
     #[getter]
-    fn get_events(&self) -> PyResult<Py<EventContainer>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn get_events(&self, py: Python) -> PyResult<Py<EventContainer>> {
         let wave_id;
         {
             wave_id = self.get_origen_id()?;
@@ -621,8 +594,8 @@ impl Wave {
         ))
     }
 
-    #[args(event = "**")]
-    fn push_event(&self, event: Option<&PyDict>) -> PyResult<PyObject> {
+    #[pyo3(signature=(**event))]
+    fn push_event(&self, py: Python, event: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let (w_id, e_index);
         {
@@ -637,9 +610,9 @@ impl Wave {
         }
 
         let (at, unit, action) = (
-            event.unwrap().get_item("at"),
-            event.unwrap().get_item("unit"),
-            event.unwrap().get_item("action"),
+            event.unwrap().get_item("at")?,
+            event.unwrap().get_item("unit")?,
+            event.unwrap().get_item("action")?,
         );
         {
             // Resolve the 'action' keyword first because rust is a pain in the butt.
@@ -697,9 +670,6 @@ impl Wave {
         }
 
         // Return the newly created event
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let w = dut.get_wave(self.wave_group_id, &self.name).unwrap();
         Ok(pyevent!(py, w, e_index)?)
     }
@@ -720,11 +690,9 @@ impl Wave {
     }
 
     #[getter]
-    fn get_applied_to(&self) -> PyResult<Vec<PyObject>> {
+    fn get_applied_to(&self, py: Python) -> PyResult<Vec<PyObject>> {
         let dut = DUT.lock().unwrap();
         let w = dut.get_wave(self.wave_group_id, &self.name).unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
 
         let mut pins: Vec<PyObject> = vec![];
         for p in w.applied_pin_ids.iter() {
@@ -740,8 +708,8 @@ impl Wave {
         Ok(pins)
     }
 
-    #[args(pins = "*")]
-    fn apply_to(&self, pins: Vec<String>) -> PyResult<PyObject> {
+    #[pyo3(signature=(*pins))]
+    fn apply_to(&self, py: Python, pins: Vec<String>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let wid;
         {
@@ -754,8 +722,6 @@ impl Wave {
             pins.iter().map(|pin| (0, pin.clone())).collect();
         dut.apply_wave_id_to_pins(wid, &pins_with_model_id)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(Py::new(
             py,
             crate::timesets::timeset::Wave {
@@ -873,12 +839,10 @@ impl Event {
     }
 
     #[getter]
-    pub fn unit(&self) -> PyResult<PyObject> {
+    pub fn unit(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let e = dut.get_event(self.wave_id, self.index).unwrap();
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match &e.unit {
             Some(unit) => Ok(unit.clone().to_object(py)),
             None => Ok(py.None()),
@@ -886,12 +850,9 @@ impl Event {
     }
 
     #[getter]
-    pub fn at(&self) -> PyResult<PyObject> {
+    pub fn at(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let e = dut.get_event(self.wave_id, self.index).unwrap();
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(e.eval(&dut, Option::None)?.to_object(py))
     }
 
@@ -932,7 +893,7 @@ fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin:
                 let t;
                 if let Ok(a) = action.extract::<String>() {
                     t = a.clone();
-                } else if action.get_type().name()? == "PinActions" {
+                } else if action.get_type().qualname()? == "PinActions" {
                     let pin_actions = action
                         .extract::<PyRef<super::super::pins::pin_actions::PinActions>>()
                         .unwrap();
@@ -946,7 +907,7 @@ fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin:
                 } else {
                     return super::super::type_error!(&format!(
                         "Cannot cast type {} to a valid PinAction",
-                        action.get_type().name()?
+                        action.get_type().qualname()?
                     ));
                 }
                 t
@@ -1004,9 +965,7 @@ impl SymbolMap {
             .collect::<Vec<(String, String)>>())
     }
 
-    fn get(&self, action: &PyAny) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn get(&self, py: Python, action: &PyAny) -> PyResult<PyObject> {
         match self.__getitem__(action) {
             Ok(a) => Ok(a.into_py(py)),
             Err(_) => Ok(py.None()),
@@ -1037,7 +996,7 @@ impl SymbolMap {
         }
     }
 
-    fn for_target(&self, target: String) -> PyResult<PyObject> {
+    fn for_target(&self, py: Python, target: String) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         {
             let t = &dut.timesets[self.timeset_id];
@@ -1050,8 +1009,6 @@ impl SymbolMap {
             }
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(Py::new(
             py,
             crate::timesets::timeset::SymbolMap {

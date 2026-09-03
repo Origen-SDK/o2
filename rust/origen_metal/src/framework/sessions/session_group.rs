@@ -106,7 +106,7 @@ impl SessionGroup {
     }
 
     pub fn delete_session(&mut self, name: &str) -> Result<bool> {
-        match self.sessions.remove(name) {
+        match self.sessions.shift_remove(name) {
             Some(s) => {
                 s.remove_file()?;
                 Ok(true)

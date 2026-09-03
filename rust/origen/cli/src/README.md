@@ -76,9 +76,9 @@ from the Origen crate, or in many cases a command will be implemented as a combi
 ### Booting Within an Application
 
 Unsurprisingly, the boot process within an application setting is more complicated.
-The Python application environment is currently managed by a tool called Poetry, which is analogous to Bundler
-for Ruby or Cargo for Rust.
-Origen aims to abstract the detail of that from the user and the command `origen setup` should completely
+The Python application environment is managed by UV, which provides dependency
+locking, interpreter selection, and command execution.
+Origen abstracts most of that detail and `origen env setup` should completely
 set up a working Python environment for a given application workspace.
 This will bring in the Origen package and any other Python package dependencies specified within the application's
 `pyproject.toml` file.
@@ -95,11 +95,11 @@ is performed:
 1) The command and arguments are processed by the Clap code in the CLI.
 
 2) Python is invoked within a new process by the `run` function within `origen/cli/src/python.rs`. This generates
-   a command which will invoke a short Origen boot script within the Poetry environment, the command it runs will
+   a command which will invoke a short Origen boot script within the UV environment, the command it runs will
    be something like: 
 
    ~~~
-   ~/.poetry/bin/poetry run python3 -c "from origen.boot import run_cmd; run_cmd('generate', files=['my_pat.py'])"
+   uv --project /path/to/app run --no-editable python -c "from origen.boot import run_cmd; run_cmd('generate', files=['my_pat.py'])"
    ~~~
 
 3) The CLI's work is now done and it simply sits and waits for the above process to finish and when it does it
@@ -113,4 +113,3 @@ is performed:
    For example, the de-composing of any lists or directories in file arguments is done in Rust so that the same code
    can be used by standalone and application commands. It is for this reason that the file argument is passed from
    the CLI into Python and then immediately handed over to the new Rust process.
-

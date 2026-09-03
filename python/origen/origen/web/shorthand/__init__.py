@@ -10,19 +10,20 @@ from .shorthand import all_include_rsts
 
 app = None
 _unchecked_targets = set()
+_used_external_targets = set()
 
 
 def check_link(link, *, warning_prefix=None):
     ''' Checks if the given link points to *somewhere* '''
     try:
-        req = requests.get(link)  # = urllib.request.urlopen(link)
+        req = requests.get(link, timeout=15)
         if not (200 <= req.status_code < 300):
             if warning_prefix:
                 shorthand.logger.warn(
                     f"{warning_prefix}: Invalid link '{link}' - Received non-2xx status code: {req.status_code}"
                 )
             return (False, req.status_code)
-    except requests.exceptions.BaseHTTPError as e:  # urllib.error.URLError as e:
+    except requests.exceptions.RequestException as e:
         if warning_prefix:
             shorthand.logger.warn(
                 f"{warning_prefix}: Invalid link '{link}' - Received error {e.__class__} with message {str(e)}"
@@ -45,6 +46,16 @@ def check_consistency(app, env):
   '''
     for target in _unchecked_targets:
         t = shorthand.get(target)
+        # Fast authoring builds deliberately omit generated reference trees.
+        # Do not report those configured omissions as broken links; full builds
+        # continue to validate every target below.
+        if getattr(app.config, 'origen_no_api', False) and (
+                t.target.startswith('interbuild/autoapi/') or
+                t.target.startswith('_static/build/rustdoc/')):
+            continue
+        if getattr(app.config, 'origen_bypass_subprojects', False) and \
+                t.target.startswith('_static/build/origen_sphinx_extension/'):
+            continue
         if t.is_ref:
             # Checking a ref amounts to ensuring it exists in the label table after all is
             # said and done.
@@ -73,8 +84,14 @@ def check_consistency(app, env):
         # Check extlinks and abslinks
         if 'sphinx.ext.extlinks' in app.extensions and app.config.extlinks:
             shorthand.logger.info("Checking extlinks consistency...")
-            for name, target in app.config.extlinks.items():
-                t = target[0] % target[1]
+            for name in sorted(_used_external_targets):
+                if name not in app.config.extlinks:
+                    continue
+                target = app.config.extlinks[name]
+                # Extlink configurations contain a placeholder for the suffix
+                # supplied by each role. Validate the stable base URL, never a
+                # URL containing the literal placeholder/caption.
+                t = target[0] % ""
                 shorthand.logger.info(f"-- {name}: {t}")
                 check_link(t, warning_prefix=f"(extlink - {name})")
 
@@ -82,6 +99,8 @@ def check_consistency(app, env):
         for _nspace, abslinks in shorthand.all_from_category(
                 'abslinks').items():
             for name, target in abslinks.items():
+                if name not in _used_external_targets:
+                    continue
                 shorthand.logger.info(f"-- {name}: {target.target}")
                 check_link(
                     target.target,
@@ -119,13 +138,15 @@ def href_to(target, *, docname=None):
             return app.builder.get_relative_uri(docname or app.env.docname,
                                                 t.target)
         elif t.is_abslink:
+            _used_external_targets.add(t.name)
             return t.target
         elif t.is_extlink:
+            _used_external_targets.add(t.target)
             extlink = app.config.extlinks.get(t.target, None)
             if extlink is None:
                 shorthand.logger.error(f"Cannot find extlink {t.target}!")
             else:
-                return extlink[0] % extlink[1]
+                return extlink[0] % ""
         elif t.is_sub:
             shorthand.logger.error(
                 "Cannot generate HREF for a substitution type!")

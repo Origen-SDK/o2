@@ -15,12 +15,50 @@ class _CommonNames:
     eval = "eval"
     exec = "exec"
     fmt = "fmt"
+    env = "env"
     i = "interactive"
     v = "-v"
 
     @classmethod
     def aux_cmds_cmd(cls, add_opts=None):
         return Cmd(cls.aux_cmds, help="Interface with auxillary commands")
+
+    @classmethod
+    def env_cmd(cls):
+        return Cmd(
+            cls.env,
+            help="Manage your application's Origen/Python environment",
+            subcmds=[
+                Cmd(
+                    "setup",
+                    help="Create or synchronize the UV environment from uv.lock",
+                ),
+                Cmd(
+                    "update",
+                    help="Upgrade and synchronize the application's locked dependencies",
+                ),
+                Cmd(
+                    "migrate",
+                    help="Convert a Poetry project to PEP 621 metadata and UV sources",
+                    opts=[
+                        CmdOpt(
+                            "dry_run",
+                            help="Print the proposed pyproject.toml diff without changing files",
+                            ln="dry-run",
+                        ),
+                        CmdOpt(
+                            "project",
+                            help="Project directory or pyproject.toml path; defaults to the nearest project",
+                            ln="project",
+                            takes_value=True,
+                            value_name="PATH",
+                        ),
+                    ],
+                ),
+            ],
+            help_subc_idx=0,
+            extendable=False,
+        )
 
     @classmethod
     def eval_cmd(cls, add_opts=None):
@@ -30,7 +68,21 @@ class _CommonNames:
             args=[
                 CmdArg("code", "Statements to evaluate", multi=True, required=True)
             ],
-            opts=add_opts,
+            opts=(add_opts or []) + [
+                CmdOpt(
+                    "scripts",
+                    help="Evaluate from script files",
+                    ln="scripts",
+                    sn="s",
+                    ln_aliases=["files"],
+                    sn_aliases=["f"],
+                    multi=True,
+                    required=False,
+                )
+            ],
+            h_opt_idx=0,
+            v_opt_idx=2,
+            vk_opt_idx=3,
             demos=[
                 CmdDemo(
                     "minimal",
@@ -197,6 +249,7 @@ class GlobalCommands(CoreCommands):
         aux_cmds = _CommonNames.aux_cmds
         pls = _CommonNames.pls
         pl = _CommonNames.pl
+        env = _CommonNames.env
 
         proj = "proj"
         new = _CommonNames.new
@@ -211,8 +264,12 @@ class GlobalCommands(CoreCommands):
     aux_cmds = _CommonNames.aux_cmds_cmd()
     pls = _CommonNames.pls_cmd()
     pl = _CommonNames.pl_cmd()
+    env = _CommonNames.env_cmd()
     # proj = Cmd(names.proj)
-    # new = Cmd(names.new)
+    new = Cmd(
+        names.new,
+        help="Create a new origen environment (e.g., app, workspace)",
+    )
     creds = _CommonNames.creds_cmd()
     i = _CommonNames.interactive_cmd()
     # fmt = Cmd(names.fmt)
@@ -220,9 +277,8 @@ class GlobalCommands(CoreCommands):
     v = _CommonNames.v_cmd()
 
     commands = [
-        # proj, new, creds, eval, exec, i,
-        # pls, pl, aux_cmds, fmt, build
-        creds, eval, exec, i,
+        # proj, fmt, build
+        creds, env, eval, exec, i, new,
         pls, pl, aux_cmds,
    ]
     cmds = commands
@@ -258,7 +314,7 @@ class InAppCommands(CoreCommands):
         # build = _CommonNames.build
         # compile = "compile"
         creds = _CommonNames.creds
-        env = "env"
+        env = _CommonNames.env
         eval = _CommonNames.eval
         exec = _CommonNames.exec
         # fmt = _CommonNames.fmt
@@ -269,9 +325,9 @@ class InAppCommands(CoreCommands):
         # new = _CommonNames.new
         pl = _CommonNames.pl
         pls = _CommonNames.pls
-        # save_ref = "save_ref"
+        save_ref = "save_ref"
         target = "target"
-        # web = "web"
+        web = "web"
     names = Names()
 
     class _TargetCmd_:
@@ -334,22 +390,7 @@ class InAppCommands(CoreCommands):
     )
     aux_cmds = _CommonNames.aux_cmds_cmd()
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
-    env = Cmd(
-        names.env,
-        help="Manage your application's Origen/Python environment (dependencies, etc.)",
-        subcmds=[
-            Cmd(
-                "setup",
-                help="Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file",
-            ),
-            Cmd(
-                "update",
-                help="Update your application's Python dependencies according to the latest pyproject.toml file",
-            ),
-        ],
-        help_subc_idx=0,
-        extendable=False
-    )
+    env = _CommonNames.env_cmd()
     eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
     exec = _CommonNames.exec_cmd()
     # fmt = Cmd(names.fmt)
@@ -368,7 +409,7 @@ class InAppCommands(CoreCommands):
     # new = Cmd(names.new)
     pl = _CommonNames.pl_cmd()
     pls = _CommonNames.pls_cmd()
-    # save_ref = Cmd(names.save_ref)
+    save_ref = Cmd(names.save_ref)
     target = Cmd(
         names.target,
         help="Set/view the default target",
@@ -415,26 +456,36 @@ class InAppCommands(CoreCommands):
         ],
         aliases=["w"],
     )
-    # web = Cmd(names.web)
+    web = Cmd(
+        names.web,
+        help="Build and view application documentation",
+        aliases=["w"],
+        subcmds=[
+            Cmd("build", help="Build the application documentation", aliases=["b", "compile", "html"]),
+            Cmd("clean", help="Remove generated documentation", aliases=["c"]),
+            Cmd("serve", help="Build, watch, and serve application documentation", aliases=["s"]),
+            Cmd("view", help="Open previously generated documentation", aliases=["v"]),
+        ],
+    )
     v = _CommonNames.v_cmd()
 
     commands = [
         # app, aux_cmds, build, compile, creds, env, eval, exec, fmt, generate, i, mailer, mode, new, pl, pls, save_ref, target, web
-        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, target
+        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, save_ref, target, web
     ]
     cmds = commands
 
     origen = Cmd(None)
 
 class CoreOpts:
-    help = CmdOpt('help', "Print help information", sn="h", ln="help")
+    help = CmdOpt('help', "Print help", sn="h", ln="help")
     verbosity = CmdOpt('verbosity', "Terminal verbosity level e.g. -v, -vv, -vvv", ln="verbose", ln_aliases=["verbosity"], sn="v")
     vk = CmdOpt("verbosity_keywords", "Keywords for verbose listeners", value_name= "verbosity_keywords", takes_value=True, use_delimiter=True, ln_aliases=["vk"])
 
 class CoreErrorMessages:
     @classmethod
     def _invalid_arg_msg(cls, val):
-        return f"Found argument '{val}' which wasn't expected, or isn't valid in this context"
+        return f"unexpected argument '{val}' found"
 
     @classmethod
     def _missing_arg_val_msg(cls, arg, type, value_name=None):
@@ -450,7 +501,7 @@ class CoreErrorMessages:
             if value_name is None:
                 value_name = arg.to_vn()
             arg = arg.name
-        return f"The argument '{prefix}{arg} <{value_name or arg}>' requires a value but none was supplied"
+        return f"a value is required for '{prefix}{arg} <{value_name or arg}>' but none was supplied"
 
     @classmethod
     def missing_arg_val_msg(cls, arg, value_name=None):
@@ -470,7 +521,7 @@ class CoreErrorMessages:
 
     @classmethod
     def unknown_arg_msg(cls, arg):
-        return cls._invalid_arg_msg(arg)
+        return f"unrecognized subcommand '{arg}'"
 
     @classmethod
     def unknown_opt_msg(cls, opt, ln=True):
@@ -494,11 +545,11 @@ class CoreErrorMessages:
                 mapped_vals.append(f"{v.ln_to_cli()} <{v.to_vn()}>")
             else:
                 mapped_vals.append(f"<{v.to_vn()}>")
-        return "The following required arguments were not provided:" + "\n    " + "    \n".join(mapped_vals)
+        return "the following required arguments were not provided:" + "\n  " + "\n  ".join(mapped_vals)
 
     @classmethod
     def invalid_subc_msg(cls, subc):
-        return f"The subcommand '{subc}' wasn't recognized\n\nUSAGE:\n"
+        return f"unrecognized subcommand '{subc}'\n\nUsage:"
 
     @classmethod
     def cmd_building_err_prefix(cls, cmd):

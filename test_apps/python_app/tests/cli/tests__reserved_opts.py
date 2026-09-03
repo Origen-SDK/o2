@@ -261,7 +261,9 @@ class T_ReservedOpts(CLICommon):
             "m",
             cmd.conflicting_mode,
             cmd.conflicting_no_target,
-            "nt", "t", "v", "vk"
+            "nt",
+            cmd.scripts,
+            "t", "v", "vk"
         )
         help.assert_subcmds(None)
 

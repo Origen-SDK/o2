@@ -1,12 +1,15 @@
 use crate::stil;
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, PartialEq, Serialize, Debug)]
 pub enum STIL {
     Root,
+    SourceFile(String),
     Integer(i64),
     Float(f64),
     String(String),
     Unknown,
+    ExtBlock,
+    Extension(String, String),
     Version(u32, u32), // major, minor
     Header,
     Title(String),
@@ -14,6 +17,23 @@ pub enum STIL {
     Source(String),
     History,
     Annotation(String),
+    Environment(Option<String>),
+    InheritEnv(String),
+    FileRef(String, Option<(String, String, String)>), // name, (type, format, version)
+    NameMaps(Option<String>),
+    NameMapsInherit(Option<String>, Option<String>), // name, namespace
+    NameMapsPrefix(String),
+    NameMapsSeparator(String),
+    NameMapsScanCells,
+    NameMapsScanCell(Option<String>, Option<String>), // name, map_string
+    NameMapsSignals,
+    NameMapsSignal(Option<String>, Option<String>), // name, map_string
+    NameMapsSignalGroups(Option<String>),           // group name
+    NameMapsSignalGroup(Option<String>, Option<String>), // name, map_string
+    NameMapsVariables,
+    NameMapsVariable(Option<String>, Option<String>), // name, map_string
+    NameMapsNames,
+    NameMapsName(Option<String>, Option<String>), // name, map_string
     Include(String, Option<String>),
     Signals,
     Signal(String, stil::SignalType), // name, type
@@ -21,8 +41,8 @@ pub enum STIL {
     DefaultState(stil::State),
     Base(stil::Base, String),
     Alignment(stil::Alignment),
-    ScanIn(u32),
-    ScanOut(u32),
+    ScanIn(Option<u32>),
+    ScanOut(Option<u32>),
     DataBitCount(u32),
     SignalGroups(Option<String>),
     SignalGroup(String),
@@ -40,11 +60,30 @@ pub enum STIL {
     CategoryRef(String),
     SelectorRef(String),
     TimingRef(String),
+    DCapFilterRef(String),
+    DCapSetupRef(String),
     PatternBurstRef(String),
+    DCapFilter(Option<String>),
+    TypeRef(String),
+    TransferModeRef(String),
+    FrameCountRef(u64),
+    VectorsPerFrameRef(u64),
+    VectorsPerSampleRef(u64),
+    DiscardOffsetRef(u64),
+    DiscardVectorsRef(u64),
+    DiscardFramesRef(u64),
+    DCapSetup(Option<String>),
+    PinsRef(String),
     PatternBurst(String),
     SignalGroupsRef(String),
     MacroDefs(String),
     Procedures(String),
+    ProceduresBlock(Option<String>),
+    ProceduresDef(String),
+    MacroDefsBlock(Option<String>),
+    MacroDef(String),
+    Shift,
+    WfcData(String),
     ScanStructuresRef(String),
     Start(String),
     Stop(String),
@@ -56,12 +95,14 @@ pub enum STIL {
     Timing(Option<String>),
     WaveformTable(String),
     Period,
+    TaggedPeriod(String),
     Inherit(String),
     SubWaveforms,
     SubWaveform,
     Waveforms,
     Waveform,
     WFChar(String),
+    TaggedWFChar(String, String),
     Event,
     EventList(Vec<char>),
     Spec(Option<String>),
@@ -105,6 +146,10 @@ pub enum STIL {
     BreakPoint,
     IDDQ,
     StopStatement,
+    Comment(String),
+    UserKeywords,
+    UserFunctions,
+    Udb,
 }
 
 impl std::fmt::Display for STIL {

@@ -8,7 +8,7 @@ within a Python app which is not an Origen app.
 Setup the app:
 
 ~~~
-poetry install
+uv sync --all-groups --no-editable
 ~~~
 
 To install the latest Origen build run this command **from within this application directory**:
@@ -20,5 +20,5 @@ origen build
 To run the tests:
 
 ~~~
-poetry run pytest
+uv run --no-editable pytest
 ~~~

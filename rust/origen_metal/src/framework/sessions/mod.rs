@@ -157,7 +157,7 @@ impl Sessions {
     }
 
     pub fn delete_group(&mut self, name: &str) -> Result<bool> {
-        Ok(match self.groups.remove(name) {
+        Ok(match self.groups.shift_remove(name) {
             Some(mut g) => {
                 g.clean()?;
                 true
@@ -167,7 +167,7 @@ impl Sessions {
     }
 
     pub fn delete_standalone(&mut self, name: &str) -> Result<bool> {
-        Ok(match self.standalones.remove(name) {
+        Ok(match self.standalones.shift_remove(name) {
             Some(s) => {
                 s.remove_file()?;
                 true
@@ -206,9 +206,8 @@ impl Sessions {
     }
 }
 
-#[cfg(all(test, not(origen_skip_frontend_tests)))]
+#[cfg(test)]
 mod tests {
-    use crate::current_func;
     use crate::framework::sessions::{SessionStore, Sessions};
     use num_bigint::BigInt;
     use std::path::PathBuf;
@@ -252,6 +251,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     fn test_shared_session_string() {
         let mut s = crate::sessions();
         let session = s
@@ -286,6 +286,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     fn test_shared_session_bigint() {
         let mut s = crate::sessions();
         let session = posture_session(&mut s, current_func!());
@@ -317,6 +318,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     fn test_shared_session_bool() {
         let mut s = crate::sessions();
         let session = posture_session(&mut s, current_func!());
@@ -348,6 +350,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     fn test_shared_session_multiple_items() {
         let mut s = crate::sessions();
         let session = posture_session(&mut s, current_func!());
@@ -393,6 +396,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "origen_skip_frontend_tests", ignore)]
     fn test_shared_session_vector_of_stuff() {
         let mut s = crate::sessions();
         let session = posture_session(&mut s, current_func!());

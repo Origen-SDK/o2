@@ -1,9 +1,9 @@
 mod file_permissions;
+pub mod logger;
 pub mod outcomes;
 mod reference_files;
 pub mod sessions;
 pub mod users;
-pub mod logger;
 
 pub use file_permissions::FilePermissions;
 pub use outcomes::Outcome;

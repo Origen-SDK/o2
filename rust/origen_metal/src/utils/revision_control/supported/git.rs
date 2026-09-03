@@ -83,6 +83,59 @@ impl RevisionControlAPI for Git {
         "Git"
     }
 
+    fn remote_url(&self) -> Result<String> {
+        let repo = Repository::open(&self.local)?;
+        let remote = repo.find_remote("origin")?;
+        remote
+            .url()
+            .map(|url| url.to_string())
+            .ok_or_else(|| error!("Git remote 'origin' does not have a URL"))
+    }
+
+    fn current_branch(&self) -> Result<String> {
+        let repo = Repository::open(&self.local)?;
+        let head = repo.head()?;
+        if !head.is_branch() {
+            bail!(
+                "Git workspace is detached at {}",
+                head.target()
+                    .map(|o| o.to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
+            )
+        }
+        head.shorthand()
+            .map(|s| s.to_string())
+            .ok_or_else(|| error!("Could not determine current Git branch"))
+    }
+
+    fn tag_exists(&self, tagname: &str) -> Result<bool> {
+        let repo = Repository::open(&self.local)?;
+        if self.tag_exists_locally(&repo, tagname) {
+            return Ok(true);
+        }
+        Ok(self
+            .list_refs(None)?
+            .iter()
+            .any(|r| r[0] == format!("refs/tags/{}", tagname)))
+    }
+
+    fn confirm_latest_ref(&self, branch: &str) -> Result<(bool, [String; 2])> {
+        let repo = Repository::open(&self.local)?;
+        let local = repo.head()?.peel_to_commit()?.id().to_string();
+        let branch_ref = if branch.starts_with("refs/") {
+            branch.to_string()
+        } else {
+            format!("refs/heads/{}", branch)
+        };
+        let refs = self.list_refs(None)?;
+        let remote = refs
+            .iter()
+            .find(|r| r[0] == branch_ref)
+            .ok_or_else(|| error!("Could not find remote Git ref {}", branch_ref))?[1]
+            .clone();
+        Ok((local == remote, [local, remote]))
+    }
+
     fn populate(&self, version: &str) -> Result<()> {
         let mut ssh_remotes: Vec<&str> = vec![];
         let mut https_remotes: Vec<&str> = vec![];
@@ -193,6 +246,22 @@ impl RevisionControlAPI for Git {
         let repo = Repository::open(&self.local)?;
         let target = "HEAD";
         let obj = repo.revparse_single(target)?;
+        let tag_ref = format!("refs/tags/{}", tagname);
+
+        if let Ok(existing) = repo.revparse_single(&tag_ref) {
+            let existing_commit = existing.peel_to_commit()?.id();
+            let head_commit = obj.peel_to_commit()?.id();
+            if existing_commit == head_commit {
+                log_trace!(
+                    "Tag '{}' already points at HEAD; pushing it for resumable tagging",
+                    tagname
+                );
+                self._push(&repo, Some(&tag_ref), Some(&tag_ref))?;
+                return Ok(());
+            } else if !force {
+                bail!("Tag '{}' already exists at a different commit", tagname)
+            }
+        }
 
         if let Some(ref msg) = message {
             let sig = Git::signature(&repo)?;
@@ -201,9 +270,8 @@ impl RevisionControlAPI for Git {
             repo.tag_lightweight(tagname, &obj, force)?;
         }
 
-        let tag_ref = format!("refs/tags/{}", tagname);
         log_trace!("Pushing tag '{}' to '{}'", tagname, tag_ref);
-        self._push(&repo, None, Some(&tag_ref))?;
+        self._push(&repo, Some(&tag_ref), Some(&tag_ref))?;
         Ok(())
     }
 
@@ -348,8 +416,18 @@ impl RevisionControlAPI for Git {
 
         log_trace!("RevisionControl: Git: Committing Updates...");
         let sig = Self::signature(&repo)?;
-        let obj = repo.head()?.resolve()?.peel(git2::ObjectType::Commit)?;
+        let head = repo.head()?.resolve()?;
+        let branch_ref = head
+            .name()
+            .ok_or_else(|| error!("Cannot push a detached Git HEAD"))?
+            .to_string();
+        let obj = head.peel(git2::ObjectType::Commit)?;
         let c = obj.into_commit().unwrap();
+        if c.tree_id() == tree_id {
+            log_trace!("No new tree changes; pushing existing HEAD for resumable check-in");
+            self._push(&repo, Some(&branch_ref), Some(&branch_ref))?;
+            return Ok(Outcome::new_success_with_msg(c.id()));
+        }
         let commit_id = repo.commit(
             Some("HEAD"),
             &sig,
@@ -359,43 +437,7 @@ impl RevisionControlAPI for Git {
             &[&c],
         )?;
         log_trace!("RevisionControl: Git: Committed Updates");
-
-        log_trace!("Pushing new commit");
-        let mut remote = repo.find_remote("origin")?;
-
-        let mut keep_trying = true;
-        while keep_trying {
-            let mut cb = RemoteCallbacks::new();
-            cb.credentials(|url, username_from_url, allowed_types| {
-                self.credentials_callback(url, username_from_url, allowed_types)
-            });
-            match remote.connect_auth(Direction::Push, Some(cb), None) {
-                Ok(_) => keep_trying = false,
-                Err(e) => match e.class() {
-                    git2::ErrorClass::Ssh => {}
-                    _ => return Err(e.into()),
-                },
-            }
-        }
-        self.reset_temps();
-        let mut po = PushOptions::new();
-
-        let mut cb = RemoteCallbacks::new();
-        cb.credentials(|url, username_from_url, allowed_types| {
-            self.credentials_callback(url, username_from_url, allowed_types)
-        });
-        po.remote_callbacks(cb);
-        log_trace!("Pushing...");
-        remote.push(&["refs/heads/master:refs/heads/master"], Some(&mut po))?;
-        log_trace!("Push successful!");
-        self.reset_temps();
-
-        let mut cb = RemoteCallbacks::new();
-        cb.credentials(|url, username_from_url, allowed_types| {
-            self.credentials_callback(url, username_from_url, allowed_types)
-        });
-        log_trace!("Cleaning up after push...");
-        repo.checkout_index(None, None)?;
+        self._push(&repo, Some(&branch_ref), Some(&branch_ref))?;
         Ok(Outcome::new_success_with_msg(commit_id))
     }
 }
@@ -441,6 +483,7 @@ impl Git {
         }
 
         self.checkout(true, None, version)?;
+        self.reset_temps();
 
         Ok(())
     }
@@ -660,7 +703,7 @@ impl Git {
 
     // Returns a signature (to attribute commits etc.) for the current user, falling
     // back to a default Origen signature if necessary
-    fn signature(repo: &Repository) -> Result<git2::Signature> {
+    fn signature(repo: &Repository) -> Result<git2::Signature<'_>> {
         Ok(repo
             .signature()
             .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?))
@@ -700,47 +743,25 @@ impl Git {
             let username;
             let password;
             {
-                password = {
-                    if self.credentials.is_some()
-                        && self.credentials.as_ref().unwrap().password.is_some()
-                    {
-                        self.credentials
-                            .as_ref()
-                            .unwrap()
-                            .password
-                            .as_ref()
-                            .unwrap()
-                            .clone()
-                    } else {
-                        // TODO Restore password from current user
-                        todo!("Git: Password from current user");
-                        // crate::with_current_user(|u| {
-                        //     u.password(
-                        //         Some(&format!("to access repository '{}'", url)),
-                        //         true,
-                        //         Some(None),
-                        //     )
-                        // })
-                        // .expect("Couldn't prompt for password")
-                    }
+                password = if let Some(password) = self
+                    .credentials
+                    .as_ref()
+                    .and_then(|credentials| credentials.password.clone())
+                {
+                    password
+                } else {
+                    std::env::var("github_pat").map_err(|_| {
+                        git2::Error::from_str(
+                            "Git HTTPS authentication requires credentials or github_pat",
+                        )
+                    })?
                 };
-                username = {
-                    if self.credentials.is_some()
-                        && self.credentials.as_ref().unwrap().username.is_some()
-                    {
-                        self.credentials
-                            .as_ref()
-                            .unwrap()
-                            .username
-                            .as_ref()
-                            .unwrap()
-                            .clone()
-                    } else {
-                        // crate::core::user::get_current_id().unwrap()
-                        // TODO Restore password from current user
-                        todo!("Git: Add support for current user ID");
-                    }
-                };
+                username = self
+                    .credentials
+                    .as_ref()
+                    .and_then(|credentials| credentials.username.clone())
+                    .or_else(|| std::env::var("github_username").ok())
+                    .unwrap_or_else(|| "x-access-token".to_string());
             }
             self.last_password_attempt
                 .replace(Some(password.to_string()));
@@ -868,6 +889,7 @@ impl Git {
 
         // Disconnect the underlying connection to prevent from idling.
         remote.disconnect()?;
+        self.reset_temps();
 
         // Update the references in the remote's namespace to point to the right
         // commits. This may be needed even if there was no packfile to download,
@@ -891,7 +913,8 @@ impl Git {
         // let cfg = Config::open_default()?;
         let repo = Repository::open(&self.local)?;
         let cfg = repo.config()?;
-        for entry in &cfg.entries(Some("user*"))? {
+        let mut entries = cfg.entries(Some("user*"))?;
+        while let Some(entry) = entries.next() {
             let entry = entry?;
             if let Some(n) = entry.name() {
                 let v = match entry.value() {
@@ -926,6 +949,32 @@ impl Git {
         }
         Ok(Outcome::new_success())
     }
+
+    pub fn on_branch(&self, query: &str) -> Result<bool> {
+        let repo = Repository::open(&self.local)?;
+        let head = repo.head()?;
+        if let Some(n) = head.shorthand() {
+            Ok(head.is_branch() && (n == query) && !repo.head_detached()?)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn list_refs(&self, remote_name: Option<&str>) -> Result<Vec<[String; 2]>> {
+        let repo = Repository::open(&self.local)?;
+        let mut remote = repo.find_remote(remote_name.unwrap_or("origin"))?;
+        let mut cb = RemoteCallbacks::new();
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        remote.connect_auth(Direction::Fetch, Some(cb), None)?;
+        self.reset_temps();
+        Ok(remote
+            .list()?
+            .iter()
+            .map(|r| [r.name().to_string(), r.oid().to_string()])
+            .collect::<Vec<[String; 2]>>())
+    }
 }
 
 fn ssh_keys() -> Vec<PathBuf> {
@@ -936,6 +985,17 @@ fn ssh_keys() -> Vec<PathBuf> {
             return vec![];
         }
     };
+    if let Some(key) = std::env::var_os("ORIGEN_GIT_SSH_KEY") {
+        let key = PathBuf::from(key);
+        if key.is_file() {
+            return vec![key];
+        }
+        log_warning!(
+            "ORIGEN_GIT_SSH_KEY points to a missing private key: {}",
+            key.display()
+        );
+        return vec![];
+    }
     let mut keys: Vec<PathBuf> = vec![];
     let dir = home.join(".ssh");
     if dir.exists() {
@@ -958,4 +1018,120 @@ fn ssh_keys() -> Vec<PathBuf> {
         log_warning!("Could not find the $HOME/.ssh directory to obtain ssh keys");
     }
     keys
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn commit_file(
+        repo: &Repository,
+        root: &Path,
+        name: &str,
+        contents: &str,
+    ) -> Result<git2::Oid> {
+        fs::write(root.join(name), contents)?;
+        let mut index = repo.index()?;
+        index.add_path(Path::new(name))?;
+        index.write()?;
+        let tree = repo.find_tree(index.write_tree()?)?;
+        let signature = git2::Signature::now("Release Test", "release@example.com")?;
+        let parents = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
+        let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+        Ok(repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "fixture",
+            &tree,
+            &parent_refs,
+        )?)
+    }
+
+    #[test]
+    fn branch_upstream_and_tag_queries_use_the_local_head() -> Result<()> {
+        let root = tempdir()?;
+        let remote_path = root.path().join("remote.git");
+        Repository::init_bare(&remote_path)?;
+        let local_path = root.path().join("local");
+        let repo = Repository::init(&local_path)?;
+        commit_file(&repo, &local_path, "README", "fixture")?;
+        repo.remote("origin", remote_path.to_str().unwrap())?;
+        repo.find_remote("origin")?
+            .push(&["refs/heads/master:refs/heads/master"], None)?;
+
+        let driver = Git::new(&local_path, vec![remote_path.to_str().unwrap()], None);
+        assert_eq!(
+            RevisionControlAPI::remote_url(&driver)?,
+            remote_path.to_string_lossy()
+        );
+        assert_eq!(RevisionControlAPI::current_branch(&driver)?, "master");
+        let latest = RevisionControlAPI::confirm_latest_ref(&driver, "master")?;
+        assert!(latest.0);
+        assert_eq!(latest.1[0], latest.1[1]);
+        assert!(!RevisionControlAPI::tag_exists(&driver, "origen-v1.0.0")?);
+
+        repo.tag_lightweight(
+            "origen-v1.0.0",
+            repo.head()?.peel_to_commit()?.as_object(),
+            false,
+        )?;
+        assert!(RevisionControlAPI::tag_exists(&driver, "origen-v1.0.0")?);
+
+        let head = repo.head()?.peel_to_commit()?;
+        repo.branch("release", &head, false)?;
+        repo.set_head("refs/heads/release")?;
+        repo.checkout_head(None)?;
+        repo.find_remote("origin")?
+            .push(&["refs/heads/release:refs/heads/release"], None)?;
+        fs::write(local_path.join("README"), "release change")?;
+        driver.checkin(Some(vec![Path::new("README")]), "release", false)?;
+        let first = repo.head()?.peel_to_commit()?.id();
+        driver.checkin(Some(vec![Path::new("README")]), "release", false)?;
+        let second = repo.head()?.peel_to_commit()?.id();
+        assert_eq!(
+            first, second,
+            "resumed check-in must not create an empty commit"
+        );
+        assert_eq!(RevisionControlAPI::current_branch(&driver)?, "release");
+        assert!(RevisionControlAPI::confirm_latest_ref(&driver, "release")?.0);
+        driver.tag("origen-v2.0.0", false, Some("release tag"))?;
+        driver.tag("origen-v2.0.0", false, Some("release tag"))?;
+        let bare = Repository::open_bare(&remote_path)?;
+        assert_eq!(
+            bare.find_reference("refs/heads/release")?.target(),
+            Some(first)
+        );
+        assert_eq!(
+            bare.revparse_single("refs/tags/origen-v2.0.0")?
+                .peel_to_commit()?
+                .id(),
+            first
+        );
+        assert!(
+            driver.tag("origen-v1.0.0", false, None).is_err(),
+            "a tag at another commit must not be replaced"
+        );
+
+        let other_path = root.path().join("other");
+        let mut builder = RepoBuilder::new();
+        builder.branch("release");
+        let other = builder.clone(remote_path.to_str().unwrap(), &other_path)?;
+        commit_file(&other, &other_path, "UPSTREAM", "new upstream commit")?;
+        other
+            .find_remote("origin")?
+            .push(&["refs/heads/release:refs/heads/release"], None)?;
+        assert!(
+            !RevisionControlAPI::confirm_latest_ref(&driver, "release")?.0,
+            "a behind workspace must be detected"
+        );
+
+        repo.set_head_detached(first)?;
+        assert!(
+            RevisionControlAPI::current_branch(&driver).is_err(),
+            "detached HEAD must be rejected"
+        );
+        Ok(())
+    }
 }

@@ -1,0 +1,18 @@
+[project]
+name = "{{name}}"
+version = "0.1.0"
+description = "{{desc}}"
+requires-python = "{{python_version}}"
+authors = [{ name = "{{author}}" }]
+dependencies = [
+    "origen=={{origen_version}}",
+]
+
+[dependency-groups]
+# Uncapped, matching every project in the O2 workspace. Resolution already
+# keeps Python 3.7 on pytest 7.x because pytest 8 requires Python >= 3.8.
+dev = ["pytest>=7"]
+
+[build-system]
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

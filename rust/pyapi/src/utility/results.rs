@@ -1,8 +1,8 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType};
+use origen_metal::{Outcome, OutcomeSubtypes, Result, TypedValue};
 use pyapi_metal::prelude::typed_value;
 use pyapi_metal::runtime_error;
-use origen_metal::{Outcome, OutcomeSubtypes, TypedValue, Result};
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyType};
 
 #[macro_export]
 macro_rules! incomplete_result_error {
@@ -14,11 +14,12 @@ macro_rules! incomplete_result_error {
     }};
 }
 
-#[pymodule]
-pub fn results(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<BuildResult>()?;
-    m.add_class::<UploadResult>()?;
-    m.add_class::<ExecResult>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "results")?;
+    subm.add_class::<BuildResult>()?;
+    subm.add_class::<UploadResult>()?;
+    subm.add_class::<ExecResult>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
@@ -32,7 +33,7 @@ pub struct BuildResult {
 #[pymethods]
 impl BuildResult {
     #[classmethod]
-    #[args(build_contents = "None", message = "None", metadata = "None")]
+    #[pyo3(signature=(instance, succeeded, build_contents=None, message=None, metadata=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -68,10 +69,19 @@ impl BuildResult {
 
     #[getter]
     fn build_contents(&self) -> PyResult<Option<Vec<String>>> {
-        match self.build_result()?.require_keyword_result("build_contents")? {
+        match self
+            .build_result()?
+            .require_keyword_result("build_contents")?
+        {
             TypedValue::None => Ok(None),
-            TypedValue::Vec(v) => Ok(Some(v.iter().map( |i| i.as_string()).collect::<Result<Vec<String>>>()?)),
-            _ => runtime_error!("Cannot extract build contents as either 'None' or as a 'list of strs'")
+            TypedValue::Vec(v) => Ok(Some(
+                v.iter()
+                    .map(|i| i.as_string())
+                    .collect::<Result<Vec<String>>>()?,
+            )),
+            _ => runtime_error!(
+                "Cannot extract build contents as either 'None' or as a 'list of strs'"
+            ),
         }
     }
 
@@ -114,7 +124,7 @@ pub struct UploadResult {
 #[pymethods]
 impl UploadResult {
     #[classmethod]
-    #[args(message = "None", metadata = "None")]
+    #[pyo3(signature=(instance, succeeded, message=None, metadata=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -156,7 +166,7 @@ pub struct ExecResult {
 #[pymethods]
 impl ExecResult {
     #[classmethod]
-    #[args(stdout = "None", stderr = "None")]
+    #[pyo3(signature=(instance, exit_code, stdout=None, stderr=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -181,23 +191,38 @@ impl ExecResult {
 
     #[getter]
     pub fn exit_code(&self) -> PyResult<i32> {
-        Ok(self.exec_result()?.require_keyword_result("exit_code")?.try_into()?)
+        Ok(self
+            .exec_result()?
+            .require_keyword_result("exit_code")?
+            .try_into()?)
     }
 
     #[getter]
     pub fn stdout(&self) -> PyResult<Option<Vec<String>>> {
-        Ok(match self.exec_result()?.require_keyword_result("stdout")?.as_option() {
-            Some(out_lines) => Some(out_lines.try_into()?),
-            None => None
-        })
+        Ok(
+            match self
+                .exec_result()?
+                .require_keyword_result("stdout")?
+                .as_option()
+            {
+                Some(out_lines) => Some(out_lines.try_into()?),
+                None => None,
+            },
+        )
     }
 
     #[getter]
     pub fn stderr(&self) -> PyResult<Option<Vec<String>>> {
-        Ok(match self.exec_result()?.require_keyword_result("stderr")?.as_option() {
-            Some(err_lines) => Some(err_lines.try_into()?),
-            None => None
-        })
+        Ok(
+            match self
+                .exec_result()?
+                .require_keyword_result("stderr")?
+                .as_option()
+            {
+                Some(err_lines) => Some(err_lines.try_into()?),
+                None => None,
+            },
+        )
     }
 
     pub fn succeeded(&self) -> PyResult<bool> {

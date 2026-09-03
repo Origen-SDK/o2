@@ -1,0 +1,64 @@
+(release-origen-2-0-0-dev9)=
+# Origen 2.0.0.dev9
+
+- **Released:** 2026-08-26
+- **Author:** Priyavadan Kumar
+- **Tag:** `origen-v2.0.0.dev9`
+
+This release modernizes the O2 development, documentation, CI, and release stack and improves program-generation exception handling.
+
+- Migrated the workspace from Poetry to UV, including committed lockfiles, assisted application migration, rollback protection, and compatibility handling across supported Python versions.
+- Added migration commands that preview and convert existing Poetry applications while preserving the original files if validation fails.
+- Modernized the documentation stack with current Sphinx, MyST, and PyData tooling, refreshed authored documentation, and improved local web development with build, watch, serve, and live-reload support.
+- Added coordinated Origen and Origen Metal releases with atomic version and history updates, exact-reference publication workflows, package verification, resumable releases, and website deployment only after all selected products publish successfully.
+- Updated the Rust workspace and command-line infrastructure, including the Clap migration and stricter command validation.
+- Improved CI performance and coverage with caching, superseded-run cancellation, lockfile validation, wheel ABI verification, and Linux and Windows package checks.
+- Preserved Python 3.7 support by handling the UV Windows launcher incompatibility while keeping dependency resolution sourced from the committed lockfile.
+- Fixed program-generation context cleanup when exceptions occur inside Group, Condition, or Resources blocks. The original exception now propagates without leaving child AST nodes open or being replaced by a secondary closure error. Contributed by Stephen in #238.
+
+---
+
+(release-origen-2-0-0-dev8)=
+# O2 2.0.0.dev8
+
+- **Released:** 2024-02-18
+- **Author:** corey
+- **PyPI:** [origen 2.0.0.dev8](https://pypi.org/project/origen/2.0.0.dev8/)
+- **Source:** [`aa81da35`](https://github.com/Origen-SDK/o2/commit/aa81da35830eeddff018fe4ea8556e0a52581d1e)
+
+- Made the Origen version reported by the Python package, CLI, and boot path
+  consistent.
+- Changed the Origen Metal dependency from an exact development release to a
+  compatible minimum release.
+- Added equivalent-version handling and regression coverage across the Python
+  and Rust frontends.
+
+---
+
+(release-origen-2-0-0-dev7)=
+# O2 2.0.0.dev7
+
+- **Released:** 2024-02-06
+- **Author:** corey
+- **PyPI:** [origen 2.0.0.dev7](https://pypi.org/project/origen/2.0.0.dev7/)
+- **Source:** [`be52e43a`](https://github.com/Origen-SDK/o2/commit/be52e43a53ad7de39f72347a4ea892de6884751a)
+
+- Added equivalent Origen-version support through Origen Metal.
+- Added version consistency tests for application and global CLI invocations.
+- Published Linux and Windows wheels through the expanded release workflow.
+
+---
+
+(release-origen-2-0-0-dev6)=
+# O2 2.0.0.dev6
+
+- **Released:** 2023-12-11
+- **Author:** corey
+- **PyPI:** [origen 2.0.0.dev6](https://pypi.org/project/origen/2.0.0.dev6/)
+- **Source:** [`b40239bb`](https://github.com/Origen-SDK/o2/commit/b40239bb90dbab1b6bcf88a31695aaad6b7f2681)
+
+- Established the O2 PyPI publishing workflow and published the first currently
+  available Origen 2 development release.
+- Added Python 3.12 to the supported build matrix.
+- Added project version discovery and increment support used by the publishing
+  tooling.

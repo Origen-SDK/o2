@@ -4,8 +4,8 @@ pub mod data_store_category;
 use crate::{Result, TypedValue};
 use indexmap::IndexMap;
 use std::any::Any;
-use std::sync::RwLockReadGuard;
 use std::path::PathBuf;
+use std::sync::RwLockReadGuard;
 
 pub use crate::utils::revision_control::frontend::RevisionControlFrontendAPI;
 pub use data_store::{DataStoreFeature, DataStoreFrontendAPI, FeatureReturn};
@@ -200,7 +200,12 @@ pub trait FrontendAPI {
         None
     }
 
-    fn lookup_home_dir(&self, _user_id: &str, _dataset: Option<&str>, _current_user: bool) -> Option<Result<Option<PathBuf>>> {
+    fn lookup_home_dir(
+        &self,
+        _user_id: &str,
+        _dataset: Option<&str>,
+        _current_user: bool,
+    ) -> Option<Result<Option<PathBuf>>> {
         None
     }
 

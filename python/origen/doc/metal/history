@@ -1,0 +1,57 @@
+(release-origen-metal-1-5-1)=
+# Origen Metal 1.5.1
+
+- **Released:** 2026-08-26
+- **Author:** Priyavadan Kumar
+- **Tag:** `origen-metal-v1.5.1`
+
+This release modernizes the O2 development, documentation, CI, and release stack and improves program-generation exception handling.
+
+- Migrated the workspace from Poetry to UV, including committed lockfiles, assisted application migration, rollback protection, and compatibility handling across supported Python versions.
+- Added migration commands that preview and convert existing Poetry applications while preserving the original files if validation fails.
+- Modernized the documentation stack with current Sphinx, MyST, and PyData tooling, refreshed authored documentation, and improved local web development with build, watch, serve, and live-reload support.
+- Added coordinated Origen and Origen Metal releases with atomic version and history updates, exact-reference publication workflows, package verification, resumable releases, and website deployment only after all selected products publish successfully.
+- Updated the Rust workspace and command-line infrastructure, including the Clap migration and stricter command validation.
+- Improved CI performance and coverage with caching, superseded-run cancellation, lockfile validation, wheel ABI verification, and Linux and Windows package checks.
+- Preserved Python 3.7 support by handling the UV Windows launcher incompatibility while keeping dependency resolution sourced from the committed lockfile.
+- Fixed program-generation context cleanup when exceptions occur inside Group, Condition, or Resources blocks. The original exception now propagates without leaving child AST nodes open or being replaced by a secondary closure error. Contributed by Stephen in #238.
+
+---
+
+(release-origen-metal-1-5-0)=
+# Origen Metal 1.5.0
+
+- **Released:** 2026-08-19
+- **Author:** Stephen McGinty
+- **PyPI:** [origen-metal 1.5.0](https://pypi.org/project/origen-metal/1.5.0/)
+- **Source:** [`e8986516`](https://github.com/Origen-SDK/o2/commit/e8986516)
+
+Added typed class and list test-program parameters and completed the associated
+Origen Metal release updates.
+
+---
+
+# Earlier Origen Metal Releases
+
+| Version | Released | Author | Source |
+| --- | --- | --- | --- |
+| [1.4.0](https://pypi.org/project/origen-metal/1.4.0/) | 2026-08-10 | Stephen McGinty | [`72fe0154`](https://github.com/Origen-SDK/o2/commit/72fe0154) |
+| [1.3.2](https://pypi.org/project/origen-metal/1.3.2/) | 2026-07-29 | Ronnie Lajaunie | [`603d52c2`](https://github.com/Origen-SDK/o2/commit/603d52c2) |
+| [1.3.1](https://pypi.org/project/origen-metal/1.3.1/) | 2026-07-07 | Stephen McGinty | [`1120c541`](https://github.com/Origen-SDK/o2/commit/1120c541) |
+| [1.3.0](https://pypi.org/project/origen-metal/1.3.0/) | 2026-03-31 | Stephen McGinty | [`a2d201f6`](https://github.com/Origen-SDK/o2/commit/a2d201f6) |
+| [1.2.2](https://pypi.org/project/origen-metal/1.2.2/) | 2026-02-18 | Stephen McGinty | [`604207a2`](https://github.com/Origen-SDK/o2/commit/604207a2) |
+| [1.2.1](https://pypi.org/project/origen-metal/1.2.1/) | 2026-02-18 | Stephen McGinty | [`317f05fc`](https://github.com/Origen-SDK/o2/commit/317f05fc) |
+| [1.2.0](https://pypi.org/project/origen-metal/1.2.0/) | 2026-02-17 | Stephen McGinty | [`af879412`](https://github.com/Origen-SDK/o2/commit/af879412) |
+| [1.1.0](https://pypi.org/project/origen-metal/1.1.0/) | 2025-06-13 | Stephen McGinty | [`e6bbf836`](https://github.com/Origen-SDK/o2/commit/e6bbf836) |
+| [1.0.2](https://pypi.org/project/origen-metal/1.0.2/) | 2025-04-22 | Stephen McGinty | [`9a4b1ac3`](https://github.com/Origen-SDK/o2/commit/9a4b1ac3) |
+| [1.0.1](https://pypi.org/project/origen-metal/1.0.1/) | 2025-02-17 | Stephen McGinty | [`ca52d7f4`](https://github.com/Origen-SDK/o2/commit/ca52d7f4) |
+| [1.0.0](https://pypi.org/project/origen-metal/1.0.0/) | 2024-12-02 | corey | [`3fbe784a`](https://github.com/Origen-SDK/o2/commit/3fbe784a) |
+| [0.4.1.dev4](https://pypi.org/project/origen-metal/0.4.1.dev4/) | 2024-08-06 | Stephen McGinty | [`246c7787`](https://github.com/Origen-SDK/o2/commit/246c7787) |
+| [0.4.1.dev3](https://pypi.org/project/origen-metal/0.4.1.dev3/) | 2024-08-06 | Stephen McGinty | [`023842a6`](https://github.com/Origen-SDK/o2/commit/023842a6) |
+| [0.4.1.dev2](https://pypi.org/project/origen-metal/0.4.1.dev2/) | 2024-08-06 | Stephen McGinty | [`6902695f`](https://github.com/Origen-SDK/o2/commit/6902695f) |
+| [0.4.1.dev1](https://pypi.org/project/origen-metal/0.4.1.dev1/) | 2024-02-06 | corey | [`be52e43a`](https://github.com/Origen-SDK/o2/commit/be52e43a) |
+| [0.4.1.dev0](https://pypi.org/project/origen-metal/0.4.1.dev0/) | 2023-12-11 | corey | [`b40239bb`](https://github.com/Origen-SDK/o2/commit/b40239bb) |
+| [0.4.0](https://pypi.org/project/origen-metal/0.4.0/) | 2021-09-02 | Corey | [`87e06cb2`](https://github.com/Origen-SDK/o2/commit/87e06cb2) |
+| [0.3.0](https://pypi.org/project/origen-metal/0.3.0/) | 2021-08-26 | Stephen McGinty | [`7e5aee15`](https://github.com/Origen-SDK/o2/commit/7e5aee15) |
+| [0.2.0](https://pypi.org/project/origen-metal/0.2.0/) | 2021-08-23 | Stephen McGinty | [`24e9fcf7`](https://github.com/Origen-SDK/o2/commit/24e9fcf7) |
+| [0.1.0](https://pypi.org/project/origen-metal/0.1.0/) | 2021-08-19 | Stephen McGinty | [`700b6f66`](https://github.com/Origen-SDK/o2/commit/700b6f66) |

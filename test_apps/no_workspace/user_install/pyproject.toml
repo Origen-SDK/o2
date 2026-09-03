@@ -1,0 +1,20 @@
+[project]
+name = "test-user-install"
+version = "0.1.0"
+description = "Origen installation test environment"
+requires-python = ">=3.7,<3.13"
+dependencies = [
+    "origen",
+    "origen-metal",
+    "python-plugin",
+    "test-apps-shared-test-helpers",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+origen = { path = "../../../python/origen" }
+origen-metal = { path = "../../../python/origen_metal" }
+python-plugin = { path = "../../python_plugin" }
+test-apps-shared-test-helpers = { path = "../../test_apps_shared_test_helpers" }

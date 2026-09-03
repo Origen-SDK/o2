@@ -1,3 +1,4 @@
+// TODO any of this used/needed?
 //! Provides helper functions to get the caller information from Python
 #![allow(dead_code)]
 
@@ -114,33 +115,33 @@ pub fn stack() -> Option<Vec<FrameInfo>> {
 }
 
 fn _get_stack(max_depth: Option<usize>, filter: Filter) -> Result<Vec<FrameInfo>, PyErr> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inspect = PyModule::import(py, "inspect")?;
-    let stack: Vec<Vec<&PyAny>> = inspect.getattr("stack")?.call0()?.extract()?;
-    let mut frames: Vec<FrameInfo> = vec![];
-    for f in stack {
-        let filename: String = f[1].extract()?;
-        let include = match filter {
-            Filter::None => true,
-            Filter::StartsWith(s) => filename.starts_with(s),
-            Filter::Contains(s) => filename.contains(s),
-        };
-        if include {
-            frames.push(FrameInfo {
-                filename: filename,
-                lineno: f[2].extract()?,
-                function: f[3].extract()?,
-                code_context: f[4].extract()?,
-                index: f[5].extract()?,
-            });
+    Python::with_gil(|py| {
+        let inspect = PyModule::import(py, "inspect")?;
+        let stack: Vec<Vec<&PyAny>> = inspect.getattr("stack")?.call0()?.extract()?;
+        let mut frames: Vec<FrameInfo> = vec![];
+        for f in stack {
+            let filename: String = f[1].extract()?;
+            let include = match filter {
+                Filter::None => true,
+                Filter::StartsWith(s) => filename.starts_with(s),
+                Filter::Contains(s) => filename.contains(s),
+            };
+            if include {
+                frames.push(FrameInfo {
+                    filename: filename,
+                    lineno: f[2].extract()?,
+                    function: f[3].extract()?,
+                    code_context: f[4].extract()?,
+                    index: f[5].extract()?,
+                });
 
-            if let Some(x) = max_depth {
-                if x == frames.len() {
-                    break;
+                if let Some(x) = max_depth {
+                    if x == frames.len() {
+                        break;
+                    }
                 }
             }
         }
-    }
-    Ok(frames)
+        Ok(frames)
+    })
 }

@@ -1,8 +1,12 @@
 import origen
 from origen.interface import BaseInterface, dut, tester
-from contextlib import contextmanager, ContextDecorator
+from contextlib import contextmanager
+from origen_metal._origen_metal import prog_gen as origen_prog_gen
 #import pdb; pdb.set_trace()
 
+# Make some templates for SMT8 available
+load_path = [origen.app.root.joinpath("example", "interface", "test_templates")]
+origen_prog_gen.set_test_template_load_path(load_path)
 
 class Interface(BaseInterface):
     #def func(self, name):
@@ -36,8 +40,6 @@ class Interface(BaseInterface):
                     nonlocal number
                     nonlocal igxl
                     nonlocal group
-                    if number and i:
-                        number += i
                     ins = igxl.new_test_instance(name,
                                                  library="std",
                                                  template="functional",
@@ -79,14 +81,17 @@ class Interface(BaseInterface):
                     nonlocal number
                     nonlocal v93k
                     nonlocal group
-                    if number and i:
-                        number += i
                     tm = v93k.new_test_method("functional_test",
                                               library="ac_tml",
+                                              allow_missing=True,
                                               **kwargs)
                     ts = v93k.new_test_suite(name, **kwargs)
                     ts.test_method = tm
                     with tester().eq("v93ksmt8"):
+                        if number is not None:
+                            ts.number = number + (i or 0)
+                        ts.set_lo_limit(0)
+                        ts.set_hi_limit(0)
                         if kwargs.get("pin_levels"):
                             ts.spec = kwargs.pop("pin_levels")
                         else:
@@ -130,6 +135,52 @@ class Interface(BaseInterface):
         with tester().neq("igxl"):
             self.func('por_ins', **options)
 
+    def collection_test(self, name, number=None, **kwargs):
+        options = {}
+        options.update(kwargs)
+
+        with tester().eq("v93k") as v93k:
+            tm = v93k.new_test_method("tsen_sensor_read",
+                                      library="com_amd_testmethod_ate",
+                                      allow_missing=True)
+            tm.set_attr("activateSpec.afterRunActivateSpec", "specs.Nominal")
+            tm.set_attr("binning.binnable", False)
+            tm.set_attr("enableSoftset", True)
+            tm.set_attr("registerSetupPinList", "BP_BTDO")
+            tm.set_attr("testDescription.baseClass", "TCC")
+            tm.set_attr("testDescription.componentHash", "PHCX3D.0")
+            tm.set_attr("testDescription.paramRefGroup", name)
+            tm.set_attr("testDescription.subClass", "CAL")
+
+            for instance_id in ["param10", "param2", "param1"]:
+                item = tm.add_collection_item("softsetPatternInfo", instance_id)
+                item.set_attr("profileName", "SoftsetProfile_shell")
+                item.set_attr("patternName",
+                              "pats.shell.pat.common.PHC_CCD_RESET_Unified_Reset_Sequence_Fuse_Override_pJtag")
+                item.set_attr("pinNames", "BP_BTDI")
+
+            for tsen_name, register_names in {
+                "ctsen10": ["rtsen10", "rtsen2", "rtsen1"],
+                "ctsen2": ["rtsen11", "rtsen3"],
+            }.items():
+                tsen = tm.add_collection_item("tsen", tsen_name)
+                tsen.set_attr("sensorAverageVariable", f"{tsen_name}_avg")
+                tsen.set_attr("Y1Variable", f"{tsen_name}_y1")
+                tsen.set_attr("tdiodeTemperatureVariable", f"{tsen_name}_tdiode")
+                tsen.set_attr("zDataDeltaLimit", 0.0)
+                for register_name in register_names:
+                    register = tsen.add_collection_item("registers", register_name)
+                    register.set_attr("name", f"WS1_{tsen_name.upper()}_{register_name.upper()}")
+                    register.set_attr("zHighLimit", 2000.0)
+                    register.set_attr("zLowLimit", 0.0)
+
+            ts = v93k.new_test_suite(name, **options)
+            ts.test_method = tm
+            ts.pattern = "program_ckbd"
+            ts.spec = "specs.Nominal"
+            ts.number = number
+            self.add_test(ts, **options)
+
     def mto_memory(self, name, **kwargs):
         options = {"duration": "static"}
         options.update(kwargs)
@@ -165,7 +216,7 @@ class Interface(BaseInterface):
             self.add_test(ins, **options)
             j750.new_patset(f"{name}_pset", pattern=f"{name}.PAT")
 
-    def meas(self, name, **kwargs):
+    def meas(self, name, number=None, **kwargs):
         options = {"duration": "static"}
         options.update(kwargs)
 
@@ -226,10 +277,12 @@ class Interface(BaseInterface):
         with tester().eq("v93k") as v93k:
             tm = v93k.new_test_method("general_pmu",
                                       library="dc_tml",
+                                      allow_missing=True,
                                       **options)
             ts = v93k.new_test_suite(name, **options)
             ts.test_method = tm
             with tester().eq("v93ksmt8"):
+                ts.number = number
                 if kwargs.get("pin_levels"):
                     ts.spec = kwargs.pop("pin_levels")
                 else:

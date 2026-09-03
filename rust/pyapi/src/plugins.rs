@@ -1,8 +1,8 @@
+use origen::ORIGEN_CONFIG;
+use pyapi_metal::key_exception;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
-use pyapi_metal::key_exception;
-use origen::ORIGEN_CONFIG;
 use std::path::PathBuf;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
@@ -26,7 +26,15 @@ fn get_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
         }
 
         if let Some(plugins_to_load) = plugins.load.as_ref() {
-            for (n, r) in find_plugin_roots(py, plugins_to_load.iter().map( |pl| pl.name.as_str()).collect::<Vec<&str>>())?.iter() {
+            for (n, r) in find_plugin_roots(
+                py,
+                plugins_to_load
+                    .iter()
+                    .map(|pl| pl.name.as_str())
+                    .collect::<Vec<&str>>(),
+            )?
+            .iter()
+            {
                 pl_roots.set_item(n, r)?;
             }
         }
@@ -39,7 +47,11 @@ fn get_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
 #[pyfunction]
 fn display_plugin_roots(py: Python) -> PyResult<()> {
     for (pl, path) in get_plugin_roots(py)?.iter() {
-        println!("success|{}|{}", pl.extract::<String>()?, path.extract::<PathBuf>()?.display());
+        println!(
+            "success|{}|{}",
+            pl.extract::<String>()?,
+            path.extract::<PathBuf>()?.display()
+        );
     }
     Ok(())
 }
@@ -48,8 +60,9 @@ fn display_plugin_roots(py: Python) -> PyResult<()> {
 fn find_plugin_roots<'py>(py: Python<'py>, plugins: Vec<&str>) -> PyResult<&'py PyDict> {
     let l = PyDict::new(py);
     l.set_item("plugin_paths", PyDict::new(py))?;
-    py.run(&format!(
-r#"
+    py.run(
+        &format!(
+            r#"
 from pathlib import Path
 import importlib, importlib_metadata
 
@@ -65,11 +78,18 @@ for to_load in [{}]:
             if root.joinpath("origen.plugin.toml").exists():
                 plugin_paths[to_load] = root
 "#,
-        plugins.iter().map( |n| format!("'{}'", n)).collect::<Vec<String>>().join(",")),
+            plugins
+                .iter()
+                .map(|n| format!("'{}'", n))
+                .collect::<Vec<String>>()
+                .join(",")
+        ),
         None,
-        Some(l)
+        Some(l),
     )?;
-    Ok(l.get_item("plugin_paths").ok_or_else( || key_exception!("Error finding plugin roots: expected 'plugin_paths' key."))?.extract()?)
+    Ok(l.get_item("plugin_paths")?
+        .ok_or_else(|| key_exception!("Error finding plugin roots: expected 'plugin_paths' key."))?
+        .extract()?)
 }
 
 #[pyfunction]
@@ -77,7 +97,7 @@ fn collect_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
     let l = PyDict::new(py);
     l.set_item("plugin_paths", PyDict::new(py))?;
     py.run(
-r#"
+        r#"
 from pathlib import Path
 import importlib, importlib_metadata
 
@@ -96,7 +116,11 @@ for dist in importlib_metadata.distributions():
                     plugin_paths[n] = root
 "#,
         None,
-        Some(l)
+        Some(l),
     )?;
-    Ok(l.get_item("plugin_paths").ok_or_else( || key_exception!("Error collecting plugin roots: expected 'plugin_paths' key."))?.extract()?)
+    Ok(l.get_item("plugin_paths")?
+        .ok_or_else(|| {
+            key_exception!("Error collecting plugin roots: expected 'plugin_paths' key.")
+        })?
+        .extract()?)
 }

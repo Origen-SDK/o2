@@ -1,12 +1,12 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyList, PyDict};
-use std::path::PathBuf;
+use crate::prelude::typed_value;
 use origen_metal::utils::mailer::Maillist as OML;
-use crate::prelude::{typed_value};
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
+use std::path::PathBuf;
 
 #[pyclass(subclass)]
 pub struct Maillist {
-    pub om_ml: OML
+    pub om_ml: OML,
 }
 
 #[pymethods]
@@ -14,20 +14,29 @@ impl Maillist {
     #[staticmethod]
     pub fn from_file(f: PathBuf) -> PyResult<Self> {
         Ok(Self {
-            om_ml: OML::from_file(&f)?
+            om_ml: OML::from_file(&f)?,
         })
     }
 
     #[new]
-    pub fn new(name: String, recipients: &PyList, signature: Option<String>, audience: Option<String>, domain: Option<String>) -> PyResult<Self> {
+    pub fn new(
+        name: String,
+        recipients: &PyList,
+        signature: Option<String>,
+        audience: Option<String>,
+        domain: Option<String>,
+    ) -> PyResult<Self> {
         Ok(Self {
             om_ml: OML::new(
                 name,
-                recipients.iter().map(|r| r.extract::<String>()).collect::<PyResult<Vec<String>>>()?,
+                recipients
+                    .iter()
+                    .map(|r| r.extract::<String>())
+                    .collect::<PyResult<Vec<String>>>()?,
                 signature,
                 audience,
-                domain
-            )?
+                domain,
+            )?,
         })
     }
 
@@ -96,7 +105,12 @@ impl Maillist {
     }
 
     fn resolve_recipients(&self, domain: Option<String>) -> PyResult<Vec<String>> {
-        Ok(self.om_ml.resolve_recipients(&domain)?.iter().map(|mb| mb.to_string()).collect::<Vec<String>>())
+        Ok(self
+            .om_ml
+            .resolve_recipients(&domain)?
+            .iter()
+            .map(|mb| mb.to_string())
+            .collect::<Vec<String>>())
     }
 
     #[getter]
@@ -121,8 +135,6 @@ impl Maillist {
     // NOTE: this is only allowed as long as Maillists stays immutable.
     // otherwise, multiple copies risk falling out of sync
     pub fn from_om(om_ml: OML) -> Self {
-        Self {
-            om_ml
-        }
+        Self { om_ml }
     }
 }

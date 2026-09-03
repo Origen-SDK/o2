@@ -1,0 +1,318 @@
+//! This module contains all of the data/model for a test program, including all flows,
+//! test templates, test instances, etc.
+
+mod bin;
+mod flow;
+mod flow_id;
+mod igxl;
+mod limit;
+mod model;
+mod pattern;
+mod sub_test;
+mod template_loader;
+mod test;
+mod variable;
+
+pub use super::ResourcesType;
+use crate::Result as OrigenResult;
+pub use bin::Bin;
+pub use flow::Flow;
+pub use flow_id::FlowID;
+pub use igxl::{IGXLResource, IGXLResourceKind};
+pub use limit::{Limit, LimitType};
+pub use model::Model;
+pub use pattern::Pattern;
+pub use pattern::PatternReferenceType;
+pub use pattern::PatternType;
+use std::fmt;
+use std::str::FromStr;
+pub use sub_test::SubTest;
+pub use template_loader::{
+    load_test_from_lib, TestTemplate, TestTemplateCollection, TestTemplateParameter,
+};
+pub use test::{Test, TestCollection, TestCollectionItem};
+pub use variable::Variable;
+pub use variable::VariableOperation;
+pub use variable::VariableType;
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum PatternGroupType {
+    Patset,
+    Patgroup,
+    Patsubr,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum GroupType {
+    Flow,
+    Test,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum BinType {
+    Good,
+    Bad,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum LimitSelector {
+    Lo,
+    Hi,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum FlowCondition {
+    IfJob(Vec<String>),
+    UnlessJob(Vec<String>),
+    IfEnable(Vec<String>),
+    UnlessEnable(Vec<String>),
+    IfPassed(Vec<FlowID>),
+    IfAnyPassed(Vec<FlowID>),
+    IfAllPassed(Vec<FlowID>),
+    IfAnySitesPassed(Vec<FlowID>),
+    IfAllSitesPassed(Vec<FlowID>),
+    IfFailed(Vec<FlowID>),
+    IfAnyFailed(Vec<FlowID>),
+    IfAllFailed(Vec<FlowID>),
+    IfAnySitesFailed(Vec<FlowID>),
+    IfAllSitesFailed(Vec<FlowID>),
+    IfRan(Vec<FlowID>),
+    UnlessRan(Vec<FlowID>),
+    IfFlag(Vec<String>),
+    UnlessFlag(Vec<String>),
+    IfAnySitesFlag(Vec<String>),
+    IfAllSitesFlag(Vec<String>),
+    /// A raw tester-specific expression that doesn't map to any of the structured condition
+    /// variants above. Processors that don't understand the expression should pass it through
+    /// unchanged. Used for raw tester-specific expression strings.
+    IfExpr(String),
+    /// The negated form of `IfExpr`. Passes when the expression evaluates to false.
+    /// Processors that don't understand the expression should pass it through unchanged.
+    UnlessExpr(String),
+
+    /// Condition that passes when the named variable satisfies the given comparison:
+    /// (variable_name, operator, value_expression). The operator is a format-agnostic
+    /// string (e.g. "==", "!=", "<", ">", ">=", "<="). Processors that don't handle
+    /// this explicitly should pass it through via their `_` match arm.
+    IfVar(String, String, String),
+
+    /// Condition that passes when the named variable does NOT satisfy the given comparison:
+    /// (variable_name, operator, value_expression). Symmetric with IfVar.
+    UnlessVar(String, String, String),
+
+    /// Condition that passes when the current execution site number is in the given list.
+    /// Enables per-site flow customization in multi-site test programs. Processors that
+    /// don't support site-number conditions should pass the containing node through unchanged.
+    IfSite(Vec<usize>),
+
+    /// Condition that passes when the current execution site number is NOT in the given list.
+    /// Symmetric with IfSite.
+    UnlessSite(Vec<usize>),
+
+    /// Condition that passes when the DUT under test was placed into the given bin:
+    /// (bin_number, bin_type). Enables bin-based conditional branching in formats that
+    /// support it. Processors that don't handle this should pass it through unchanged.
+    IfBin(usize, BinType),
+
+    /// Condition that passes when the DUT was NOT placed into the given bin.
+    /// Symmetric with IfBin.
+    UnlessBin(usize, BinType),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum ParamValue {
+    String(String),
+    /// A tester-language class, enum, or reference expression.
+    Class(String),
+    /// A one-dimensional list of scalar parameter values.
+    List(Vec<ParamValue>),
+    Int(i64),
+    UInt(u64),
+    Float(f64),
+    Current(f64),
+    Voltage(f64),
+    Time(f64),
+    Frequency(f64),
+    Bool(bool),
+    // Like a string, but any value assigned to such an attribute will be accepted and converted into a string representation
+    Any(String),
+}
+
+impl ParamValue {
+    pub fn is_type(&self, kind: &ParamType) -> bool {
+        match self {
+            ParamValue::String(_) => kind == &ParamType::String,
+            ParamValue::Class(_) => kind == &ParamType::Class,
+            ParamValue::List(_) => {
+                kind == &ParamType::ListStrings || kind == &ParamType::ListClasses
+            }
+            ParamValue::Int(_) => kind == &ParamType::Int,
+            ParamValue::UInt(_) => kind == &ParamType::UInt,
+            ParamValue::Float(_) => kind == &ParamType::Float,
+            ParamValue::Current(_) => kind == &ParamType::Current,
+            ParamValue::Voltage(_) => kind == &ParamType::Voltage,
+            ParamValue::Time(_) => kind == &ParamType::Time,
+            ParamValue::Frequency(_) => kind == &ParamType::Frequency,
+            ParamValue::Bool(_) => kind == &ParamType::Bool,
+            ParamValue::Any(_) => true,
+        }
+    }
+
+    pub fn to_bool(&self) -> OrigenResult<bool> {
+        if let ParamValue::Bool(v) = self {
+            Ok(*v)
+        } else {
+            bail!("Not a boolean value")
+        }
+    }
+}
+
+impl fmt::Display for ParamValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            // This can probably go, decided to handle the type specific formatting in the testers instead
+            ParamValue::String(v) => write!(f, "{}", v),
+            ParamValue::Class(v) => write!(f, "{}", v),
+            ParamValue::List(v) => write!(
+                f,
+                "[{}]",
+                v.iter()
+                    .map(|item| item.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            ParamValue::Int(v) => write!(f, "{}", v),
+            ParamValue::UInt(v) => write!(f, "{}", v),
+            ParamValue::Float(v) => write!(f, "{}", v),
+            ParamValue::Current(v) => write!(f, "{}", v),
+            ParamValue::Voltage(v) => write!(f, "{}", v),
+            ParamValue::Time(v) => write!(f, "{}", v),
+            ParamValue::Frequency(v) => write!(f, "{}", v),
+            ParamValue::Bool(v) => write!(f, "{}", v),
+            ParamValue::Any(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Display)]
+pub enum ParamType {
+    String,
+    Class,
+    ListStrings,
+    ListClasses,
+    Int,
+    UInt,
+    Float,
+    Current,
+    Voltage,
+    Time,
+    Frequency,
+    Bool,
+    Any,
+}
+
+impl FromStr for ParamType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Accept any case and with or without underscores
+        let normalized = s.trim().to_ascii_lowercase().replace('_', "");
+        match normalized.as_str() {
+            "string" => Ok(ParamType::String),
+            "class" => Ok(ParamType::Class),
+            "liststrings" => Ok(ParamType::ListStrings),
+            "listclasses" => Ok(ParamType::ListClasses),
+            "pinstring" | "specvalue" | "specvariable" | "contextpins" | "optionlist" => {
+                Ok(ParamType::String)
+            }
+            "int" | "integer" => Ok(ParamType::Int),
+            "long" => Ok(ParamType::Int),
+            "uint" | "uinteger" => Ok(ParamType::UInt),
+            "float" | "double" | "number" | "num" => Ok(ParamType::Float),
+            "current" | "curr" | "i" => Ok(ParamType::Current),
+            "voltage" | "volt" | "v" => Ok(ParamType::Voltage),
+            "time" | "t" | "s" => Ok(ParamType::Time),
+            "frequency" | "freq" | "hz" => Ok(ParamType::Frequency),
+            "boolean" | "bool" => Ok(ParamType::Bool),
+            "any" => Ok(ParamType::Any),
+            _ => Err(format!(
+                "'{}' is not a valid parameter type, the available types are: String, Class, ListStrings, ListClasses, PinString, SpecValue, SpecVariable, ContextPins, OptionList, Int, long, UInt, Number, Current, Voltage, Time, Frequency, Bool, Any",
+                s.trim()
+            )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ParamType;
+    use std::str::FromStr;
+
+    #[test]
+    fn param_type_accepts_v93k_aliases() {
+        assert_eq!(ParamType::from_str("PinString").unwrap(), ParamType::String);
+        assert_eq!(
+            ParamType::from_str("pin_string").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(ParamType::from_str("SpecValue").unwrap(), ParamType::String);
+        assert_eq!(
+            ParamType::from_str("spec_variable").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(
+            ParamType::from_str("ContextPins").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(
+            ParamType::from_str("OptionList").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(ParamType::from_str("long").unwrap(), ParamType::Int);
+        assert_eq!(ParamType::from_str("class").unwrap(), ParamType::Class);
+        assert_eq!(
+            ParamType::from_str("list_strings").unwrap(),
+            ParamType::ListStrings
+        );
+        assert_eq!(
+            ParamType::from_str("list_classes").unwrap(),
+            ParamType::ListClasses
+        );
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Constraint {
+    In(Vec<ParamValue>),
+    GT(ParamValue),
+    GTE(ParamValue),
+    LT(ParamValue),
+    LTE(ParamValue),
+}
+
+impl Constraint {
+    pub fn is_satisfied(&self, value: &ParamValue) -> OrigenResult<()> {
+        match self {
+            Constraint::In(values) => {
+                if values.iter().any(|v| v == value) {
+                    Ok(())
+                } else {
+                    bail!(
+                        "'{}' is not one of the permitted values: {}",
+                        value,
+                        values
+                            .iter()
+                            .map(|v| format!("'{}'", v))
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                }
+            }
+            // Unimplemented for now, but placeholders in case such contraints are supported in future
+            Constraint::GT(_) => Ok(()),
+            Constraint::GTE(_) => Ok(()),
+            Constraint::LT(_) => Ok(()),
+            Constraint::LTE(_) => Ok(()),
+        }
+    }
+}

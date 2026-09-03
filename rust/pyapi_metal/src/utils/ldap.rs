@@ -29,7 +29,7 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
 /// A single LDAP instance
 #[pyclass(subclass)]
 pub struct LDAP {
-    om: OmLdap
+    om: OmLdap,
 }
 
 impl LDAP {}
@@ -37,12 +37,7 @@ impl LDAP {}
 #[pymethods]
 impl LDAP {
     #[new]
-    #[args(
-        username = "None",
-        password = "None",
-        populate_user_config = "None",
-        timeout = "None"
-    )]
+    #[pyo3(signature=(name, server, base, auth=None, continuous_bind=None, populate_user_config=None, timeout=None))]
     fn new(
         name: &str,
         server: &str,
@@ -62,7 +57,7 @@ impl LDAP {
                     {
                         if let Some(a) = auth {
                             let scheme;
-                            if let Some(s) = a.get_item("scheme") {
+                            if let Some(s) = a.get_item("scheme")? {
                                 scheme = s.extract::<String>()?;
                             } else {
                                 scheme = "simple_bind".to_string();
@@ -70,30 +65,30 @@ impl LDAP {
 
                             match SupportedAuths::from_str(scheme.as_str())? {
                                 SupportedAuths::SimpleBind(mut sb) => {
-                                    if let Some(username) = a.get_item("username") {
+                                    if let Some(username) = a.get_item("username")? {
                                         sb.username = Some(username.extract::<String>()?);
                                     }
-                                    if let Some(password) = a.get_item("password") {
+                                    if let Some(password) = a.get_item("password")? {
                                         sb.password = Some(password.extract::<String>()?);
                                     }
                                     if let Some(priority_motives) =
-                                        a.get_item("priority_motives")
+                                        a.get_item("priority_motives")?
                                     {
                                         sb.priority_motives =
                                             priority_motives.extract::<Vec<String>>()?;
                                     }
-                                    if let Some(backup_motives) = a.get_item("backup_motives") {
+                                    if let Some(backup_motives) = a.get_item("backup_motives")? {
                                         sb.backup_motives =
                                             backup_motives.extract::<Vec<String>>()?;
                                     }
                                     if let Some(allow_default_password) =
-                                        a.get_item("allow_default_password")
+                                        a.get_item("allow_default_password")?
                                     {
                                         sb.allow_default_password =
                                             allow_default_password.extract::<bool>()?;
                                     }
                                     if let Some(use_default_motives) =
-                                        a.get_item("use_default_motives")
+                                        a.get_item("use_default_motives")?
                                     {
                                         sb.use_default_motives =
                                             use_default_motives.extract::<bool>()?;
@@ -123,20 +118,19 @@ impl LDAP {
                     {
                         if let Some(pop_config) = populate_user_config {
                             let mut config = OmLdapPopUserConfig::default();
-                            if let Some(data_id) = pop_config.get_item("data_id") {
+                            if let Some(data_id) = pop_config.get_item("data_id")? {
                                 config.data_id = data_id.extract::<String>()?;
                             }
-                            if let Some(mapping) = pop_config.get_item("mapping") {
-                                config.mapping =
-                                    mapping.extract::<HashMap<String, String>>()?;
+                            if let Some(mapping) = pop_config.get_item("mapping")? {
+                                config.mapping = mapping.extract::<HashMap<String, String>>()?;
                             }
-                            if let Some(required) = pop_config.get_item("required") {
+                            if let Some(required) = pop_config.get_item("required")? {
                                 config.required = required.extract::<Vec<String>>()?;
                             }
-                            if let Some(include_all) = pop_config.get_item("include_all") {
+                            if let Some(include_all) = pop_config.get_item("include_all")? {
                                 config.include_all = include_all.extract::<bool>()?;
                             }
-                            if let Some(attrs) = pop_config.get_item("attributes") {
+                            if let Some(attrs) = pop_config.get_item("attributes")? {
                                 config.attributes = Some(attrs.extract::<Vec<String>>()?);
                             }
                             Some(config)
@@ -277,13 +271,14 @@ impl LDAP {
     fn get_populate_user_config<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
         typed_value::into_optional_pydict(
             py,
-            self.om.populate_user_config().map( |c| c.config_into_map())
+            self.om.populate_user_config().map(|c| c.config_into_map()),
         )
     }
 
     fn populate_user(&self, user: PyRef<User>, dataset: PyRef<UserDataset>) -> PyResult<PyOutcome> {
         Ok(with_user(&user.user_id(), |u| {
             u.with_dataset_mut(dataset.dataset(), |d| self.om.populate_user(u, d))
-        })?.into())
+        })?
+        .into())
     }
 }

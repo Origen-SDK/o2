@@ -1,17 +1,18 @@
 pub mod _frontend;
 
 use crate::runtime_error;
-use crate::utility::results::{BuildResult};
-use origen::utility::version::Version as OVersion;
+use crate::utility::results::BuildResult;
+use origen_metal::utils::version::Version as OVersion;
 use pyapi_metal::prelude::*;
 use pyapi_metal::utils::revision_control::status::Status;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::{Path, PathBuf};
 
-#[pymodule]
-pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyApplication>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "application")?;
+    subm.add_class::<PyApplication>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
@@ -22,17 +23,15 @@ pub struct PyApplication {}
 #[pymethods]
 impl PyApplication {
     #[new]
-    fn new() -> Self {
+    #[pyo3(signature=(**_kwargs))]
+    fn new(_kwargs: Option<&PyDict>) -> Self {
         PyApplication {}
     }
 
     #[getter]
     fn version(&self) -> PyResult<String> {
         let v = origen::app().unwrap().version()?.to_string();
-        Ok(format!(
-            "{}",
-            origen::utility::version::Version::new_pep440(&v)?.to_string()
-        ))
+        Ok(format!("{}", OVersion::new_pep440(&v)?.to_string()))
     }
 
     fn check_production_status(&self) -> PyResult<bool> {
@@ -40,23 +39,23 @@ impl PyApplication {
         Ok(r.passed())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<PyOutcome> {
         let mut dry_run = false;
         let mut rn: Option<&str> = None;
         let mut rt: Option<Option<&str>> = None;
         let mut ver: Option<OVersion> = None;
         if let Some(kw) = kwargs {
-            if let Some(d) = kw.get_item("dry-run") {
+            if let Some(d) = kw.get_item("dry-run")? {
                 dry_run = d.extract::<bool>()?;
             }
-            if let Some(r) = kw.get_item("release-note") {
+            if let Some(r) = kw.get_item("release-note")? {
                 rn = Some(r.extract::<&str>()?);
             }
-            if let Some(r) = kw.get_item("release-title") {
+            if let Some(r) = kw.get_item("release-title")? {
                 rt = Some(Some(r.extract::<&str>()?));
             }
-            if let Some(_r) = kw.get_item("no-release-title") {
+            if let Some(_r) = kw.get_item("no-release-title")? {
                 if rt.is_some() {
                     return runtime_error!(
                         "A release title cannot be given along with option 'no-release-title'"
@@ -65,7 +64,7 @@ impl PyApplication {
                     rt = Some(None);
                 }
             }
-            if let Some(v) = kw.get_item("version") {
+            if let Some(v) = kw.get_item("version")? {
                 ver = Some(OVersion::new_pep440(&v.extract::<String>()?)?);
             }
         }
@@ -82,6 +81,7 @@ impl PyApplication {
         Ok(Status::from_origen(origen::app().unwrap().rc_status()?))
     }
 
+    #[pyo3(signature=(pathspecs, msg, dry_run))]
     fn __rc_checkin__(
         &self,
         pathspecs: Option<Vec<String>>,
@@ -106,14 +106,14 @@ impl PyApplication {
         )?))
     }
 
-    #[args(_args = "*")]
+    #[pyo3(signature=(*_args))]
     fn __build_package__(&self, _args: &PyTuple) -> PyResult<BuildResult> {
         Ok(BuildResult {
             build_result: Some(origen::app().unwrap().build_package()?),
         })
     }
 
-    #[args(_args = "*")]
+    #[pyo3(signature=(*_args))]
     fn __run_publish_checks__(&self, _args: &PyTuple) -> PyResult<bool> {
         let r = origen::app().unwrap().run_publish_checks(false)?;
         Ok(r.passed())
@@ -234,18 +234,18 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
 /// Note: this could have several methods overridden. Just check that the aforementioned
 /// class is one of the object's ancestors
 pub fn is_base_app(query: &PyAny) -> PyResult<bool> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let locals = PyDict::new(py);
-    locals.set_item("origen", py.import("origen")?.to_object(py))?;
-    locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
-    locals.set_item("query", query.to_object(py))?;
-    let result = py.eval(
-        "builtins.isinstance(query, origen.application.Base)",
-        Some(locals),
-        None,
-    )?;
-    Ok(result.extract::<bool>()?)
+    Python::with_gil(|py| {
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?.to_object(py))?;
+        locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
+        locals.set_item("query", query.to_object(py))?;
+        let result = py.eval(
+            "builtins.isinstance(query, origen.application.Base)",
+            Some(locals),
+            None,
+        )?;
+        Ok(result.extract::<bool>()?)
+    })
 }
 
 /// Return the name of the given app. Equivalent to `app.name` in Python

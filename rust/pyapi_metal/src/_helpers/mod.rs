@@ -1,6 +1,6 @@
+pub mod contextlib;
 pub mod pickle;
 pub mod typed_value;
-pub mod contextlib;
 use crate::cfg_if;
 
 #[macro_use]
@@ -9,7 +9,10 @@ pub mod config;
 #[macro_use]
 pub mod errors;
 
-use crate::{pypath, runtime_error};
+#[macro_use]
+pub mod macros;
+
+use crate::pypath;
 use indexmap::IndexMap;
 use pyo3::conversion::ToPyObject;
 use pyo3::prelude::*;
@@ -30,7 +33,7 @@ pub fn pytype_from_pyany<'p>(py: Python<'p>, t: &'p PyAny) -> PyResult<&'p PyTyp
     }
 }
 
-pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&PyType> {
+pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&'p PyType> {
     let t = get_qualified_attr(&class.to_string())?;
     t.into_ref(py).extract::<&PyType>()
 }
@@ -53,9 +56,7 @@ pub fn new_py_obj<'p>(
     )
 }
 
-pub fn to_py_paths<T: std::fmt::Display>(paths: &Vec<T>) -> PyResult<Vec<PyObject>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+pub fn to_py_paths<T: std::fmt::Display>(py: Python, paths: &Vec<T>) -> PyResult<Vec<PyObject>> {
     let mut retn: Vec<PyObject> = vec![];
     for p in paths {
         retn.push(pypath!(py, format!("{}", p)));
@@ -68,15 +69,15 @@ pub fn to_py_paths<T: std::fmt::Display>(paths: &Vec<T>) -> PyResult<Vec<PyObjec
 pub fn pypath_as_string(path: &PyAny) -> PyResult<String> {
     if let Ok(p) = path.extract::<String>() {
         Ok(p)
-    } else if path.get_type().name()?.to_string() == "Path"
-        || path.get_type().name()?.to_string() == "WindowsPath"
-        || path.get_type().name()?.to_string() == "PosixPath"
+    } else if path.get_type().qualname()? == "Path"
+        || path.get_type().qualname()? == "WindowsPath"
+        || path.get_type().qualname()? == "PosixPath"
     {
         Ok(path.call_method0("__str__")?.extract::<String>()?)
     } else {
         crate::type_error!(&format!(
             "Cannot extract input as either a str or pathlib.Path object. Received {}",
-            path.get_type().name()?.to_string()
+            path.get_type().qualname()?
         ))
     }
 }
@@ -123,7 +124,7 @@ where
 }
 
 pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
-    Python::with_gil( |py| {
+    Python::with_gil(|py| {
         let mut split = s.split(".");
         let mut current: PyObject;
 
@@ -142,23 +143,21 @@ pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
         for component in remaining {
             current_str.push_str(".");
             current_str.push_str(component);
-            match PyModule::import(py, &current_str) {
+            match PyModule::import(py, &*current_str) {
                 Ok(py_mod) => {
                     current = py_mod.to_object(py);
-                },
-                Err(e) => {
-                    match current.getattr(py, component) {
-                        Ok(attr) => current = attr.to_object(py),
-                        Err(e2) => {
-                            return runtime_error!(format!(
-                                "Failed to get qualified attribute '{}': \n\n{} \n\n{}",
-                                s,
-                                e.to_string(),
-                                e2.to_string(),
-                            ));
-                        }
-                    }
                 }
+                Err(e) => match current.getattr(py, component) {
+                    Ok(attr) => current = attr.to_object(py),
+                    Err(e2) => {
+                        return runtime_error!(format!(
+                            "Failed to get qualified attribute '{}': \n\n{} \n\n{}",
+                            s,
+                            e.to_string(),
+                            e2.to_string(),
+                        ));
+                    }
+                },
             }
         }
         Ok(current)

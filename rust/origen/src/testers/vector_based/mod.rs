@@ -4,7 +4,6 @@ pub mod pattern_renderer;
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::PAT;
-use crate::prog_gen::Model;
 use crate::{Overlay, Result};
 use origen_metal::ast::{Node, Return};
 use origen_metal::utils::differ::{ASCIIDiffer, Differ};
@@ -71,15 +70,15 @@ impl<T: 'static> pattern_renderer::RendererAPI for T
 where
     T: VectorBased,
 {
-    default fn file_ext(&self) -> &str {
+    fn file_ext(&self) -> &str {
         VectorBased::file_ext(self)
     }
 
-    default fn comment_str(&self) -> &str {
+    fn comment_str(&self) -> &str {
         VectorBased::comment_str(self)
     }
 
-    default fn print_vector(
+    fn print_vector(
         &self,
         renderer: &mut pattern_renderer::Renderer,
         repeat: u32,
@@ -88,21 +87,18 @@ where
         VectorBased::print_vector(self, renderer, repeat, compressable)
     }
 
-    default fn print_pinlist(
-        &self,
-        renderer: &mut pattern_renderer::Renderer,
-    ) -> Option<Result<String>> {
+    fn print_pinlist(&self, renderer: &mut pattern_renderer::Renderer) -> Option<Result<String>> {
         VectorBased::print_pinlist(self, renderer)
     }
 
-    default fn print_pattern_end(
+    fn print_pattern_end(
         &self,
         renderer: &mut pattern_renderer::Renderer,
     ) -> Option<Result<String>> {
         VectorBased::print_pattern_end(self, renderer)
     }
 
-    default fn start_overlay(
+    fn start_overlay(
         &self,
         renderer: &mut pattern_renderer::Renderer,
         overlay: &Overlay,
@@ -110,7 +106,7 @@ where
         VectorBased::start_overlay(self, renderer, overlay)
     }
 
-    default fn end_overlay(
+    fn end_overlay(
         &self,
         renderer: &mut pattern_renderer::Renderer,
         label: &Option<String>,
@@ -132,32 +128,27 @@ impl<T: 'static> TesterAPI for T
 where
     T: VectorBased,
 {
-    default fn render_pattern(&mut self, node: &Node<PAT>) -> Result<Vec<PathBuf>> {
+    fn render_pattern(&mut self, node: &Node<PAT>) -> Result<Vec<PathBuf>> {
         pattern_renderer::Renderer::run(self, node)
     }
 
-    default fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Box<dyn Differ>> {
+    fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Box<dyn Differ>> {
         let mut d = ASCIIDiffer::new(pat_a, pat_b);
         let _ = d.ignore_comments(self.comment_str());
         Some(Box::new(d))
     }
 
-    default fn program_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Box<dyn Differ>> {
+    fn program_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Box<dyn Differ>> {
         let mut d = ASCIIDiffer::new(pat_a, pat_b);
         let _ = d.ignore_comments(self.comment_str());
         Some(Box::new(d))
     }
 
-    default fn pin_action_resolver(&self) -> Option<Resolver> {
+    fn pin_action_resolver(&self) -> Option<Resolver> {
         VectorBased::pin_action_resolver(self)
     }
 
-    default fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
-        log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok((vec![], Model::new(self.id())))
-    }
-
-    default fn output_dir(&self) -> Result<PathBuf> {
+    fn output_dir(&self) -> Result<PathBuf> {
         let dir = crate::STATUS.output_dir().join(&self.name().to_lowercase());
         if !dir.exists() {
             std::fs::create_dir_all(&dir)?;

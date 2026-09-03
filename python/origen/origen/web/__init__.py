@@ -14,7 +14,7 @@ Assuming |origen-s_sphinx_app| is used, the settings here will be loaded during
 
 import _origen  #pylint:disable=import-error
 import origen, origen.helpers  #pylint:disable=import-error
-import subprocess, shutil
+import subprocess, shutil, os, pathlib
 from typing import List
 from types import ModuleType
 
@@ -132,7 +132,7 @@ def run_cmd(subcommand, args):
         origen.logger.info(f"\t{sphinx_cmd(args)}")
         if run_sphinx(args).returncode:
             origen.logger.error("Failed to build the webpages! Exiting...")
-            exit()
+            exit(1)
 
         if "release" in args:
             release(archive_id=args.get('archive', None))
@@ -148,15 +148,70 @@ def run_cmd(subcommand, args):
         if site_built():
             origen.logger.info(
                 f"Launching web browser with command: \"{view_cmd()}\"")
-            subprocess.run(view_cmd(), shell=True)
+            result = subprocess.run(view_cmd(),
+                                    shell=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True)
+            if result.returncode != 0:
+                index_uri = output_index_file.resolve().as_uri()
+                origen.logger.warning(
+                    "Could not launch a browser from this environment."
+                )
+                origen.logger.display(f"Open the generated site at: {index_uri}")
+                origen.logger.display(
+                    "Or serve it locally with:\n"
+                    f"  python -m http.server 8000 --directory \"{output_build_dir}\"\n"
+                    "Then open http://localhost:8000/"
+                )
         else:
             origen.logger.error(
                 f"Could not find built website at {output_build_dir}. Please run 'origen web build --view' to build the site and view the results."
             )
-            exit()
+            exit(1)
+    elif subcommand == "serve":
+        if args.get('fast', False):
+            clean(args)
+        for directory in [
+                static_dir, unmanaged_static_dir, templates_dir,
+                output_build_dir, interbuild_dir
+        ]:
+            if not directory.exists():
+                directory.mkdir(parents=True)
+        import importlib.util
+        if importlib.util.find_spec("sphinx_autobuild") is not None:
+            command = sphinx_autobuild_cmd(args)
+            origen.logger.info(
+                "Building documentation before starting the live server..."
+            )
+            origen.logger.info(f"\t{command}")
+            try:
+                result = subprocess.run(command, shell=True)
+            except KeyboardInterrupt:
+                origen.logger.info("Documentation server stopped")
+                return
+            if result.returncode:
+                origen.logger.error("Documentation server exited with an error")
+                exit(1)
+        else:
+            origen.logger.warning(
+                "Live reload requires Python 3.11 or newer; using the built-in static server."
+            )
+            build_args = {
+                key: value for key, value in args.items()
+                if key in ["sphinx-args"]
+            }
+            if args.get('fast', False):
+                build_args['no-api'] = True
+                bypass = "-D origen_bypass_subprojects=1"
+                build_args['sphinx-args'] = " ".join(
+                    filter(None, [build_args.get('sphinx-args'), bypass])
+                )
+            run_cmd("build", build_args)
+            serve_static(args)
     else:
         origen.logger.error(f"Unrecognized web command: {subcommand}")
-        exit()
+        exit(1)
 
 
 def view_cmd():
@@ -194,7 +249,7 @@ def sphinx_cmd(args):
     if 'no-api' in args:
         # no-api is achieved by overriding the autoapi, autodoc, and rustdoc configs to
         # all be empty
-        build_opts.append("-D origen_no_api=True")
+        build_opts.append("-D origen_no_api=1")
     if 'release' in args or 'as-release' in args:
         if 'release-with-warnings' in args:
             build_opts.extend(RELEASE_ARGS[2:])
@@ -203,7 +258,99 @@ def sphinx_cmd(args):
     if 'sphinx-args' in args:
         # Add an user arguments
         build_opts.append(args['sphinx-args'])
-    return f"poetry run sphinx-build {origen.app.website_source_dir} {output_build_dir} {' '.join(build_opts)}"
+    return f"uv run --no-sync --no-editable sphinx-build {origen.app.website_source_dir} {output_build_dir} {' '.join(build_opts)}"
+
+
+def sphinx_autobuild_cmd(args):
+    """Build the sphinx-autobuild command for the live documentation server."""
+    bind_host, _ = serve_addresses(args)
+    opts = [
+        f"--host {bind_host}",
+        f"--port {args.get('port', '8000')}",
+    ]
+    if args.get('open', False):
+        opts.append("--open-browser")
+    if args.get('fast', False):
+        opts.append("-D origen_no_api=1")
+        opts.append("-D origen_bypass_subprojects=1")
+    if 'sphinx-args' in args:
+        opts.append(args['sphinx-args'])
+    return (
+        f"uv run --no-sync --no-editable sphinx-autobuild {' '.join(opts)} "
+        f"{origen.app.website_source_dir} {output_build_dir}"
+    )
+
+
+def serve_static(args):
+    """Serve a built site without live reload on older Python versions."""
+    import functools
+    import http.server
+    import webbrowser
+
+    host, advertised_host = serve_addresses(args)
+    port = int(args.get('port', '8000'))
+    handler = functools.partial(
+        http.server.SimpleHTTPRequestHandler,
+        directory=str(output_build_dir),
+    )
+    server = http.server.ThreadingHTTPServer((host, port), handler)
+    url = f"http://{advertised_host}:{port}/"
+    origen.logger.display(f"Serving documentation at {url}")
+    if args.get('open', False):
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        origen.logger.info("Documentation server stopped")
+    finally:
+        server.server_close()
+
+
+def serve_addresses(args):
+    """Return the bind address and user-facing hostname for ``web serve``."""
+    import socket
+
+    requested = args.get('host', 'auto')
+    if requested == 'auto':
+        # Bind every interface so the server answers on loopback, the short
+        # hostname, and the FQDN, but advertise the routable hostname so the
+        # printed URL is the one a remote developer should actually open
+        # (for example, http://tardis.amd.com:8000).
+        return '0.0.0.0', advertised_hostname()
+    if requested in ['0.0.0.0', '::']:
+        return requested, advertised_hostname()
+    return requested, requested
+
+
+def advertised_hostname():
+    """Return the hostname a remote developer should use to reach this machine.
+
+    The short hostname often resolves to a loopback entry on Linux (for example
+    127.0.1.1), so it is not trustworthy on its own. Consult the routing table
+    for the outward-facing address and prefer its reverse-DNS name.
+    """
+    import socket
+
+    # Connecting a UDP socket sends no packets; it only asks the kernel which
+    # local address would be used to reach an off-link destination. The address
+    # below is never contacted and works without network connectivity.
+    route = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        route.connect(('192.0.2.1', 9))  # TEST-NET-1, reserved by RFC 5737
+        address = route.getsockname()[0]
+    except OSError:
+        try:
+            address = socket.gethostbyname(socket.gethostname())
+        except OSError:
+            return socket.gethostname()
+    finally:
+        route.close()
+    if address.startswith('127.'):
+        return socket.getfqdn() or socket.gethostname()
+    try:
+        return socket.gethostbyaddr(address)[0]
+    except OSError:
+        return address
 
 
 def sphinx_make():
@@ -354,7 +501,73 @@ def release(src=None,
             origen.logger.display(f"Archiving built website to '{str(dest)}'")
             _release(dest)
 
+    elif _loc.git:
+        _release_git(_loc.git, _src, _name, archive_id, archive_offset)
     else:
-        raise NotImplementedError(
-            "Releasing via revision control has not been implemented yet!")
+        raise RuntimeError(f"Unsupported website release location: {_loc.target}")
     origen.logger.display(f"Successfully released website for {_name}")
+
+
+def _release_git(remote, src, name, archive_id=None, archive_offset='archive',
+                 retry=True):
+    """Publish through a persistent managed checkout under ``.origen``."""
+    import urllib.parse
+
+    remote_without_suffix = remote[:-4] if remote.endswith('.git') else remote
+    repo_name = pathlib.Path(remote_without_suffix).name
+    checkout = origen.app.root.joinpath('.origen', 'web-releases', repo_name)
+    checkout.parent.mkdir(parents=True, exist_ok=True)
+
+    authenticated_remote = remote
+    token = os.getenv('ORIGEN_WEB_GITHUB_TOKEN')
+    if token and remote.startswith('https://github.com/'):
+        authenticated_remote = remote.replace(
+            'https://github.com/',
+            f"https://x-access-token:{urllib.parse.quote(token, safe='')}@github.com/",
+            1,
+        )
+
+    def git(*args, capture=False):
+        kwargs = {'cwd': checkout, 'check': True, 'text': True}
+        if capture:
+            kwargs['stdout'] = subprocess.PIPE
+        return subprocess.run(['git', *args], **kwargs)
+
+    try:
+        if not checkout.joinpath('.git').is_dir():
+            shutil.rmtree(checkout, ignore_errors=True)
+            subprocess.run(
+                ['git', 'clone', '--depth', '1', '--branch', 'master',
+                 authenticated_remote, str(checkout)],
+                cwd=checkout.parent,
+                check=True,
+            )
+        else:
+            git('remote', 'set-url', 'origin', authenticated_remote)
+            git('fetch', '--depth', '1', 'origin', 'master')
+            git('checkout', '-B', 'master', 'origin/master')
+
+        relative_destinations = [pathlib.Path(name)] if not archive_id else [
+            pathlib.Path(archive_offset, name, str(archive_id))
+        ]
+        destinations = [checkout.joinpath(path) for path in relative_destinations]
+        for destination in destinations:
+            shutil.rmtree(destination, ignore_errors=True)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(src, destination)
+
+        git('add', '-A', '--', *[str(path) for path in relative_destinations])
+        if subprocess.run(['git', 'diff', '--cached', '--quiet'],
+                          cwd=checkout).returncode == 0:
+            origen.logger.display("Website is already up to date")
+            return
+
+        git('commit', '-m',
+            f"Publish O2 documentation for {origen.__version__}")
+        git('push', 'origin', 'master')
+    except subprocess.CalledProcessError:
+        if retry:
+            shutil.rmtree(checkout, ignore_errors=True)
+            return _release_git(remote, src, name, archive_id,
+                                archive_offset, retry=False)
+        raise

@@ -5,18 +5,25 @@ import os
 
 
 def run(**kwargs):
+    debug = "debug" in kwargs
     os.chdir(origen.root)
     origen.boot.exit = False
 
     run_cmd("generate",
-            files=["example/patterns"],
-            reference_dir="approved",
-            targets=["dut/eagle", "tester/v93k_smt7", "tester/j750"])
+            args={
+                "files": ["example/patterns"],
+                "reference_dir": "approved",
+            },
+            debug=debug,
+            targets=["dut/eagle", "tester/v93k_smt7", "tester/j750","tester/uflex"])
 
     run_cmd("generate",
-            files=["example/flows/o1_testcases/prb1.py"],
-            reference_dir="approved",
-            targets=["dut/o1_dut", "tester/v93k_smt7"])
+            args={
+                "files": ["example/flows/o1_testcases/prb1.py", "example/flows/o1_testcases/prb2.py"],
+                "reference_dir": "approved",
+            },
+            debug=debug,
+            targets=["dut/o1_dut", "tester/v93k_smt7", "tester/v93k_smt8"])
 
     stats = origen.tester.stats()
 

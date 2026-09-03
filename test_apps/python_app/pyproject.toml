@@ -1,30 +1,42 @@
-[tool.poetry]
+[project]
 name = "example"
 version = "1.2.3"
-description = ""
-authors = ["Origen-SDK"]
+description = "O2 regression test application"
+requires-python = ">=3.7,<3.13"
+authors = [{ name = "Origen-SDK" }]
+dependencies = [
+    "origen",
+    "origen-metal",
+    "python-plugin",
+    "test-apps-shared-test-helpers",
+    "python-plugin-no-cmds",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-origen = "= 2.0.0.dev5"
-python_plugin = { path = "../python_plugin", develop = true }
-test_apps_shared_test_helpers = { path = "../test_apps_shared_test_helpers", develop = true }
-python_plugin_no_cmds = { path = "../python_plugin_no_cmds", develop = true }
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.0"
-origen = { path = "../../python/origen", develop = true }
-origen_metal = { path = "../../python/origen_metal", develop = true }
+[tool.uv.sources]
+origen = { path = "../../python/origen" }
+origen-metal = { path = "../../python/origen_metal" }
+python-plugin = { path = "../python_plugin" }
+test-apps-shared-test-helpers = { path = "../test_apps_shared_test_helpers" }
+python-plugin-no-cmds = { path = "../python_plugin_no_cmds" }
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.hatch.build.targets.wheel]
+packages = ["example"]
+
+[tool.hatch.build]
+artifacts = ["example/**/*.toml", "example/*.toml"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers"
-
-# Use '-m "not <mark>"' on the command line to bypass these tests
 markers = [
     "online: marks tests as requiring an internet connection",
-    "ldap: marks tests requiring/using the external ldap",
+    "ldap: marks tests requiring/using an external LDAP",
 ]
+
+[build-system]
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

@@ -13,6 +13,12 @@ Origen Web
 * Clean the artifacts of a previous run, rebuild the webpages, and launch your browser:
 
   ``origen web build --clean --view``
+* Build, watch, and serve with live reload on Python 3.11+:
+
+  ``origen web serve --open``
+* Skip generated API, Rustdoc, and subproject content for a faster edit loop:
+
+  ``origen web serve --fast``
 
 Run ``origen web --help`` or see the |web_cmd| section for further details.
 
@@ -64,11 +70,9 @@ RST Guides
 * :sphinx_rst_primer:`Sphinx's RST Primer <>`
 * :rst_quickstart:`RST Quickstart <>`
 * :rst_spec:`RST Docs <>`
-* Other Useful RST/Sphinx Guides
+* Other useful RST/Sphinx guides
 
-   * :rst_guide_zephyr:`RST guide from the Zephyr project <>`
    * :rst_cheatsheet:`RST cheatsheet <>`
-   * :rst_cokelaer_cheatsheet:`RST/Sphinx cheatsheet from Thomas Cokelaer <>`
 
 ..  RST In Origen Cheatsheet
 .. """"""""""""""""""""""""
@@ -105,7 +109,7 @@ Other
 * :link-to:`Markdown <markdown>`
 
    * :markdown_home:`Markdown Introduction <>`
-   * :recommonmark_home:`Recommonmark Extension <>`
+   * `MyST Parser <https://myst-parser.readthedocs.io/>`_
 * :link-to:`The Napoleon Extension <napoleon>`
 
    * |google_docstring_spec|

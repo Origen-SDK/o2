@@ -14,6 +14,7 @@ Header {
 Include "file_that_contains_signals.extension";
 Include "file_that_contains_signal_groups.extension";
 Include "file_that_contains_wavetable.extension";
+Include "file_that_contains_macrodefs.extension";
 
 PatternBurst "test_pattern_example_BURST" {
   PatList { "test_pattern_example"; }

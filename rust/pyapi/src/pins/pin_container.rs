@@ -35,14 +35,17 @@ impl PinContainer {
         self.keys()
     }
 
-    #[args(names = "*", options = "**")]
-    fn collect(&self, names: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    #[pyo3(signature=(*names, **options))]
+    fn collect(
+        &self,
+        py: Python,
+        names: &PyTuple,
+        options: Option<&PyDict>,
+    ) -> PyResult<Py<PinCollection>> {
         let mut endianness = Option::None;
         match options {
             Some(options) => {
-                if let Some(opt) = options.get_item("little_endian") {
+                if let Some(opt) = options.get_item("little_endian")? {
                     if opt.extract::<bool>()? {
                         endianness = Option::Some(Endianness::LittleEndian);
                     } else {

@@ -16,9 +16,8 @@ see the :link-to:`notes on the documentation generation implementation <develope
 Documentation Overview
 ----------------------
 
-Origen's documentation primarily uses :rst_quickstart:`RST <>`, though |markdown| is also
-acceptable and should have much of the same features available thanks to
-:recommonmark_embedded_rst:`Recommonmark's embedded RST <>`.
+Origen's documentation primarily uses :rst_quickstart:`RST <>`. Markdown is
+also supported through MyST Parser, including Sphinx roles and directives.
 
 Configured Extensions
 ---------------------
@@ -120,7 +119,7 @@ The notes above apply here as well, just with the caveat that the docstrings res
 Rust instead of Python. |Autoapi| will create RST files from
 the compiled code, but there's no difference between those and ones generated from the ``origen`` Python
 module. All of the same features are available - including |extlinks|, |shorthand|, |jinja|, and
-:napoleon_home:`Google/Numpy formatted docstrings`.
+:napoleon_home:`Google/Numpy formatted docstrings <>`.
 
 |autoapi| will pick up docstrings defined using :rust_docstrings:`Rust's syntax <>` on any
 :pyo3_pyclass:`pyclass <>`, :pyo3_pyfunction:`pyfunction <>`, :pyo3_pymodule:`pymodule <>`, etc.

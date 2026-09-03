@@ -25,14 +25,8 @@ class ExplicitSyntaxRequiredError(Exception):
 
 
 class Renderer(abc.ABC):
-
-    # Python 3.6's docstring doesn't like this. There's nothing wrong with it functionally,
-    # but the docstring won't parse correctly. Overwrite the docstring in web/source/conf.py
-    # to workaround this without changing the API.
-    @property
-    @abc.abstractclassmethod
-    def file_extensions(cls):
-        return []  #raise NotImplementedError
+    # Concrete renderers override this with the suffixes they support.
+    file_extensions = []
 
     @abc.abstractmethod
     def render_file(self, file):

@@ -2,6 +2,7 @@ import origen
 import _origen
 import pickle
 from contextlib import contextmanager, ContextDecorator
+from origen_metal import _origen_metal
 
 
 class Tester(_origen.tester.PyTester):
@@ -95,9 +96,118 @@ class DummyTester:
             print(f"Python Generator: Node: {i}: {n}")
 
 
-class V93K(_origen.tester_apis.V93K):
+class V93K(_origen_metal.tester_apis.V93K):
     pass
 
 
-class IGXL(_origen.tester_apis.IGXL):
-    pass
+class IGXL(_origen_metal.tester_apis.IGXL):
+    def add_dut_pinmap(self, groups=None, pin_type="I/O", comment=""):
+        """Populate an IG-XL pin map from the active O2 DUT.
+
+        Physical pins are emitted once. Multi-pin DUT groups are expanded into
+        ordered IG-XL group rows. Pass ``groups`` to restrict group generation;
+        otherwise all non-trivial DUT groups are included.
+        """
+        if origen.dut is None:
+            raise RuntimeError(
+                "Cannot build an IG-XL pin map without an active DUT")
+
+        physical_names = list(origen.dut.physical_pins.keys())
+        for name in physical_names:
+            self.add_pin(name, pin_type=pin_type, comment=comment)
+
+        requested_groups = set(groups) if groups is not None else None
+        for name in origen.dut.pins.keys():
+            group = origen.dut.pins[name]
+            if group.width <= 1:
+                continue
+            if requested_groups is not None and name not in requested_groups:
+                continue
+            for pin_name in group.pin_names:
+                self.add_group_pin(
+                    name,
+                    pin_name,
+                    pin_type=pin_type,
+                    comment=comment,
+                )
+
+    def add_dut_timesets_basic(self, timesets=None, timing_mode="Machine"):
+        """Derive UltraFLEX Time Sets (Basic) rows from O2 DUT wavetables.
+
+        A row is generated for every physical pin with applied waves. Conflicting
+        event times for the same IG-XL edge are rejected, since silently choosing
+        one would change the DUT timing semantics.
+        """
+        if origen.dut is None:
+            raise RuntimeError(
+                "Cannot build IG-XL timing without an active DUT")
+
+        selected = set(timesets) if timesets is not None else None
+        for timeset_name in origen.dut.timesets.keys():
+            if selected is not None and timeset_name not in selected:
+                continue
+            timeset = origen.dut.timesets[timeset_name]
+            for wavetable_name in timeset.wavetables.keys():
+                wavetable = timeset.wavetables[wavetable_name]
+                period = wavetable.__period__
+                if period is None:
+                    period = timeset.__period__
+                if period is None:
+                    period = timeset.default_period
+                if period is None:
+                    raise RuntimeError(
+                        f"No period is defined for {timeset_name}.{wavetable_name}"
+                    )
+
+                for pin_name, indicators in wavetable.applied_waves().items():
+                    edges = {
+                        "drive_on": [],
+                        "drive_data": [],
+                        "drive_return": [],
+                        "drive_off": [],
+                        "compare_open": [],
+                        "compare_close": [],
+                    }
+                    for wave in indicators.values():
+                        for event in wave.events:
+                            at = IGXL._igxl_event_time(event)
+                            if event.action in ("DriveHigh", "DriveLow"):
+                                edges["drive_data"].append(at)
+                            elif event.action == "HighZ":
+                                edges["drive_off"].append(at)
+                            elif event.action in ("VerifyHigh", "VerifyLow",
+                                                  "VerifyZ"):
+                                edges["compare_open"].append(at)
+
+                    resolved = {
+                        edge: IGXL._single_igxl_edge(
+                            values,
+                            f"{timeset_name}.{wavetable_name}.{pin_name}.{edge}",
+                        )
+                        for edge, values in edges.items()
+                    }
+                    self.add_timeset_basic(
+                        timeset_name,
+                        str(period),
+                        pin_name,
+                        setup="i/o",
+                        timing_mode=timing_mode,
+                        **resolved,
+                    )
+
+    @staticmethod
+    def _single_igxl_edge(values, description):
+        unique = list(dict.fromkeys(values))
+        if len(unique) > 1:
+            raise RuntimeError(
+                f"Conflicting O2 timing events cannot map to one UltraFLEX edge: "
+                f"{description} has {unique}")
+        return unique[0] if unique else ""
+
+    @staticmethod
+    def _igxl_event_time(event):
+        at = str(event.__at__)
+        unit = event.unit
+        if unit and at.replace(".", "", 1).isdigit():
+            return f"{at}*{unit}"
+        return at

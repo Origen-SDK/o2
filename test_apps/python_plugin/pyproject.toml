@@ -1,16 +1,25 @@
-[tool.poetry]
-name = "python_plugin"
+[project]
+name = "python-plugin"
 version = "0.1.0"
-description = "Example Origen Plugin"
-authors = ["Origen-SDK"]
+description = "Example Origen plugin"
+requires-python = ">=3.7,<3.13"
+authors = [{ name = "Origen-SDK" }]
+dependencies = ["origen"]
 
-[tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-origen = { path = "../../python/origen", develop = true }
+[dependency-groups]
+dev = [
+    "pytest>=7",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^3"
+[tool.uv.sources]
+origen = { path = "../../python/origen" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["python_plugin"]
+
+[tool.hatch.build]
+artifacts = ["python_plugin/**/*.toml", "python_plugin/*.toml"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.17.1,<1.18"]
+build-backend = "hatchling.build"

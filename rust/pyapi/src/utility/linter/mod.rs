@@ -2,7 +2,8 @@ pub mod _frontend;
 
 use pyo3::prelude::*;
 
-#[pymodule]
-pub fn linter(_py: Python, _m: &PyModule) -> PyResult<()> {
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "linter")?;
+    m.add_submodule(subm)?;
     Ok(())
 }

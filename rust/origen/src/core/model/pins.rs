@@ -1117,8 +1117,9 @@ impl Dut {
     }
 
     /// Given a pin group name and model ID, converts it to a tuple containing:
-    ///  [0] -> Vec<usize> containing the physical pin IDs of the pins in this group
-    ///  [1] -> usize -> the resolved pin group ID
+    ///
+    /// * `[0]` - `Vec<usize>` containing the physical pin IDs of the pins in this group
+    /// * `[1]` - `usize` containing the resolved pin group ID
     pub fn pin_group_to_ids(
         &self,
         model_id: usize,

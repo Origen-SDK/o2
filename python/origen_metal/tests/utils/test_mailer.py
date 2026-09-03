@@ -414,8 +414,7 @@ class TestMaillist(Common):
         ]
 
     def test_invalid_recipient_resolution(self):
-        invalid_email_err_msg = "Missing domain or user"
-        invalid_domain_err_msg = "Invalid email domain"
+        invalid_email_err_msg = "Missing separator character '@'."
         r = ["u", "u2"]
         ml = self.new_ml("ml", recipients=r)
         assert ml.recipients == r
@@ -428,22 +427,6 @@ class TestMaillist(Common):
         assert ml.recipients == r
         assert ml.domain is None
         with pytest.raises(RuntimeError, match=invalid_email_err_msg):
-            ml.resolve_recipients()
-
-        r = ["u", "u2@origen.org"]
-        domain= "blah!"
-        ml = self.new_ml("ml", recipients=r, domain=domain)
-        assert ml.recipients == r
-        assert ml.domain == domain
-        with pytest.raises(RuntimeError, match=invalid_domain_err_msg):
-            ml.resolve_recipients()
-
-        r = ["u@origen!", "u2@origen.org"]
-        domain= "blah!"
-        ml = self.new_ml("ml", recipients=r, domain=domain)
-        assert ml.recipients == r
-        assert ml.domain == domain
-        with pytest.raises(RuntimeError, match=invalid_domain_err_msg):
             ml.resolve_recipients()
 
     def test_audience_resolution(self):

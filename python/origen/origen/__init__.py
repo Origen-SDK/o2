@@ -1,15 +1,21 @@
 import sys
 import re
 import os, pathlib
+import importlib_metadata
+
 init_verbosity = 0
 cli_path = None
 cli_ver = None
 vks = []
+pyproject_src = None
+invoc = None
 
 regexp = re.compile(r'verbosity=(\d+)')
 cli_re = re.compile(r'origen_cli=(.+)')
 cli_ver_re = re.compile(r'origen_cli_version=(.+)')
 vk_re = re.compile(r'verbosity_keywords=(.+)')
+pyproj_src_re = re.compile(r'pyproject_src=(.+)')
+invoc_re = re.compile(r'invocation=(.+)')
 for arg in sys.argv:
     matches = regexp.search(arg)
     if matches:
@@ -26,6 +32,14 @@ for arg in sys.argv:
             matches = cli_ver_re.search(arg)
             if matches:
                 cli_ver = matches.group(1)
+                next
+            matches = pyproj_src_re.search(arg)
+            if matches:
+                pyproject_src = matches.group(1)
+                next
+            matches = invoc_re.search(arg)
+            if matches:
+                invoc = matches.group(1)
                 next
 
 import _origen
@@ -54,6 +68,8 @@ def __getattr__(name: str):
             return origen._plugins
         else:
             return _plugins
+    elif name == "output_directory" or name == "output_dir":
+        return _origen.output_directory()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # Replace origen_metal's native _origen_metal built library
@@ -64,7 +80,16 @@ import origen_metal
 om = origen_metal
 origen_metal.frontend.initialize()
 
-_origen.initialize(init_verbosity, vks, cli_path, cli_ver, pathlib.Path(__file__).parent, sys.executable)
+_origen.initialize(
+    init_verbosity,
+    vks,
+    cli_path,
+    cli_ver,
+    pathlib.Path(__file__).parent,
+    sys.executable,
+    ((invoc, pyproject_src) if invoc else None)
+)
+del init_verbosity, vks, cli_path, cli_ver, invoc, pyproject_src
 
 from pathlib import Path
 import importlib
@@ -75,6 +100,7 @@ from typing import List, Dict
 
 from origen.tester import Tester, DummyTester
 from origen.producer import Producer
+from origen_metal.utils.version import Version
 
 import origen.target
 targets = origen.target
@@ -96,7 +122,6 @@ __config_metadata__ = _origen.config_metadata()
 
 status = _origen.status()
 ''' Dictionary of various application and workspace attributes
-    Keys include: ``{{ list(origen.status.keys())|pprint }}``
 
     Returns:
         dict: Application and/or workspace attributes as key-value pairs.
@@ -128,11 +153,21 @@ __in_origen_core_app = status["in_origen_core_app"]
         bool
 '''
 
-version = _origen.version()
-''' Returns the version of the Origen executable.
+__version__ = importlib_metadata.version(__name__)
+''' Returns the version of Origen.
 
     Returns:
         str: Origen executable version
+
+    >>> __origen__.version
+    '{{ origen_version }}'
+'''
+
+version = Version(__version__)
+''' Returns the version of Origen.
+
+    Returns:
+        origen_metal.utils.version.Version: Origen version
 
     >>> origen.version
     '{{ origen_version }}'

@@ -10,13 +10,13 @@ macro_rules! extract_pinactions {
             let mut acts = origen::core::model::pins::pin::PinAction::from_action_str(&s)?;
             acts.reverse();
             Ok(acts)
-        } else if $actions.get_type().name()? == "PinActions" {
+        } else if $actions.get_type().qualname()? == "PinActions" {
             let acts = $actions.extract::<PyRef<crate::pins::pin_actions::PinActions>>()?;
             Ok(acts.actions.clone())
         } else {
             Err(pyo3::exceptions::PyTypeError::new_err(format!(
                 "Cannot extract _origen.pin.PinActions from type {}",
-                $actions.get_type().name()?
+                $actions.get_type().qualname()?
             )))
         }
     }};
@@ -69,9 +69,7 @@ pub struct PinActions {
 impl PinActions {
     #[allow(non_snake_case)]
     #[classmethod]
-    fn DriveHigh(_cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn DriveHigh(_cls: &PyType, py: Python) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::drive_high()],
         }
@@ -80,9 +78,7 @@ impl PinActions {
 
     #[allow(non_snake_case)]
     #[classmethod]
-    fn DriveLow(_cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn DriveLow(_cls: &PyType, py: Python) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::drive_low()],
         }
@@ -91,9 +87,7 @@ impl PinActions {
 
     #[allow(non_snake_case)]
     #[classmethod]
-    fn VerifyHigh(_cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn VerifyHigh(_cls: &PyType, py: Python) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::verify_high()],
         }
@@ -102,9 +96,7 @@ impl PinActions {
 
     #[allow(non_snake_case)]
     #[classmethod]
-    fn VerifyLow(_cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn VerifyLow(_cls: &PyType, py: Python) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::verify_low()],
         }
@@ -113,9 +105,7 @@ impl PinActions {
 
     #[allow(non_snake_case)]
     #[classmethod]
-    fn Capture(_cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn Capture(_cls: &PyType, py: Python) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::capture()],
         }
@@ -124,9 +114,7 @@ impl PinActions {
 
     #[allow(non_snake_case)]
     #[classmethod]
-    fn HighZ(_cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn HighZ(_cls: &PyType, py: Python) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::highz()],
         }
@@ -135,9 +123,7 @@ impl PinActions {
 
     #[allow(non_snake_case)]
     #[classmethod]
-    fn Multichar(_cls: &PyType, symbol: String) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn Multichar(_cls: &PyType, py: Python, symbol: String) -> PyResult<PyObject> {
         Ok(PinActions {
             actions: vec![OrigenPinAction::new(&symbol)],
         }
@@ -145,28 +131,26 @@ impl PinActions {
     }
 
     #[classmethod]
-    fn standard_actions(cls: &PyType) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn standard_actions(cls: &PyType, py: Python) -> PyResult<PyObject> {
         let retn = PyDict::new(py);
-        retn.set_item("DriveHigh", Self::DriveHigh(cls)?)?;
-        retn.set_item("DriveLow", Self::DriveLow(cls)?)?;
-        retn.set_item("VerifyHigh", Self::VerifyHigh(cls)?)?;
-        retn.set_item("VerifyLow", Self::VerifyLow(cls)?)?;
-        retn.set_item("Capture", Self::Capture(cls)?)?;
-        retn.set_item("HighZ", Self::HighZ(cls)?)?;
+        retn.set_item("DriveHigh", Self::DriveHigh(cls, py)?)?;
+        retn.set_item("DriveLow", Self::DriveLow(cls, py)?)?;
+        retn.set_item("VerifyHigh", Self::VerifyHigh(cls, py)?)?;
+        retn.set_item("VerifyLow", Self::VerifyLow(cls, py)?)?;
+        retn.set_item("Capture", Self::Capture(cls, py)?)?;
+        retn.set_item("HighZ", Self::HighZ(cls, py)?)?;
         Ok(retn.into())
     }
 
     #[new]
-    #[args(actions = "*", _kwargs = "**")]
+    #[pyo3(signature=(*actions, **_kwargs))]
     fn new(actions: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Self> {
         let mut temp: Vec<OrigenPinAction> = vec![];
         // if let Some(actions_) = actions {
         for a in actions.iter() {
             if let Ok(s) = a.extract::<String>() {
                 temp.extend(OrigenPinAction::from_action_str(&s)?);
-            } else if a.get_type().name()? == "PinActions" {
+            } else if a.get_type().qualname()? == "PinActions" {
                 let s = a.extract::<PyRef<Self>>().unwrap();
                 let mut s_ = s.actions.clone();
                 s_.reverse();
@@ -174,7 +158,7 @@ impl PinActions {
             } else {
                 return super::super::type_error!(&format!(
                     "Cannot cast type {} to a valid PinAction",
-                    a.get_type().name()?
+                    a.get_type().qualname()?
                 ));
             }
             // }
@@ -198,15 +182,12 @@ impl PinActions {
     /// Comparisons are only valid for *equal* and *not equal*. Can't compare if one
     /// pin action is *greater than* or *less than* another.
     /// Example of richcmp: https://github.com/PyO3/pyo3/blob/a5e3d4e7c8d80f7020510cf630ab01001612c6a7/tests/test_arithmetics.rs#L358-L373
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn __richcmp__(&self, py: Python, other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
         // Support comparing either to a str or another Actions object
         let other_string;
         if let Ok(s) = other.extract::<String>() {
             other_string = s;
-        } else if other.get_type().name()? == "PinActions" {
+        } else if other.get_type().qualname()? == "PinActions" {
             let other_actions = other.extract::<PyRef<Self>>()?;
             other_string = OrigenPinAction::to_action_string(&other_actions.actions)?;
         } else {
@@ -283,9 +264,7 @@ impl GeneralizedListLikeAPI for PinActions {
             _idx = ((self.items().len() as isize) + idx) as usize;
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(self.new_pyitem(py, &self.items()[_idx], _idx)?)
+        Python::with_gil(|py| self.new_pyitem(py, &self.items()[_idx], _idx))
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
@@ -305,9 +284,9 @@ impl GeneralizedListLikeAPI for PinActions {
                 }
             }
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(PinActions { actions: actions }.into_py(py))
+        Ok(Python::with_gil(|py| {
+            PinActions { actions: actions }.into_py(py)
+        }))
     }
 }
 

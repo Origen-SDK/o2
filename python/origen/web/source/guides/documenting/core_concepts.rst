@@ -8,21 +8,13 @@ documenting your *Origen application*.
 
 The :ref:`previous section <guides/documenting/introduction:Introduction>` mentions:
 
-.. raw:: html
+.. epigraph::
 
-  <div class="card text-white bg-primary mb-3">
-    <div class="card-body">
-      <blockquote class="quote-card">
-        <p> Your Origen application documentation engine features:<br>
+   Your Origen application documentation engine features:
 
-            <ul>
-              <li>A fully-functioning <i>Sphinx app</i> out-of-the-box.</li>
-            </ul>
-        </p>
-        <cite>{{ anchor_to('documenting:introduction', 'The Introduction') }}</cite>
-      </blockquote>
-    </div>
-  </div>
+   * A fully-functioning *Sphinx app* out-of-the-box.
+
+   -- :link-to:`The Introduction <documenting:introduction>`
 
 What exactly does this mean?
 
@@ -30,12 +22,11 @@ Origen leverages some external libraries to assist in the website generation, th
 :sphinx_homepage:`Sphinx <>`. If you ran ``origen web build`` from the previous section,
 you probably noticed output referencing *Sphinx* in various forms.
 
-*Sphinx* is a widely used Python library used to generate static webpages, including
-the :python_docs:`Python documentation itself! <>`
-(check the footer to see "Created using Sphinx 2.3.1", at least for Python 3.6 through 3.8). If
+*Sphinx* is a widely used Python library for generating static documentation,
+including the :python_docs:`Python documentation itself! <>`. If
 you're coming from a Python-heavy background there's a high chance you've viewed some
 :sphinx_project_examples:`documentation source generated from Sphinx <>` or even used it yourself.
-Sphinx will be the "enging" which generates your *Origen application's* docs.
+Sphinx is the engine which generates your *Origen application's* docs.
 
 If you're already familiar with Sphinx, glancing at the |documenting:block_diagram| and jumping to the |ose|
 will give you the most pertinent information.
@@ -54,7 +45,7 @@ the following terms will be in effect:
   features or customizations.
 * :sphinx_themes:`Sphinx Themes <>` - Libraries which customize the 'look and feel' of your webpages.
 * :link-to:`Origen CLI <origen_cli>` - The Origen command line interface.
-* :sphinx_manpages:`Sphinx CLI` -The Sphinx command line interface, driven by the Origen CLI.
+* :sphinx_manpages:`Sphinx CLI <>` - The Sphinx command line interface, driven by the Origen CLI.
 * :link-to:`origen web <web_cmd>` - The Origen CLI command for driving the Sphinx CLI.
 * :link-to:`origen_sphinx_ext <ose>` - A Sphinx extension Origen provides to bridge the gaps between
   the Origen CLI, your *Origen application*, and your *Sphinx app*.
@@ -86,8 +77,21 @@ the view below is sufficient to get started:
 Doc System Block Diagram
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: /_static/img/guides/documenting/doc_system_block_diagram.png
-   :alt: doc_system_block_diagram
+.. figure:: /_static/img/guides/documenting/doc_system_block_diagram-light.svg
+   :alt: The Origen CLI drives a Sphinx app hosting the Origen Sphinx Extension, which
+          exchanges content with the Origen application and with the theme, API, and other
+          extensions, and emits the generated web pages.
+   :class: only-light
+   :width: 100%
+
+   Doc System Block Diagram
+
+.. figure:: /_static/img/guides/documenting/doc_system_block_diagram-dark.svg
+   :alt: The Origen CLI drives a Sphinx app hosting the Origen Sphinx Extension, which
+          exchanges content with the Origen application and with the theme, API, and other
+          extensions, and emits the generated web pages.
+   :class: only-dark
+   :width: 100%
 
    Doc System Block Diagram
 

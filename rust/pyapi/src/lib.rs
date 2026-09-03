@@ -13,6 +13,7 @@ mod current_command;
 mod dut;
 mod extensions;
 mod file_handler;
+mod infrastructure;
 mod meta;
 mod model;
 #[macro_use]
@@ -27,8 +28,7 @@ mod application;
 mod producer;
 mod prog_gen;
 mod standard_sub_blocks;
-mod tester;
-mod tester_apis;
+pub mod tester;
 #[macro_use]
 mod utility;
 mod plugins;
@@ -36,31 +36,19 @@ mod plugins;
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use om::lazy_static::lazy_static;
-use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST, clean_target};
+use origen::core::status::DependencySrc;
+use origen::{clean_target, Dut, Error, Operation, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use origen_metal as om;
-use pyapi_metal::{runtime_error, pypath};
-use pyo3::conversion::AsPyPointer;
+use origen_metal::FLOW;
+use paste::paste;
+use pyapi_metal::{pypath, runtime_error};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
-use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::wrap_pyfunction;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
-use paste::paste;
-
-use crate::dut::__PYO3_PYMODULE_DEF_DUT;
-use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
-use crate::tester_apis::__PYO3_PYMODULE_DEF_TESTER_APIS;
-use crate::application::__PYO3_PYMODULE_DEF_APPLICATION;
-use crate::prog_gen::interface::__PYO3_PYMODULE_DEF_INTERFACE;
-use crate::producer::__PYO3_PYMODULE_DEF_PRODUCER;
-use crate::services::__PYO3_PYMODULE_DEF_SERVICES;
-use crate::utility::__PYO3_PYMODULE_DEF_UTILITY;
-use crate::standard_sub_blocks::__PYO3_PYMODULE_DEF_STANDARD_SUB_BLOCKS;
-use crate::prog_gen::__PYO3_PYMODULE_DEF_PROG_GEN;
-
-use pyapi_metal::__PYO3_PYMODULE_DEF__ORIGEN_METAL;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -97,25 +85,23 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(set_operation))?;
     m.add_wrapped(wrap_pyfunction!(boot_users))?;
 
-    m.add_wrapped(wrap_pymodule!(dut))?;
-    m.add_wrapped(wrap_pymodule!(tester))?;
-    m.add_wrapped(wrap_pymodule!(application))?;
-    m.add_wrapped(wrap_pymodule!(interface))?;
-    m.add_wrapped(wrap_pymodule!(producer))?;
-    m.add_wrapped(wrap_pymodule!(services))?;
-    m.add_wrapped(wrap_pymodule!(utility))?;
-    m.add_wrapped(wrap_pymodule!(tester_apis))?;
-    m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
-    m.add_wrapped(wrap_pymodule!(prog_gen))?;
-
-    file_handler::define(m)?;
+    dut::define(py, m)?;
+    tester::define(py, m)?;
+    application::define(py, m)?;
+    producer::define(py, m)?;
+    services::define(py, m)?;
+    utility::define(py, m)?;
+    standard_sub_blocks::define(py, m)?;
+    prog_gen::define(py, m)?;
+    file_handler::define(py, m)?;
     plugins::define(py, m)?;
     extensions::define(py, m)?;
     current_command::define(py, m)?;
+    infrastructure::define(py, m)?;
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
-    m.add_wrapped(wrap_pymodule!(_origen_metal))?;
+    pyapi_metal::define(py, m)?;
     m.setattr(current_command::ATTR_NAME, py.None())?;
     Ok(())
 }
@@ -148,19 +134,19 @@ fn unpack_transaction_options(
     kwargs: Option<&PyDict>,
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
-        if let Some(address) = opts.get_item("address") {
+        if let Some(address) = opts.get_item("address")? {
             trans.address = Some(address.extract::<BigUint>()?);
         }
-        if let Some(w) = opts.get_item("address_width") {
+        if let Some(w) = opts.get_item("address_width")? {
             trans.address_width = Some(w.extract::<usize>()?);
         }
-        if let Some(_mask) = opts.get_item("mask") {
+        if let Some(_mask) = opts.get_item("mask")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay) = opts.get_item("overlay") {
+        if let Some(_overlay) = opts.get_item("overlay")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+        if let Some(_overlay_str) = opts.get_item("overlay_str")? {
             panic!("option not supported yet!");
         }
     }
@@ -175,20 +161,20 @@ fn unpack_capture_kwargs(
     cycles_allowed: bool,
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
-        if let Some(sym) = opts.get_item("symbol") {
+        if let Some(sym) = opts.get_item("symbol")? {
             cap_trans.symbol = Some(sym.extract::<String>()?);
         }
-        if let Some(enables) = opts.get_item("mask") {
+        if let Some(enables) = opts.get_item("mask")? {
             cap_trans.enables = Some(enables.extract::<BigUint>()?);
         }
-        if let Some(cycles) = opts.get_item("cycles") {
+        if let Some(cycles) = opts.get_item("cycles")? {
             if cycles_allowed {
                 cap_trans.cycles = Some(cycles.extract::<usize>()?);
             } else {
                 return runtime_error!("'cycles' capture option is not valid in this context");
             }
         }
-        if let Some(pins) = opts.get_item("pins") {
+        if let Some(pins) = opts.get_item("pins")? {
             if pins_allowed {
                 let pins_vec = pins.extract::<Vec<&PyAny>>()?;
                 cap_trans.pin_ids = Some(pins::vec_to_ppin_ids(&dut, pins_vec)?);
@@ -203,18 +189,18 @@ fn unpack_capture_kwargs(
 /// Unpacks/extracts common transaction options, updating the transaction directly
 /// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
 fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -> PyResult<()> {
-    if let Some(mask) = kwargs.get_item("mask") {
+    if let Some(mask) = kwargs.get_item("mask")? {
         if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
             trans.bit_enable = big_mask;
         } else {
             return crate::type_error!("Could not extract kwarg 'mask' as an integer");
         }
     }
-    if let Some(overlay) = kwargs.get_item("overlay") {
+    if let Some(overlay) = kwargs.get_item("overlay")? {
         let overlay_mask;
         let overlay_symbol;
         let overlay_cycles;
-        if let Some(mask) = kwargs.get_item("overlay_mask") {
+        if let Some(mask) = kwargs.get_item("overlay_mask")? {
             if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
                 overlay_mask = Some(big_mask);
             } else {
@@ -227,7 +213,7 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
                 overlay_mask = None;
             }
         }
-        if let Some(s) = kwargs.get_item("overlay_symbol") {
+        if let Some(s) = kwargs.get_item("overlay_symbol")? {
             if let Ok(sym) = s.extract::<String>() {
                 overlay_symbol = Some(sym);
             } else {
@@ -240,7 +226,7 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
                 overlay_symbol = None;
             }
         }
-        if let Some(c) = kwargs.get_item("overlay_cycles") {
+        if let Some(c) = kwargs.get_item("overlay_cycles")? {
             if let Ok(i) = c.extract::<usize>() {
                 overlay_cycles = Some(i);
             } else {
@@ -286,7 +272,7 @@ fn resolve_transaction(
 ) -> PyResult<origen::Transaction> {
     let mut width = 32;
     if let Some(opts) = kwargs {
-        if let Some(w) = opts.get_item("width") {
+        if let Some(w) = opts.get_item("width")? {
             width = w.extract::<u32>()?;
         }
     }
@@ -320,21 +306,21 @@ fn resolve_transaction(
     }
 
     if let Some(opts) = kwargs {
-        if let Some(address) = opts.get_item("address") {
+        if let Some(address) = opts.get_item("address")? {
             if !address.is_none() {
                 trans.address = Some(address.extract::<BigUint>()?);
             }
         }
-        if let Some(w) = opts.get_item("address_width") {
+        if let Some(w) = opts.get_item("address_width")? {
             trans.address_width = Some(w.extract::<usize>()?);
         }
-        if let Some(_mask) = opts.get_item("mask") {
+        if let Some(_mask) = opts.get_item("mask")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay) = opts.get_item("overlay") {
+        if let Some(_overlay) = opts.get_item("overlay")? {
             panic!("option not supported yet!");
         }
-        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+        if let Some(_overlay_str) = opts.get_item("overlay_str")? {
             panic!("option not supported yet!");
         }
     }
@@ -354,23 +340,24 @@ fn exit_pass() -> PyResult<()> {
 }
 
 fn origen_mod_path() -> PyResult<PathBuf> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let locals = PyDict::new(py);
-    locals.set_item("importlib", py.import("importlib")?)?;
-    let p = PathBuf::from(
-        py.eval(
-            "importlib.util.find_spec('_origen').origin",
-            None,
-            Some(&locals),
-        )?
-        .extract::<String>()?,
-    );
-    Ok(p.parent().unwrap().to_path_buf())
+    Python::with_gil(|py| {
+        let locals = PyDict::new(py);
+        locals.set_item("importlib", py.import("importlib")?)?;
+        let p = PathBuf::from(
+            py.eval(
+                "importlib.util.find_spec('_origen').origin",
+                None,
+                Some(&locals),
+            )?
+            .extract::<String>()?,
+        );
+        Ok(p.parent().unwrap().to_path_buf())
+    })
 }
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
+#[pyo3(signature=(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc, invocation))]
 fn initialize(
     py: Python,
     log_verbosity: Option<u8>,
@@ -379,9 +366,23 @@ fn initialize(
     cli_version: Option<String>,
     fe_pkg_loc: Option<PathBuf>,
     fe_exe_loc: Option<PathBuf>,
+    invocation: Option<(String, Option<PathBuf>)>,
 ) -> PyResult<()> {
-    origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc);
+    origen::initialize(
+        log_verbosity,
+        verbosity_keywords,
+        cli_location,
+        cli_version,
+        fe_pkg_loc,
+        fe_exe_loc,
+    );
     origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
+    if let Some(invoc) = invocation {
+        match DependencySrc::try_from(invoc) {
+            Ok(d) => origen::STATUS.set_dependency_src(Some(d)),
+            Err(e) => log_error!("{}", e.to_string()),
+        }
+    }
     origen::FRONTEND
         .write()
         .unwrap()
@@ -517,10 +518,20 @@ fn status(py: Python) -> PyResult<PyObject> {
         },
     )?;
     ret.set_item(
+        "cli_location",
+        match STATUS.cli_location() {
+            Some(path) => pypath!(py, path.display()),
+            None => py.None(),
+        },
+    )?;
+    ret.set_item(
         "is_app_in_origen_dev_mode",
         STATUS.is_app_in_origen_dev_mode,
     )?;
     ret.set_item("in_origen_core_app", STATUS.in_origen_core_app())?;
+
+    // Invocation details
+    infrastructure::pyproject::populate_status(py, ret)?;
     Ok(ret.into())
 }
 
@@ -528,7 +539,7 @@ fn status(py: Python) -> PyResult<PyObject> {
 #[pyfunction]
 fn version() -> PyResult<String> {
     Ok(
-        origen::utility::version::Version::new_pep440(&STATUS.origen_version.to_string())?
+        origen_metal::utils::version::Version::new_pep440(&STATUS.origen_version.to_string())?
             .to_string(),
     )
 }
@@ -550,7 +561,13 @@ fn config(py: Python) -> PyResult<PyObject> {
 fn config_metadata<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
     let m = origen::origen_config_metadata();
     let retn = PyDict::new(py);
-    retn.set_item("files", m.files.iter().map( |p| Ok(pypath!(py, p.display()))).collect::<PyResult<Vec<PyObject>>>()?)?;
+    retn.set_item(
+        "files",
+        m.files
+            .iter()
+            .map(|p| Ok(pypath!(py, p.display())))
+            .collect::<PyResult<Vec<PyObject>>>()?,
+    )?;
     Ok(retn)
 }
 
@@ -592,6 +609,7 @@ fn app_config(py: Python) -> PyResult<Option<PyObject>> {
                 },
             );
             let _ = ret.set_item("website_release_name", &config.website_release_name);
+            let _ = ret.set_item("release", &config.release);
             Ok(())
         });
         Ok(Some(ret.into()))
@@ -649,7 +667,7 @@ fn start_new_test(name: Option<String>) -> PyResult<()> {
     Ok(())
 }
 
-pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
+pub fn pickle(py: Python, object: &PyAny) -> PyResult<Vec<u8>> {
     let pickle = PyModule::import(py, "pickle")?;
     pickle
         .getattr("dumps")?
@@ -667,11 +685,10 @@ pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
 where
     F: FnMut(Python, &PyAny) -> PyResult<T>,
 {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let pycallbacks = py.import("origen.callbacks")?;
-    func(py, pycallbacks)
+    Python::with_gil(|py| {
+        let pycallbacks = py.import("origen.callbacks")?;
+        func(py, pycallbacks)
+    })
 }
 
 pub fn get_full_class_name(obj: &PyAny) -> PyResult<String> {
@@ -695,7 +712,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     if let Some(r) = &ORIGEN_CONFIG.session__user_root {
         log_trace!("Setting user session root to {}", r);
         let mut users = om::users_mut();
-        let mut sc = users.default_session_config_mut();
+        let sc = users.default_session_config_mut();
         sc.root = Some(PathBuf::from(r));
     }
 
@@ -703,9 +720,12 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     if let Some(pw_cache_option) = &crate::ORIGEN_CONFIG.user__password_cache_option {
         match users.set_default_password_cache_option(Some(pw_cache_option)) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                om::log_error!("{}: Error encountered updating default password cache option", *BASE_MSG);
+                om::log_error!(
+                    "{}: Error encountered updating default password cache option",
+                    *BASE_MSG
+                );
                 om::log_error!("{}", e);
             }
         }
@@ -782,7 +802,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     // Set the data lookup hierarchy
     if let Some(hierarchy) = &crate::ORIGEN_CONFIG.user__data_lookup_hierarchy {
-        match users.set_data_lookup_hierarchy(hierarchy.to_owned()) {
+        match users.apply_data_lookup_hierarchy(hierarchy.to_owned()) {
             Ok(_) => {}
             Err(e) => {
                 om::log_error!(
@@ -791,7 +811,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                 );
                 om::log_error!("{}", e);
                 om::log_error!("Forcing empty dataset lookup hierarchy...");
-                users.set_data_lookup_hierarchy(vec![])?;
+                users.apply_data_lookup_hierarchy(vec![])?;
             }
         }
     } else {
@@ -800,7 +820,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         {
             // The config can only be read as an unordered hashmap. If multiple datasets are given,
             // clear the hierarchy if not explicitly given, otherwise will get non-deterministic behavior
-            users.set_data_lookup_hierarchy(vec![])?;
+            users.apply_data_lookup_hierarchy(vec![])?;
         }
     }
 
@@ -833,7 +853,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                     }
                 }
             }
-        }
+        };
     }
 
     // Add any default users
@@ -841,10 +861,20 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         match users.add(name, config.auto_populate) {
             Ok(u) => {
                 if let Some(s) = config.should_validate_passwords {
-                    log_error__set_field_for_default_user!(u, should_validate_passwords, Some(s), name)
+                    log_error__set_field_for_default_user!(
+                        u,
+                        should_validate_passwords,
+                        Some(s),
+                        name
+                    )
                 }
                 if let Some(uname) = &config.username {
-                    log_error__set_field_for_default_user!(u, username, Some(uname.to_owned()), name);
+                    log_error__set_field_for_default_user!(
+                        u,
+                        username,
+                        Some(uname.to_owned()),
+                        name
+                    );
                 }
                 if let Some(pw) = &config.password {
                     log_error__set_field_for_default_user!(u, password, Some(pw.to_owned()), name);
@@ -859,9 +889,13 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                 if let Some(l) = &config.last_name {
                     log_error__set_field_for_default_user!(u, last_name, Some(l.to_owned()), name);
                 }
-            },
+            }
             Err(e) => {
-                om::log_error!("{}: Failed to initialize default user '{}'", *BASE_MSG, name);
+                om::log_error!(
+                    "{}: Failed to initialize default user '{}'",
+                    *BASE_MSG,
+                    name
+                );
                 log_error!("{}", e);
             }
         }
@@ -869,29 +903,38 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     // See if the frontend provides a specific means to lookup the current user
     if let Some(func) = &crate::ORIGEN_CONFIG.user__current_user_lookup_function {
-        users.set_lookup_current_id_function(Some(pyapi_metal::_helpers::get_qualified_attr(&func)?.as_ref(py)))?;
+        users.set_lookup_current_id_function(Some(
+            pyapi_metal::_helpers::get_qualified_attr(&func)?.as_ref(py),
+        ))?;
     }
 
     // Initialize the current user
-    if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.initialize.unwrap_or(true)) {
+    if ORIGEN_CONFIG
+        .initial_user
+        .as_ref()
+        .map_or(true, |u| u.initialize.unwrap_or(true))
+    {
         match users.lookup_current_id(true) {
             Ok(_) => {
-                if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.init_home_dir.unwrap_or(true)) {
+                if ORIGEN_CONFIG
+                    .initial_user
+                    .as_ref()
+                    .map_or(true, |u| u.init_home_dir.unwrap_or(true))
+                {
                     match users.current_user() {
-                        Ok(usr) => {
-                            match usr {
-                                Some(u) => {
-                                    match u.set_home_dir(None) {
-                                        Ok(_) => {},
-                                        Err(e) => {
-                                            log_error!("{}: Failed to lookup current user's home directory", *BASE_MSG);
-                                            log_error!("{}", e);
-                                        }
-                                    }
-                                },
-                                None => {
-                                    log_error!("{}: Failed to lookup current user", *BASE_MSG);
+                        Ok(usr) => match usr {
+                            Some(u) => match u.set_home_dir(None) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    log_error!(
+                                        "{}: Failed to lookup current user's home directory",
+                                        *BASE_MSG
+                                    );
+                                    log_error!("{}", e);
                                 }
+                            },
+                            None => {
+                                log_error!("{}: Failed to lookup current user", *BASE_MSG);
                             }
                         },
                         Err(e) => {
@@ -900,7 +943,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                         }
                     }
                 }
-            },
+            }
             Err(e) => {
                 log_error!("{}: Failed to lookup current user", *BASE_MSG);
                 log_error!("{}", e);
@@ -910,4 +953,29 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         log_trace!("Bypassing current user initialization.");
     }
     Ok(users)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initializes_module_and_interoperates_with_pin_actions() -> PyResult<()> {
+        Python::with_gil(|py| {
+            let module = PyModule::new(py, "_origen")?;
+            _origen(py, module)?;
+
+            let pin_actions = module
+                .getattr("dut")?
+                .getattr("pins")?
+                .getattr("PinActions")?;
+            let created = pin_actions.call1(("1",))?;
+            let class_method = pin_actions.call_method0("DriveHigh")?;
+
+            assert!(created.eq(class_method)?);
+            let combined = pin_actions.call1((class_method,))?;
+            assert!(combined.eq(created)?);
+            Ok(())
+        })
+    }
 }

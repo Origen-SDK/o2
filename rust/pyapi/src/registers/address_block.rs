@@ -245,9 +245,7 @@ impl AddressBlock {
         }
     }
 
-    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn __getattr__(&self, py: Python, query: &str) -> PyResult<PyObject> {
         let dut = origen::dut();
 
         if query == "regs" || query == "registers" {
