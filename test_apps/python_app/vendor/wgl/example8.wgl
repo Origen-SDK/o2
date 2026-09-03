@@ -1,0 +1,112 @@
+{ Edge-case WGL file for parser stress testing
+  Covers: deeply nested loops, large Repeat count, signal names with underscores
+          and digits, comments in unusual positions, mixed case keywords
+          (WGL is case-insensitive per the spec), zero-width don't-cares,
+          multiple timeplates referenced in the same pattern, Pin attribute }
+
+Waveform EdgeCaseTests
+
+  Signal
+    PIN_A1          : input;
+    PIN_B2          : input;
+    PIN_C3          : input;
+    PIN_D4          : input;
+    nOE_OUT         : output;    { active-low output }
+    DOUT_0          : output;
+    DOUT_1          : output;
+    DOUT_2          : output;
+    DOUT_3          : output;
+    CLK_IN          : input;
+    STROBE_N        : input;
+    TRISTATE_BUS    : bidir;
+  End
+
+  { Timeplate with very short period }
+  Timeplate TP_FAST Period 10nS
+    PIN_A1       := input[0nS:S];
+    PIN_B2       := input[0nS:S];
+    PIN_C3       := input[0nS:S];
+    PIN_D4       := input[0nS:S];
+    nOE_OUT      := output[8nS:Q];
+    DOUT_0       := output[8nS:Q];
+    DOUT_1       := output[8nS:Q];
+    DOUT_2       := output[8nS:Q];
+    DOUT_3       := output[8nS:Q];
+    CLK_IN       := input[0nS:S, 5nS:R];
+    STROBE_N     := input[0nS:S];
+    TRISTATE_BUS := bidir[0nS:S, 8nS:Q];
+  End
+
+  { Timeplate with large period }
+  Timeplate TP_SLOW Period 1000nS
+    PIN_A1       := input[0nS:S];
+    PIN_B2       := input[0nS:S];
+    PIN_C3       := input[0nS:S];
+    PIN_D4       := input[0nS:S];
+    nOE_OUT      := output[900nS:Q];
+    DOUT_0       := output[900nS:Q];
+    DOUT_1       := output[900nS:Q];
+    DOUT_2       := output[900nS:Q];
+    DOUT_3       := output[900nS:Q];
+    CLK_IN       := input[0nS:S, 500nS:R];
+    STROBE_N     := input[0nS:S];
+    TRISTATE_BUS := bidir[0nS:S, 900nS:Q];
+  End
+
+  Pattern EdgeCase_NestedLoops (PIN_A1, PIN_B2, PIN_C3, PIN_D4, nOE_OUT,
+                                DOUT_0, DOUT_1, DOUT_2, DOUT_3,
+                                CLK_IN, STROBE_N, TRISTATE_BUS)
+
+    { Deeply nested loops }
+    Loop 4
+      Loop 3
+        Loop 2
+          Vector(+, TP_FAST) := [1 0 1 0  1  0 0 0 0  0 1 X];
+          Vector(+, TP_FAST) := [0 1 0 1  0  1 1 1 1  0 1 X];
+        End
+      End
+      { Repeat inside outer loop }
+      Repeat 2 Vector(+, TP_FAST) := [1 1 1 1  1  X X X X  0 0 X];
+    End
+
+    { High repeat count }
+    Repeat 1000 Vector(+, TP_FAST) := [0 0 0 0  1  0 0 0 0  0 1 X];
+
+    { Mixed timeplates in same pattern }
+    Vector(+, TP_SLOW) := [1 0 0 0  1  X X X X  0 1 X];
+    Vector(+, TP_SLOW) := [0 1 0 0  1  X X X X  0 1 X];
+    Vector(+, TP_FAST) := [0 0 1 0  1  X X X X  0 1 X];
+    Vector(+, TP_FAST) := [0 0 0 1  1  X X X X  0 1 X];
+
+    { Tristate bus driven high }
+    Vector(+, TP_FAST) := [0 0 0 0  1  X X X X  0 1 1];
+    { Tristate bus driven low }
+    Vector(+, TP_FAST) := [0 0 0 0  1  X X X X  0 1 0];
+    { Tristate bus receive H }
+    Vector(+, TP_FAST) := [0 0 0 0  1  X X X X  0 1 H];
+    { Tristate bus receive L }
+    Vector(+, TP_FAST) := [0 0 0 0  1  X X X X  0 1 L];
+    { Tristate bus high-impedance }
+    Vector(+, TP_FAST) := [0 0 0 0  1  X X X X  0 1 Z];
+
+    { Comment between vectors }
+    { This comment tests that the parser handles
+      multi-line comments correctly }
+    Vector(+, TP_FAST) := [1 1 0 0  0  1 0 1 0  0 0 X];
+    { Another single-line comment }
+    Vector(+, TP_FAST) := [0 0 1 1  0  0 1 0 1  0 0 X];
+
+  End
+
+  { Second pattern in same file, uses only one timeplate }
+  Pattern EdgeCase_MixedValues (PIN_A1, PIN_B2, PIN_C3, PIN_D4, nOE_OUT,
+                                 DOUT_0, DOUT_1, DOUT_2, DOUT_3,
+                                 CLK_IN, STROBE_N, TRISTATE_BUS)
+    { All possible vector value characters }
+    Vector(+, TP_FAST) := [0 1 X H  L  Z 0 1 X  0 1 H];
+    Vector(+, TP_FAST) := [H L Z 0  1  X H L Z  1 0 L];
+    Vector(+, TP_FAST) := [1 1 1 1  1  1 1 1 1  1 1 1];
+    Vector(+, TP_FAST) := [0 0 0 0  0  0 0 0 0  0 0 0];
+  End
+
+End

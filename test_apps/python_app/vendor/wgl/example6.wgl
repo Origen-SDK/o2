@@ -1,0 +1,99 @@
+{ Scan chain test pattern
+  Covers: bidirectional pin declarations, multiple Timeplates,
+          Subroutine block, Call statement, X (don't-care) values,
+          Z (high-impedance) values }
+
+Waveform ScanChainTest
+
+  Signal
+    CLK      : input;
+    RESET_N  : input;
+    SCAN_EN  : input;
+    SCAN_IN  : input;
+    SCAN_OUT : output;
+    DATA_IN  : input;
+    DATA_OUT : output;
+    OE       : input;
+    BIDIR    : bidir;
+  End
+
+  Timeplate TP_FUNC Period 50nS
+    CLK      := input[0nS:S, 25nS:R];
+    RESET_N  := input[0nS:S];
+    SCAN_EN  := input[0nS:S];
+    SCAN_IN  := input[0nS:S];
+    SCAN_OUT := output[40nS:Q];
+    DATA_IN  := input[0nS:S];
+    DATA_OUT := output[40nS:Q];
+    OE       := input[0nS:S];
+    BIDIR    := bidir[0nS:S, 40nS:Q];
+  End
+
+  Timeplate TP_SLOW Period 100nS
+    CLK      := input[0nS:S, 50nS:R];
+    RESET_N  := input[0nS:S];
+    SCAN_EN  := input[0nS:S];
+    SCAN_IN  := input[0nS:S];
+    SCAN_OUT := output[80nS:Q];
+    DATA_IN  := input[0nS:S];
+    DATA_OUT := output[80nS:Q];
+    OE       := input[0nS:S];
+    BIDIR    := bidir[0nS:S, 80nS:Q];
+  End
+
+  Pattern ScanChain_Test (CLK, RESET_N, SCAN_EN, SCAN_IN, SCAN_OUT, DATA_IN, DATA_OUT, OE, BIDIR)
+
+    { Phase 1: Reset the device - hold reset low for 4 cycles }
+    Repeat 4 Vector(+, TP_SLOW) := [0 0 0 0 X 0 X 0 X];
+    { Release reset }
+    Vector(+, TP_SLOW) := [0 1 0 0 X 0 X 0 X];
+    Vector(+, TP_SLOW) := [0 1 0 0 X 0 X 0 X];
+
+    { Phase 2: Shift in scan chain - SCAN_EN=1, shift 8 bits }
+    Vector(+, TP_FUNC) := [0 1 1 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 1 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 1 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 1 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 1 X 0 X 0 X];
+
+    { Phase 3: Apply clocks to propagate }
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 X];
+
+    { Phase 4: Shift out scan chain and capture }
+    Vector(+, TP_FUNC) := [0 1 1 0 0 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 1 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 1 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 0 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 0 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 1 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 0 0 X 0 X];
+    Vector(+, TP_FUNC) := [0 1 1 0 1 0 X 0 X];
+
+    { Phase 5: Bidirectional test - drive mode }
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 1 1];
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 1 0];
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 1 1];
+
+    { Phase 6: Bidirectional test - receive mode (OE=0, expect Hi-Z then driven) }
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 Z];
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 H];
+
+    { Done }
+    Vector(+, TP_FUNC) := [0 1 0 0 X 0 X 0 X];
+  End
+
+  Subroutine ResetSequence()
+    { Hold reset low for 4 cycles }
+    Repeat 4 Vector(+, TP_SLOW) := [0 0 0 0 X 0 X 0 X];
+    { Release reset }
+    Vector(+, TP_SLOW) := [0 1 0 0 X 0 X 0 X];
+    Vector(+, TP_SLOW) := [0 1 0 0 X 0 X 0 X];
+  End
+
+End

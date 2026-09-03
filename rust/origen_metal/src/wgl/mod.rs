@@ -1,18 +1,16 @@
 // This file defines the public API for consuming and generating WGL
 
-mod nodes;
+pub mod nodes;
 mod parser;
-mod processors;
+pub mod processors;
 use crate::ast::Node;
 use crate::Result as OrigenResult;
-use nodes::WGL;
+pub use nodes::WGL;
 use std::path::Path;
 
 pub fn from_file(path: &Path) -> OrigenResult<Node<WGL>> {
-    println!("{}", path.display());
     let ast = parser::parse_file(path)?;
     let ast = processors::includer::Includer::run(&ast, Path::new(path).parent())?;
-    //println!("{}", ast.to_string());
     Ok(ast)
 }
 
@@ -60,6 +58,7 @@ pub enum Radix {
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
 #[allow(non_camel_case_types)]
 pub enum TimeUnit {
+    fs,
     ps,
     ns,
     us,

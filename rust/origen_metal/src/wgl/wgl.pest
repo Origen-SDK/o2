@@ -1,7 +1,14 @@
-wgl_source = { SOI ~ ^"waveform" ~ name ~ ("()")? ~ waveform_block* ~ EOS  ~ EOI }
+// Multiple waveform programs in a single file (multi-time domain support)
+wgl_source = { SOI ~ waveform_program+ ~ EOI }
+
+waveform_program = { ^"waveform" ~ name ~ waveform_parameters? ~ waveform_block* ~ EOS }
+
+waveform_parameters = { "(" ~ (^"freerunningclock")? ~ name ~ ")" }
 
 waveform_block = _{
-      equation_sheet
+      include_invocation
+    | macro_definition
+    | equation_sheet
     | equation_defaults
     | formats
     | global_mode
@@ -33,7 +40,7 @@ range = { "[" ~ integer ~ (".." ~ integer)? ~ "]" }
 mux_members = { mux_part_list? ~ range? }
 mux_part_list = { "[" ~ identifier ~ ("," ~ identifier)+ ~ "]" }
 signal_attributes = {
-    mux? ~ signal_direction? ~ strobe* ~ data_bit_count? ~ wide? ~ radix? ~ dut_pins? ~ ate_pins?
+    mux? ~ signal_direction? ~ free_running_clock? ~ strobe* ~ data_bit_count? ~ wide? ~ radix? ~ dut_pins? ~ ate_pins?
 }
 mux = { ^"mux" }
 data_bit_count = {"{" ~ ^"Databitcount" ~ integer ~ "}" }
@@ -41,6 +48,13 @@ wide = {"{" ~ ^"Wide" ~ integer ~ "}" }
 signal_direction = { signal_direction_string ~ signal_direction_type? }
 signal_direction_string = { ^"input" | ^"output" | ^"bidir" }
 signal_direction_type = { ^"reference" | ^"timing" }
+free_running_clock = {
+    (^"freerunningclock")?
+    ~ ^"period" ~ (time | name)
+    ~ ^"leadingedge" ~ (time | name)
+    ~ ^"trailingedge" ~ (time | name)
+    ~ ^"offstate" ~ ("0" | "1" | "D" | "U")
+}
 strobe = { (^"in" | ^"out") ~ ^"when" ~ "[" ~ identifier ~ state_character ~ "]" }
 radix = { ^"radix" ~ radix_type }
 radix_type = { ^"binary" | ^"octal" | ^"decimal" | ^"hexadecimal" | ^"hex" | ^"symbolic" }
@@ -53,7 +67,7 @@ pin_number = { ":" ~ (name | integer) }
 ate_pins = { ^"atepin" ~ "[" ~ ate_pin_or_group ~ ("," ~ ate_pin_or_group)* ~ "]" }
 ate_pin_or_group = _{ ate_pin_info | ate_pin_group }
 ate_pin_group = { "(" ~ ate_pin_info ~ ("," ~ ate_pin_info)* ~ ")" }
-ate_pin_info = { pin_info ~ ((^"tg" ~ name ~ ("," ~ name)*)?)? }
+ate_pin_info = { pin_info ~ (^"tg" ~ "[" ~ name ~ ("," ~ name)* ~ "]")? }
 pstate = { ^"initialp" ~ "[" ~ tds_state ~ "]" }
 tds_state = {
       "D" | "U" | "N" | "Z" | "S" | "C" 
@@ -83,11 +97,12 @@ state_vector_element = { name ~ "(" ~ state_string* ~ ")" }
 //#############################################################################
 scan_chain = { ^"scanChain" ~ chain_decl* ~ EOS }
 chain_decl = { name ~ "[" ~ chain_members ~ "]" ~ (":" ~ radix)? ~ ";" }
-chain_members = _{ in_edge_signal? ~ chain_mem_list ~ out_edge_signal? }
+chain_members = _{ out_edge_signal_only | in_edge_signal? ~ chain_mem_list ~ out_edge_signal? }
+out_edge_signal_only = { "," ~ name }
 in_edge_signal = { name ~ "," }
 out_edge_signal = { "," ~ name }
 chain_mem_list = _{ chain_mem_reference ~ ("," ~ chain_mem_reference)* }
-chain_mem_reference = _{ cell_reference | chain_mem_invert }
+chain_mem_reference = _{ chain_mem_invert | cell_reference }
 chain_mem_invert = { "!" }
 
 //#############################################################################
@@ -97,9 +112,11 @@ time_plate = { ^"timeplate" ~ identifier ~ time_plate_decl ~ EOS }
 time_plate_decl = _{ ^"period" ~ time_reference ~ (^"timeset" ~ integer)? ~ channel* }
 time_reference = { time | name }
 time = { (float | integer) ~ time_unit }
-time_unit = { ^"ps" | ^"ns" | ^"us" | ^"ms" | ^"sec" }
+time_unit = { ^"fs" | ^"ps" | ^"ns" | ^"us" | ^"ms" | ^"sec" }
 channel = { signal_reference_list ~ ":=" ~ track }
-track = { signal_direction? ~ ("[" ~ first_event ~ ("," ~ event)* ~ "]")? ~ ";"}
+// 2026: FirstEvent is no longer required; tracks may start with a non-zero Event
+track = { signal_direction? ~ ("[" ~ event_list_inner ~ "]")? ~ ";"}
+event_list_inner = _{ first_event ~ ("," ~ event)* | event ~ ("," ~ event)* }
 first_event = { "0" ~ time_unit ~ ":" ~ tds_state ~ (track_selector | event_qualifier)? }
 event = { time_reference ~ ":" ~ tds_state ~ event_qualifier? }
 track_selector  = { single_quote ~ "{" ~ (integer | ASCII_ALPHANUMERIC) ~ "}" }
@@ -116,21 +133,28 @@ pattern_param = { name ~ range? ~ (":" ~ pattern_param_dir)? }
 pattern_param_dir = { ("I" | "O") }
 pattern_row = { vector_label? ~ (loop_stmt | repeat | scan_row) }
 vector_label = { name ~ ":" }
-loop_stmt = { ^"loop" ~ identifier? ~ integer ~ pattern_row* ~ ^"end" ~ identifier? }
+// Note: The spec allows an optional loopName after "end" for documentation, but
+// PEG greedily consumes the next identifier (e.g. "Repeat") as the loop name.
+// We omit the trailing identifier to avoid this ambiguity.
+loop_stmt = { ^"loop" ~ identifier? ~ integer ~ pattern_row* ~ ^"end" }
 repeat = { (^"repeat" ~ integer)? ~ (vector | call | offset) }
 vector = { ^"vector" ~ address ~ ":=" ~ pattern_expression ~ time_comment? ~ ";" }
 address = { "(" ~ address_element ~ ("," ~ address_element)* ~ ")" }
 address_element = _{ address_increment | time | integer | identifier }
 address_increment = { "+" }
-pattern_expression = { "[" ~ ( state_string_with_selector | state_string | identifier)* ~ "]" }
+pattern_expression = { "[" ~ ( placeholder | state_string_with_selector | state_string | identifier)* ~ "]" }
+placeholder = { "-"+ }
 state_string_with_selector = { state_string ~ "(" ~ identifier ~ ")"}
 time_comment = { "(" ~ time ~ ")" }
 call = { ^"call" ~ identifier ~ "()" ~ ";" }
 offset = { ^"skip" ~ time ~ ";" }
 scan_row = { ^"scan" ~ address ~ ":=" ~ scan_row_list ~ ";"}
 scan_row_list = _{ scan_row_element ~ ("," ~ scan_row_element)*}
-scan_row_element = _{ pattern_expression | scan_run }
+scan_row_element = _{ pattern_expression | anonymous_scan_run | scan_run }
+// Classic scan run: input[chain:state]
 scan_run = { scan_dir ~ "[" ~ name ~ ":" ~ name ~ "]" }
+// 2026 Anonymous scan run: input signalName(stateVector)
+anonymous_scan_run = { scan_dir ~ name ~ ("," ~ name)* ~ "(" ~ state_string* ~ ")" }
 scan_dir = { ^"input" | ^"output" | ^"feedback" }
 
 //#############################################################################
@@ -147,7 +171,7 @@ sym_pattern_expression = _{ "[" ~ (state_string | identifier)* ~ "]" }
 //# 2.5.4.1 EquationSheet
 //#############################################################################
 equation_sheet = { ^"equationsheet" ~ name ~ expression_decl* ~ EOS }
-expression_decl = { "exprset" ~ name ~ variable_decl* ~ EOS }
+expression_decl = { ^"exprset" ~ name ~ variable_decl* ~ EOS }
 
 //#############################################################################
 //# 2.5.4.2 ExprSet
@@ -162,17 +186,20 @@ expression = _{
     | paren_expression
     | post_increment
     | post_decrement
-    | binary_operation
-    | expression_item 
+    | binary_expression
+    | term
 }
-expression_item = _{ built_in_var | constant | name }
-pre_increment = @{ "++" ~ expression_item }
-pre_decrement = @{ "--" ~ expression_item }
-post_increment = @{ expression_item ~ "++" }
-post_decrement = @{ expression_item ~ "--" }
-positive = @{ "+" ~ expression_item }
-negative = @{ "-" ~ expression_item }
-binary_operation = { expression_item ~ (operator ~ expression_item)* }
+term = { factor ~ ((multiply | divide) ~ factor)* }
+factor = _{ power_expr | atom }
+power_expr = { atom ~ pow ~ atom }
+atom = _{ built_in_var | constant | name }
+binary_expression = { term ~ ((add | subtract) ~ term)+ }
+pre_increment = { "++" ~ atom }
+pre_decrement = { "--" ~ atom }
+post_increment = { atom ~ "++" }
+post_decrement = { atom ~ "--" }
+positive = { "+" ~ atom }
+negative = { "-" ~ atom }
 paren_expression = { "(" ~ expression ~ ")" }
 built_in_func_call = { built_in_func ~ "(" ~ expression ~ ("," ~ expression)? ~ ")" }
 built_in_func = { 
@@ -180,7 +207,6 @@ built_in_func = {
     | "LOG" | "LOG10" | "SIN" | "SINH" | "SQRT" | "TAN" | "TANH" | "ATAN2" | "POW"
 }
 built_in_var = { "PI" | "E" | "DEG" }
-operator = { add | subtract | multiply | divide | pow }
 add = { "+" }
 subtract = { "-" }
 multiply = { "*" }
@@ -240,9 +266,9 @@ tg_repeat = { ^"repeat" ~ integer }
 //#############################################################################
 //# 2.6.1.1 Macro Definition
 //#############################################################################
-macro_definition = { ^"macro" ~ name ~ ("(" ~ macro_parameter_list ~ ")")? ~ macro_body ~ "endmacro" }
+macro_definition = { ^"macro" ~ name ~ ("(" ~ macro_parameter_list ~ ")")? ~ macro_body ~ ^"endmacro" }
 macro_parameter_list = _{ identifier ~ ("," ~ identifier)* }
-macro_body = { (!"endmacro" ~ ANY)+ }
+macro_body = { (!^"endmacro" ~ ANY)+ }
 
 //#############################################################################
 //# 2.6.1.2 Macro Invocation
@@ -253,11 +279,15 @@ argument_list = _{ identifier ~ ("," ~ identifier)* }
 //#############################################################################
 //# 2.6.2 Include Files
 //#############################################################################
-include_invocation = {"include" ~ quoted_string ~ ";" }
+include_invocation = { ^"include" ~ quoted_string ~ ";" }
 
 //#############################################################################
 //# 2.6.3 Annotations
 //#############################################################################
+// Note: Annotations use {curly braces} and can appear almost anywhere in WGL.
+// Treating them as COMMENT allows pest to silently consume them between any
+// two tokens.  A future enhancement could capture annotation content into the
+// AST by adding explicit annotation references at each grammar level.
 annotation = { "{" ~ (!"}" ~ ANY)* ~ "}" }
 
 //#############################################################################
@@ -283,7 +313,7 @@ identifier = @{ identifier_character_first ~ (identifier_character)* }
 identifier_character_first = { ASCII_ALPHA | identifier_special_character }
 identifier_character = { ASCII_ALPHA | ASCII_DIGIT | identifier_special_character }
 identifier_special_character = {
-    "!" | "$" | "%" | "&" | "'" | "*" | "-" | "." | "/" | "<" | 
+    "$" | "%" | "&" | "'" | "*" | "-" | "." | "/" | "<" | 
     "=" | ">" | "?" | "^" | "_" | "`" | "|" | "~" | "@" | "\\" 
 }
 
@@ -317,19 +347,20 @@ minus = { "-" }
 //#############################################################################
 //# Comments and Whitespace
 //#############################################################################
-EOS = _{ "end" }
+EOS = _{ ^"end" }
 
-single_quote = _{ "'" | "’" }
+single_quote = _{ "'" | "\u{2019}" }
 
-one_line_comment = _{ "//" ~ (!N ~ ANY)* }
+// WGL uses # for comments (not //)
+pound_comment = _{ "#" ~ (!N ~ ANY)* }
 
 space = _{ " " | "\t" }
 
 // Optional space, including newlines and comments
-s = _{ (space | N | one_line_comment)* }
+s = _{ (space | N | pound_comment)* }
 
 // Required space, including newlines and comments
-S = _{ (space | N | one_line_comment)+ }
+S = _{ (space | N | pound_comment)+ }
 
 // Optional end of line
 n = _{ NEWLINE? }
@@ -339,4 +370,4 @@ N = _{ NEWLINE }
 
 // For Pest implicit whitespace insertion
 WHITESPACE = _{ space | NEWLINE }
-COMMENT = _{ one_line_comment | annotation }
+COMMENT = _{ pound_comment | annotation }

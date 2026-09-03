@@ -2,9 +2,11 @@ use super::nodes::WGL;
 use crate::ast::Node;
 use crate::ast::AST;
 use crate::{Error, Result};
+use flate2::read::GzDecoder;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
-use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 #[derive(Parser)]
@@ -13,7 +15,23 @@ pub struct WGLParser;
 
 pub fn parse_file(path: &Path) -> Result<Node<WGL>> {
     if path.exists() {
-        match parse_str(&fs::read_to_string(path)?) {
+        let gzip = match path.extension() {
+            Some(ext) => ext == "gz",
+            None => false,
+        };
+
+        let mut reader: Box<dyn Read> = if gzip {
+            let f = File::open(path)?;
+            Box::new(GzDecoder::new(BufReader::new(f)))
+        } else {
+            let f = File::open(path)?;
+            Box::new(BufReader::new(f))
+        };
+
+        let mut contents = String::new();
+        reader.read_to_string(&mut contents)?;
+
+        match parse_str(&contents) {
             Ok(n) => Ok(n),
             Err(e) => Err(Error::new(&format!(
                 "Error parsing file {}:\n{}",
@@ -36,14 +54,14 @@ pub fn parse_str(wgl: &str) -> Result<Node<WGL>> {
     }
 }
 
-fn inner_strs(pair: Pair<Rule>) -> Vec<&str> {
+fn inner_strs(pair: Pair<'_, Rule>) -> Vec<&str> {
     pair.into_inner().map(|v| v.as_str()).collect()
 }
 
 fn unquote(text: &str) -> String {
     let first = text.chars().next().unwrap();
 
-    if first != '"' && first != '\'' && first != '’' {
+    if first != '"' && first != '\'' && first != '\u{2019}' {
         text.to_string()
     } else if text.chars().last().unwrap() != first {
         text.to_string()
@@ -54,8 +72,7 @@ fn unquote(text: &str) -> String {
 
 fn build_expression(pair: Pair<Rule>) -> Result<Node<WGL>> {
     let mut pairs = pair.into_inner();
-    let p2 = pairs.next().unwrap();
-    let mut term = to_ast(p2)?.unwrap();
+    let mut term = to_ast(pairs.next().unwrap())?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
@@ -76,6 +93,22 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node<WGL>> {
                     n.add_child(next_term);
                     term = n;
                 }
+                _ => done = true,
+            }
+        } else {
+            done = true;
+        }
+    }
+    Ok(term)
+}
+
+fn build_term(pair: Pair<Rule>) -> Result<Node<WGL>> {
+    let mut pairs = pair.into_inner();
+    let mut term = to_ast(pairs.next().unwrap())?.unwrap();
+    let mut done = false;
+    while !done {
+        if let Some(next) = pairs.peek() {
+            match next.as_rule() {
                 Rule::multiply => {
                     pairs.next();
                     let next_term = to_ast(pairs.next().unwrap())?.unwrap();
@@ -88,14 +121,6 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node<WGL>> {
                     pairs.next();
                     let next_term = to_ast(pairs.next().unwrap())?.unwrap();
                     let mut n = node!(WGL::Divide);
-                    n.add_child(term);
-                    n.add_child(next_term);
-                    term = n;
-                }
-                Rule::pow => {
-                    pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
-                    let mut n = node!(WGL::Power);
                     n.add_child(term);
                     n.add_child(next_term);
                     term = n;
@@ -177,9 +202,22 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                     ));
                 }
             }
-            Rule::binary_operation => {
+            Rule::binary_expression => {
                 ast.push(build_expression(pair)?);
-            }    
+            }
+            Rule::term => {
+                ast.push(build_term(pair)?);
+            }
+            Rule::power_expr => {
+                let mut p = pair.into_inner();
+                let base = to_ast(p.next().unwrap())?.unwrap();
+                // skip the pow operator
+                let exponent = to_ast(p.next().unwrap())?.unwrap();
+                let mut n = node!(WGL::Power);
+                n.add_child(base);
+                n.add_child(exponent);
+                ast.push(n);
+            }
             Rule::positive => {
                 ids.push(ast.push_and_open(node!(WGL::Positive)));
                 pairs.push(pair.into_inner());
@@ -212,14 +250,44 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 ids.push(ast.push_and_open(node!(WGL::Root)));
                 pairs.push(pair.into_inner());
             }
+            Rule::waveform_program => {
+                let mut p = pair.into_inner();
+                let v1 = p.next().unwrap().as_str();
+                ids.push(ast.push_and_open(node!(
+                    WGL::WaveformProgram,
+                    v1.parse().unwrap()
+                )));
+                pairs.push(p);
+            }
+            Rule::waveform_parameters => {
+                let mut p = pair.into_inner();
+                let first = p.next().unwrap();
+                // Check if it's a freerunningclock keyword or a domain name
+                if first.as_str().eq_ignore_ascii_case("freerunningclock") {
+                    // Next token is the domain name
+                    if let Some(domain) = p.next() {
+                        ast.push(node!(
+                            WGL::WaveformParameters,
+                            Some(true),
+                            domain.as_str().to_string()
+                        ));
+                    }
+                } else {
+                    ast.push(node!(
+                        WGL::WaveformParameters,
+                        None,
+                        first.as_str().to_string()
+                    ));
+                }
+            }
             Rule::name => {
-                ast.push(node!(WGL::String,unquote(pair.as_str())))
+                ast.push(node!(WGL::String, unquote(pair.as_str())))
             }
             Rule::identifier => {
-                ast.push(node!(WGL::String,unquote(pair.as_str())))
+                ast.push(node!(WGL::String, unquote(pair.as_str())))
             }
             Rule::quoted_string => {
-                ast.push(node!(WGL::String,unquote(pair.as_str())))
+                ast.push(node!(WGL::String, unquote(pair.as_str())))
             }
             Rule::signals => {
                 ids.push(ast.push_and_open(node!(WGL::Signals)));
@@ -432,7 +500,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 pairs.push(p);
             }
             Rule::state_string => {
-                ast.push(node!(WGL::StateString,unquote(pair.as_str())))
+                ast.push(node!(WGL::StateString, unquote(pair.as_str())))
             }
             Rule::scan_chain => {
                 ids.push(ast.push_and_open(node!(WGL::ScanChains)));
@@ -556,7 +624,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 pairs.push(p);
             }
             Rule::pattern_param_dir => {
-                ast.push(node!(WGL::PatternParamDir,unquote(pair.as_str())))
+                ast.push(node!(WGL::PatternParamDir, unquote(pair.as_str())))
             }
             Rule::pattern_param => {
                 let mut p = pair.into_inner();
@@ -637,6 +705,21 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 ids.push(ast.push_and_open(node!(WGL::StateStringWithSelector)));
                 pairs.push(pair.into_inner());
             }
+            Rule::free_running_clock => {
+                ids.push(ast.push_and_open(node!(WGL::FreeRunningClock)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::placeholder => {
+                ast.push(node!(WGL::Placeholder));
+            }
+            Rule::out_edge_signal_only => {
+                let mut p = pair.into_inner();
+                let v1 = p.next().unwrap().as_str();
+                ast.push(node!(
+                    WGL::ScanChainOutEdge,
+                    v1.parse().unwrap()
+                ));
+            }
             Rule::time_comment => {
                 ids.push(ast.push_and_open(node!(WGL::TimeComment)));
                 pairs.push(pair.into_inner());
@@ -664,6 +747,15 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                     v2.parse().unwrap(),
                     v3.parse().unwrap()
                 ));
+            }
+            Rule::anonymous_scan_run => {
+                let mut p = pair.into_inner();
+                let v1 = p.next().unwrap().as_str().to_lowercase();
+                ids.push(ast.push_and_open(node!(
+                    WGL::AnonymousScanRun,
+                    v1.parse().unwrap()
+                )));
+                pairs.push(p);
             }
             Rule::symbolic => {
                 ids.push(ast.push_and_open(node!(WGL::Symbolic)));
@@ -754,7 +846,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 pairs.push(p);
             }
             Rule::tds_state => {
-                ast.push(node!(WGL::TdsState,unquote(pair.as_str())))
+                ast.push(node!(WGL::TdsState, unquote(pair.as_str())))
             }
             Rule::registers => {
                 ids.push(ast.push_and_open(node!(WGL::Registers)));
@@ -774,9 +866,9 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 pairs.push(p);
             }
             Rule::format_spec => {
-                ast.push(node!(WGL::FormatSpec,unquote(pair.as_str())))
+                ast.push(node!(WGL::FormatSpec, unquote(pair.as_str())))
             }
-            Rule::pin_groups=> {
+            Rule::pin_groups => {
                 ids.push(ast.push_and_open(node!(WGL::PinGroups)));
                 pairs.push(pair.into_inner());
             }
@@ -789,7 +881,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 )));
                 pairs.push(p);
             }
-            Rule::time_gens=> {
+            Rule::time_gens => {
                 ids.push(ast.push_and_open(node!(WGL::TimeGens)));
                 pairs.push(pair.into_inner());
             }
@@ -849,7 +941,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
                 pairs.push(p);
             }
             Rule::macro_body => {
-                ast.push(node!(WGL::MacroBody,unquote(pair.as_str())))
+                ast.push(node!(WGL::MacroBody, pair.as_str().to_string()))
             }
             Rule::macro_invocation => {
                 let mut p = pair.into_inner();
@@ -862,14 +954,17 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
             }
             Rule::include_invocation => {
                 let mut p = pair.into_inner();
-                let v1 = p.next().unwrap().as_str();
+                let v1 = unquote(p.next().unwrap().as_str());
                 ast.push(node!(
                     WGL::Include,
-                    v1.parse().unwrap()
+                    v1
                 ));
             }
             Rule::annotation => {
-                ast.push(node!(WGL::Annotation,unquote(pair.as_str())))
+                let text = pair.as_str();
+                // Strip the surrounding braces
+                let inner = &text[1..text.len() - 1];
+                ast.push(node!(WGL::Annotation, inner.to_string()))
             }
             Rule::global_mode => {
                 let mut p = pair.into_inner();
@@ -919,6 +1014,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<WGL>> {
 mod tests {
     use super::super::from_file;
     use super::*;
+    use std::fs;
     use std::path::Path;
 
     fn read(example: &str) -> String {
@@ -931,7 +1027,7 @@ mod tests {
  
     #[test]
     fn test_example1_to_ast() {
-        let _vcd = from_file(Path::new(
+        let _wgl = from_file(Path::new(
             "../../test_apps/python_app/vendor/wgl/example1.wgl",
         ))
         .expect("Imported example1");
@@ -939,7 +1035,7 @@ mod tests {
 
     #[test]
     fn test_example2_to_ast() {
-        let _vcd = from_file(Path::new(
+        let _wgl = from_file(Path::new(
             "../../test_apps/python_app/vendor/wgl/example2.wgl",
         ))
         .expect("Imported example2");
@@ -947,7 +1043,7 @@ mod tests {
 
     #[test]
     fn test_example3_to_ast() {
-        let _vcd = from_file(Path::new(
+        let _wgl = from_file(Path::new(
             "../../test_apps/python_app/vendor/wgl/example3.wgl",
         ))
         .expect("Imported example3");
@@ -959,8 +1055,7 @@ mod tests {
         match WGLParser::parse(Rule::wgl_source, &txt) {
             Ok(_res) => {}
             Err(e) => {
-                println!("{}", e);
-                assert_eq!(1, 0);
+                panic!("Failed to parse example1: {}", e);
             }
         }
     }
@@ -971,8 +1066,7 @@ mod tests {
         match WGLParser::parse(Rule::wgl_source, &txt) {
             Ok(_res) => {}
             Err(e) => {
-                println!("{}", e);
-                assert_eq!(1, 0);
+                panic!("Failed to parse example2: {}", e);
             }
         }
     }
@@ -983,8 +1077,114 @@ mod tests {
         match WGLParser::parse(Rule::wgl_source, &txt) {
             Ok(_res) => {}
             Err(e) => {
-                println!("{}", e);
-                assert_eq!(1, 0);
+                panic!("Failed to parse example3: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_minimal_repeat_lowercase() {
+        let txt = "Waveform t\n  Signal\n    A : input;\n  End\n  Timeplate tp Period 10nS\n    A := input[0nS:S];\n  End\n  Pattern p (A)\n    repeat 4 vector(+, tp) := [0];\n  End\nEnd\n";
+        WGLParser::parse(Rule::wgl_source, txt).expect("lowercase repeat should parse");
+    }
+
+    #[test]
+    fn test_minimal_repeat_uppercase() {
+        let txt = "Waveform t\n  Signal\n    A : input;\n  End\n  Timeplate tp Period 10nS\n    A := input[0nS:S];\n  End\n  Pattern p (A)\n    Repeat 4 Vector(+, tp) := [0];\n  End\nEnd\n";
+        WGLParser::parse(Rule::wgl_source, txt).expect("uppercase Repeat should parse");
+    }
+
+    #[test]
+    fn test_example4_to_ast() {
+        let _wgl = from_file(Path::new(
+            "../../test_apps/python_app/vendor/wgl/example4.wgl",
+        ))
+        .expect("Imported example4");
+    }
+
+    #[test]
+    fn test_example4_can_parse() {
+        let txt = read("example4");
+        match WGLParser::parse(Rule::wgl_source, &txt) {
+            Ok(_res) => {}
+            Err(e) => {
+                panic!("Failed to parse example4: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example5_to_ast() {
+        let _wgl = from_file(Path::new(
+            "../../test_apps/python_app/vendor/wgl/example5.wgl",
+        ))
+        .expect("Imported example5");
+    }
+
+    #[test]
+    fn test_example5_can_parse() {
+        let txt = read("example5");
+        match WGLParser::parse(Rule::wgl_source, &txt) {
+            Ok(_res) => {}
+            Err(e) => {
+                panic!("Failed to parse example5: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example6_to_ast() {
+        let _wgl = from_file(Path::new(
+            "../../test_apps/python_app/vendor/wgl/example6.wgl",
+        ))
+        .expect("Imported example6");
+    }
+
+    #[test]
+    fn test_example6_can_parse() {
+        let txt = read("example6");
+        match WGLParser::parse(Rule::wgl_source, &txt) {
+            Ok(_res) => {}
+            Err(e) => {
+                panic!("Failed to parse example6: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example7_to_ast() {
+        let _wgl = from_file(Path::new(
+            "../../test_apps/python_app/vendor/wgl/example7.wgl",
+        ))
+        .expect("Imported example7");
+    }
+
+    #[test]
+    fn test_example7_can_parse() {
+        let txt = read("example7");
+        match WGLParser::parse(Rule::wgl_source, &txt) {
+            Ok(_res) => {}
+            Err(e) => {
+                panic!("Failed to parse example7: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example8_to_ast() {
+        let _wgl = from_file(Path::new(
+            "../../test_apps/python_app/vendor/wgl/example8.wgl",
+        ))
+        .expect("Imported example8");
+    }
+
+    #[test]
+    fn test_example8_can_parse() {
+        let txt = read("example8");
+        match WGLParser::parse(Rule::wgl_source, &txt) {
+            Ok(_res) => {}
+            Err(e) => {
+                panic!("Failed to parse example8: {}", e);
             }
         }
     }
