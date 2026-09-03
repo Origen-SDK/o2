@@ -24,6 +24,7 @@ pub enum VCD {
     DumpPorts,
     SimulationTime(u64),
     ValueChange(vcd::ValueChangeType, String, String), // type, value, identifier_code
+    PortValueChange(String, u8, u8, String), // port_state, strength0, strength1, identifier_code
 }
 
 impl std::fmt::Display for VCD {

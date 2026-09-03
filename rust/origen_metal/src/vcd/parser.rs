@@ -159,10 +159,16 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<VCD>> {
                 let ts = pair.into_inner().next().unwrap().as_str();
                 ast.push(node!(VCD::SimulationTime, ts.parse().unwrap()));
             }
+            Rule::value_change | Rule::vector_value_change => {
+                // Delegate to the inner rule
+                ids.push(0);
+                pairs.push(pair.into_inner());
+            }
             Rule::scalar_value_change => {
-                let mut p = pair.into_inner();
-                let val = p.next().unwrap().as_str();
-                let id = p.next().unwrap().as_str();
+                // Atomic rule: first char is value, rest is identifier_code
+                let text = pair.as_str();
+                let val = &text[..1];
+                let id = &text[1..];
                 ast.push(node!(
                     VCD::ValueChange,
                     Scalar,
@@ -170,14 +176,41 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<VCD>> {
                     id.to_string()
                 ));
             }
-            Rule::vector_value_change => {
+            Rule::binary_vector_value => {
                 let mut p = pair.into_inner();
-                let val = p.next().unwrap().as_str();
+                let prefix = p.next().unwrap().as_str(); // atomic: "b101010"
                 let id = p.next().unwrap().as_str();
+                let val = &prefix[1..]; // skip 'b'/'B' prefix
                 ast.push(node!(
                     VCD::ValueChange,
                     Vector,
                     val.to_string(),
+                    id.to_string()
+                ));
+            }
+            Rule::real_vector_value => {
+                let mut p = pair.into_inner();
+                let prefix = p.next().unwrap().as_str(); // atomic: "r3.14"
+                let id = p.next().unwrap().as_str();
+                let val = &prefix[1..]; // skip 'r'/'R' prefix
+                ast.push(node!(
+                    VCD::ValueChange,
+                    Vector,
+                    val.to_string(),
+                    id.to_string()
+                ));
+            }
+            Rule::port_value_change => {
+                let mut p = pair.into_inner();
+                let state = p.next().unwrap().as_str();
+                let s0: u8 = p.next().unwrap().as_str().parse().unwrap();
+                let s1: u8 = p.next().unwrap().as_str().parse().unwrap();
+                let id = p.next().unwrap().as_str();
+                ast.push(node!(
+                    VCD::PortValueChange,
+                    state.to_string(),
+                    s0,
+                    s1,
                     id.to_string()
                 ));
             }
@@ -293,6 +326,21 @@ mod tests {
     fn test_timescale_100() {
         let vcd = "$timescale 100 us $end\n$enddefinitions $end\n";
         from_file_str(vcd).expect("Timescale 100 should parse");
+    }
+
+    #[test]
+    fn test_extended_vcd_can_parse() {
+        let txt = read("example_extended");
+        VCDParser::parse(Rule::vcd_source, &txt)
+            .unwrap_or_else(|e| panic!("Failed to parse extended VCD: {}", e));
+    }
+
+    #[test]
+    fn test_extended_vcd_to_ast() {
+        let _vcd = from_file(Path::new(
+            "../../test_apps/python_app/vendor/vcd/example_extended.vcd",
+        ))
+        .expect("Imported extended VCD");
     }
 
     fn from_file_str(vcd: &str) -> crate::Result<Node<VCD>> {

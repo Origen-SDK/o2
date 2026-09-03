@@ -39,6 +39,7 @@ pub enum VarType {
     event,
     integer,
     parameter,
+    port,
     real,
     reg,
     supply0,
