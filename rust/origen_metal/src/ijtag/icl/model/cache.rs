@@ -7,6 +7,44 @@ use std::path::Path;
 const CACHE_MAGIC: [u8; 8] = *b"O2ICL001";
 const CACHE_SCHEMA: u32 = 4;
 
+pub(super) fn path_for(
+    source_path: &Path,
+    cache_dir: &Path,
+    top: Option<&str>,
+    preserve_comments: bool,
+) -> Result<std::path::PathBuf> {
+    if cache_dir.exists() && !cache_dir.is_dir() {
+        return Err(Error::new(&format!(
+            "ICL cache path is not a directory: {}",
+            cache_dir.display()
+        )));
+    }
+    fs::create_dir_all(cache_dir)?;
+    let canonical = source_path.canonicalize()?;
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(canonical.to_string_lossy().as_bytes());
+    hasher.update(&CACHE_SCHEMA.to_le_bytes());
+    hasher.update(&[u8::from(preserve_comments)]);
+    if let Some(top) = top {
+        hasher.update(top.as_bytes());
+    }
+    let key = hasher.finalize().to_hex();
+    let stem = source_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("model")
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    Ok(cache_dir.join(format!("{}-{}.o2-icl-cache", stem, &key[..16])))
+}
+
 #[derive(Deserialize, Serialize)]
 struct CacheFile {
     magic: [u8; 8],

@@ -434,6 +434,26 @@ impl IclModel {
         &self.instances
     }
 
+    pub fn instance(&self, id: InstanceId) -> &Instance {
+        &self.instances[id.as_usize()]
+    }
+
+    pub fn specialization(&self, id: SpecializationId) -> &Specialization {
+        &self.specializations[id.as_usize()]
+    }
+
+    pub fn instance_definition(&self, id: InstanceDefId) -> &InstanceDef {
+        &self.instances_def[id.as_usize()]
+    }
+
+    pub fn internal_signal(&self, id: InternalSignalId) -> &ResolvedInternalSignal {
+        &self.internal_signals[id.as_usize()]
+    }
+
+    pub fn internal_signal_path(&self, instance: InstanceId, id: InternalSignalId) -> String {
+        self.object_path(instance, self.internal_signal(id).name)
+    }
+
     pub fn connections(&self) -> &[ResolvedConnection] {
         &self.connections
     }
@@ -451,6 +471,17 @@ impl IclModel {
             .into_iter()
             .flatten()
             .map(|id| &self.connections[id.as_usize()])
+    }
+
+    pub fn connection_ids_for(
+        &self,
+        owner: ConnectionOwner,
+    ) -> impl Iterator<Item = ConnectionId> + '_ {
+        self.connections_by_owner
+            .get(&owner)
+            .into_iter()
+            .flatten()
+            .copied()
     }
 
     pub fn parsed(&self) -> &ParsedIcl {
@@ -500,6 +531,10 @@ impl IclModel {
             .segments
             .iter()
             .map(|id| &self.alias_segments[id.as_usize()])
+    }
+
+    pub fn alias_segment(&self, id: AliasSegmentId) -> &AliasSegment {
+        &self.alias_segments[id.as_usize()]
     }
 
     pub fn alias_bits(&self, handle: AliasHandle) -> AliasBits<'_> {
@@ -570,6 +605,15 @@ impl IclModel {
                 })?;
         }
         Ok(instance)
+    }
+
+    pub fn child_for_definition(
+        &self,
+        parent: InstanceId,
+        definition: InstanceDefId,
+    ) -> Option<InstanceId> {
+        let name = self.instance_definition(definition).name;
+        self.child_index.get(&(parent, name)).copied()
     }
 
     pub fn scope(&self, instance: InstanceId) -> ScopeView<'_> {
@@ -1144,18 +1188,25 @@ mod tests {
     fn binary_cache_loads_and_invalidates() {
         let directory = tempfile::tempdir().unwrap();
         let source_path = directory.path().join("dummy.icl");
-        let cache_path = directory.path().join("dummy.icl.cache");
+        let cache_dir = directory.path().join("cache/models");
         std::fs::write(&source_path, dummy_design()).unwrap();
 
         let parser = Parser::new().threads(1);
         let first = parser
-            .load_or_elaborate(&source_path, None, &cache_path)
+            .load_or_elaborate(&source_path, None, &cache_dir)
             .unwrap();
+        assert!(cache_dir.is_dir());
+        let cache_path = std::fs::read_dir(&cache_dir)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
         assert!(cache_path.is_file());
         assert_eq!(first.find_instances("*").unwrap().len(), 3);
 
         let cached = parser
-            .load_or_elaborate(&source_path, None, &cache_path)
+            .load_or_elaborate(&source_path, None, &cache_dir)
             .unwrap();
         assert_eq!(cached.find_registers("*").unwrap().len(), 4);
 
@@ -1165,13 +1216,13 @@ mod tests {
         )
         .unwrap();
         let rebuilt = parser
-            .load_or_elaborate(&source_path, None, &cache_path)
+            .load_or_elaborate(&source_path, None, &cache_dir)
             .unwrap();
         assert_eq!(rebuilt.find_ports("*").unwrap().len(), 2);
 
         std::fs::write(&cache_path, b"not a valid model cache").unwrap();
         let recovered = parser
-            .load_or_elaborate(&source_path, None, &cache_path)
+            .load_or_elaborate(&source_path, None, &cache_dir)
             .unwrap();
         assert_eq!(recovered.find_ports("*").unwrap().len(), 2);
     }

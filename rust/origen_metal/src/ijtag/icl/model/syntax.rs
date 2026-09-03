@@ -300,10 +300,12 @@ impl Parser {
         &self,
         source_path: &Path,
         top: Option<&str>,
-        cache_path: &Path,
+        cache_dir: &Path,
     ) -> Result<super::IclModel> {
+        let cache_path =
+            super::cache::path_for(source_path, cache_dir, top, self.preserve_comments)?;
         if let Some(model) =
-            super::cache::load(source_path, cache_path, top, self.preserve_comments)?
+            super::cache::load(source_path, &cache_path, top, self.preserve_comments)?
         {
             return Ok(model);
         }
@@ -313,7 +315,7 @@ impl Parser {
         } else {
             parsed.elaborate_unique_root()?
         };
-        super::cache::save(&model, cache_path, top, self.preserve_comments)?;
+        super::cache::save(&model, &cache_path, top, self.preserve_comments)?;
         Ok(model)
     }
 

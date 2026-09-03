@@ -2,6 +2,7 @@
 pub mod _helpers;
 pub mod framework;
 pub mod frontend;
+pub mod ijtag;
 pub mod prelude;
 pub mod prog_gen;
 pub mod utils;
@@ -34,6 +35,7 @@ pub fn _define(py: Python, m: &PyModule) -> PyResult<()> {
     framework::define(py, m)?;
     utils::define(py, m)?;
     frontend::define(py, m)?;
+    ijtag::define(py, m)?;
     prog_gen::interface::define(py, m)?;
     prog_gen::define(py, m)?;
     prog_gen::tester_apis::define(py, m)?;
