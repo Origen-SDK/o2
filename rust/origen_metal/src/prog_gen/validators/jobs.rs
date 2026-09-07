@@ -101,4 +101,8 @@ impl Processor<PGM> for Jobs {
             _ => Return::ProcessChildren,
         })
     }
+
+    fn on_processed_node(&mut self, _node: &Node<PGM>) -> crate::Result<Return<PGM>> {
+        Ok(Return::None)
+    }
 }

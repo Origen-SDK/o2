@@ -6,7 +6,7 @@ use crate::Result;
 use indexmap::IndexMap;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 /// Does the final writing of the flow AST to a SMT7 flow file
@@ -25,7 +25,7 @@ struct FlowGenerator {
     test_method_names: HashMap<usize, String>,
     resources_block: bool,
     flow_stack: Vec<FlowFile>,
-    limits_file: Option<std::fs::File>,
+    limits_file: Option<BufWriter<std::fs::File>>,
     namespaces: Vec<String>,
     options: SMT8Config,
 }
@@ -116,6 +116,9 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
             .insert(t.get("name")?.unwrap().to_string(), t.id);
     }
     ast.process(&mut p)?;
+    if let Some(limits_file) = p.limits_file.as_mut() {
+        limits_file.flush()?;
+    }
     Ok((p.model, p.generated_files))
 }
 
@@ -252,8 +255,8 @@ impl FlowGenerator {
         Ok(())
     }
 
-    fn write_param_value(
-        f: &mut std::fs::File,
+    fn write_param_value<W: Write>(
+        f: &mut W,
         indent: usize,
         name: &str,
         value: &ParamValue,
@@ -348,9 +351,9 @@ impl FlowGenerator {
         })
     }
 
-    fn render_sorted_contents(
+    fn render_sorted_contents<W: Write>(
         &self,
-        f: &mut std::fs::File,
+        f: &mut W,
         indent: usize,
         values: &IndexMap<String, ParamValue>,
         default_values: &IndexMap<String, ParamValue>,
@@ -489,7 +492,8 @@ impl FlowGenerator {
                 None => "".to_string(),
             }
         };
-        let mut f = std::fs::File::create(&flow_file.path)?;
+        let file = std::fs::File::create(&flow_file.path)?;
+        let mut f = BufWriter::new(file);
         self.generated_files.push(flow_file.path.clone());
 
         writeln!(&mut f, "flow {} {{", flow_file.name)?;
@@ -594,6 +598,7 @@ impl FlowGenerator {
         }
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "}}")?;
+        f.flush()?;
         Ok(flow_file)
     }
 }
@@ -622,7 +627,8 @@ impl Processor<PGM> for FlowGenerator {
                         name.replace(" ", "_").to_uppercase()
                     ));
 
-                    let mut f = std::fs::File::create(&limits_file)?;
+                    let file = std::fs::File::create(&limits_file)?;
+                    let mut f = BufWriter::new(file);
                     self.generated_files.push(limits_file.clone());
                     writeln!(
                         &mut f,
@@ -1044,7 +1050,9 @@ impl Processor<PGM> for FlowGenerator {
             }
             _ => {}
         }
-        Ok(Return::Unmodified)
+        // Rendering consumes the input AST for side effects only. Dropping each
+        // processed node avoids rebuilding and then discarding a duplicate tree.
+        Ok(Return::None)
     }
 }
 
