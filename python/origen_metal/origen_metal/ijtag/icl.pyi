@@ -83,6 +83,17 @@ class ScanRegister:
 
 class DataRegister(ScanRegister): ...
 
+class InternalSignal:
+    id: int
+    name: str
+    path: str
+    kind: str
+    width: int
+    first_index: int
+    last_index: int
+    owner: Instance
+    connections: ConnectionResults
+
 class Alias:
     id: int
     name: str
@@ -96,7 +107,7 @@ class Alias:
 
 class AliasSegment:
     relative_path: list[str]
-    target: Any
+    target: Union[Port, ScanRegister, DataRegister, InternalSignal]
     selection: BitSelection
     inverted: bool
     alias_bit_offset: int
@@ -117,7 +128,7 @@ class Connection:
 
 class ConnectionSegment:
     relative_path: list[str]
-    target: Any
+    target: Union[int, str, BitValue, Instance, Port, ScanRegister, DataRegister, Alias, InternalSignal]
     selection: BitSelection
     inverted: bool
 

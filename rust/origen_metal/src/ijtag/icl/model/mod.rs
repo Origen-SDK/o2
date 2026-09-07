@@ -393,7 +393,7 @@ pub struct IclModel {
     connections: Vec<ResolvedConnection>,
     connections_by_owner: HashMap<ConnectionOwner, Vec<ConnectionId>>,
     root: InstanceId,
-    module_by_name: HashMap<SymbolId, ModuleDefId>,
+    module_by_name: HashMap<String, ModuleDefId>,
     child_index: HashMap<(InstanceId, SymbolId), InstanceId>,
     instances_by_name: HashMap<SymbolId, Vec<InstanceId>>,
     instances_by_type: HashMap<ModuleDefId, Vec<InstanceId>>,
@@ -489,8 +489,8 @@ impl IclModel {
     }
 
     pub fn module_definition(&self, name: &str) -> Option<&ModuleDef> {
-        let symbol = self.parsed.symbol_id(name)?;
-        let id = self.module_by_name.get(&symbol)?;
+        let name = name.strip_prefix("::").unwrap_or(name);
+        let id = self.module_by_name.get(name)?;
         self.modules.get(id.as_usize())
     }
 
@@ -1132,6 +1132,67 @@ mod tests {
     }
 
     #[test]
+    fn module_lookup_is_qualified_and_later_redefinitions_win() {
+        let source = r#"
+            NameSpace Vendor;
+            Module Leaf { ScanInPort old; }
+            Module Leaf { ScanInPort replacement; }
+            NameSpace;
+            Module Leaf { ScanInPort root; }
+            Module Top {
+                Instance vendor Of Vendor::Leaf;
+                Instance root Of Leaf;
+            }
+        "#;
+        let model = Parser::new()
+            .from_str(source)
+            .unwrap()
+            .elaborate("Top")
+            .unwrap();
+        assert_eq!(model.modules().len(), 3);
+        let vendor = model.module_definition("Vendor::Leaf").unwrap();
+        assert_eq!(model.parsed().symbol(vendor.name), "Leaf");
+        assert_eq!(
+            model
+                .parsed()
+                .node_text(vendor.syntax)
+                .contains("replacement"),
+            true
+        );
+        assert_eq!(
+            model.module_definition("Leaf").unwrap().qualified_name,
+            "Leaf"
+        );
+        assert_eq!(
+            model.module_definition("::Leaf").unwrap().qualified_name,
+            "Leaf"
+        );
+    }
+
+    #[test]
+    fn compact_file_parser_expands_includes_and_reports_included_locations() {
+        let dir = tempfile::tempdir().unwrap();
+        let leaf = dir.path().join("leaf.icl");
+        let top = dir.path().join("top.icl");
+        std::fs::write(
+            &leaf,
+            "Module Leaf { ScanOutPort out { Source missing; } }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &top,
+            "#include \"leaf.icl\"\nModule Top { Instance leaf Of Leaf; }\n",
+        )
+        .unwrap();
+        let error = Parser::new()
+            .from_file(&top)
+            .unwrap()
+            .elaborate("Top")
+            .unwrap_err();
+        assert!(error.msg.contains("leaf.icl:1:"), "{}", error.msg);
+    }
+
+    #[test]
     fn elaboration_reports_parameter_hierarchy_and_alias_cycles() {
         for source in [
             "Module Top { Parameter A = $B; Parameter B = $A; }",
@@ -1225,5 +1286,35 @@ mod tests {
             .load_or_elaborate(&source_path, None, &cache_dir)
             .unwrap();
         assert_eq!(recovered.find_ports("*").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn binary_cache_invalidates_when_an_include_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        let child = directory.path().join("child.icl");
+        let top = directory.path().join("top.icl");
+        let cache_dir = directory.path().join("cache");
+        std::fs::write(&child, "Module Child { ScanInPort first; }\n").unwrap();
+        std::fs::write(
+            &top,
+            "#include \"child.icl\"\nModule Top { Instance child Of Child; }\n",
+        )
+        .unwrap();
+
+        let parser = Parser::new().threads(1);
+        let first = parser
+            .load_or_elaborate(&top, Some("Top"), &cache_dir)
+            .unwrap();
+        assert_eq!(first.find_ports("*").unwrap().len(), 1);
+
+        std::fs::write(
+            &child,
+            "Module Child { ScanInPort first; ScanInPort second; }\n",
+        )
+        .unwrap();
+        let refreshed = parser
+            .load_or_elaborate(&top, Some("Top"), &cache_dir)
+            .unwrap();
+        assert_eq!(refreshed.find_ports("*").unwrap().len(), 2);
     }
 }

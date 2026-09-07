@@ -3,6 +3,7 @@
 pub mod model;
 mod nodes;
 mod parser;
+mod source;
 
 use crate::ast::Node;
 use crate::Result;

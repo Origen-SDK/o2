@@ -9,7 +9,8 @@ DUMMY_ICL = r'''
 Module Leaf {
     Parameter WIDTH = 4;
     ScanInPort data[$WIDTH-1:0];
-    DataOutPort result[$WIDTH-1:0];
+    DataOutPort result[$WIDTH-1:0] { Source inverted; }
+    LogicSignal inverted { ~data[0]; }
     ScanRegister status[$WIDTH-1:0] {
         ScanInSource data[0];
         ResetValue 4'b0011;
@@ -73,6 +74,20 @@ def test_scope_registers_ports_and_connections(model):
     assert len(scan_register.connections) == 1
 
 
+def test_internal_signal_and_connection_segment_details(model):
+    result = model.resolve_path("left").find_ports("result")[0]
+    connection = result.connections[0]
+    assert connection.kind == "source"
+    assert isinstance(connection.source_span, tuple)
+    segment = connection.segments[0]
+    assert segment.relative_path == []
+    assert isinstance(segment.target, icl.InternalSignal)
+    assert segment.target.name == "inverted"
+    assert segment.target.owner.path == "Top.left"
+    assert segment.selection.kind == "whole"
+    assert not segment.inverted
+
+
 def test_non_contiguous_and_nested_aliases(model):
     sparse = model.resolve_path("left").find_aliases("sparse")[0]
     assert sparse.width == 3
@@ -104,3 +119,50 @@ def test_cache_directory_is_optional_and_opaque(tmp_path):
     refreshed = icl.load(source, cache_dir=cache_dir)
     assert refreshed.root.name == "Changed"
     assert len(refreshed.find_ports("*")) == 2
+
+
+def test_load_errors_include_file_context(tmp_path):
+    with pytest.raises(RuntimeError, match="File does not exist"):
+        icl.load(tmp_path / "missing.icl")
+
+    malformed = tmp_path / "malformed.icl"
+    malformed.write_text("Module Broken { ScanInPort missing_terminator }")
+    with pytest.raises(RuntimeError, match="malformed.icl"):
+        icl.load(malformed)
+
+
+def test_relative_includes_and_transitive_cache_invalidation(tmp_path):
+    child = tmp_path / "blocks" / "child.icl"
+    child.parent.mkdir()
+    child.write_text("Module Child { ScanInPort first; }\n")
+    top = tmp_path / "top.icl"
+    top.write_text(
+        '#include "blocks/child.icl"\n'
+        "Module Top { Instance child Of Child; }\n"
+    )
+    cache = tmp_path / "cache"
+
+    first = icl.load(top, cache_dir=cache)
+    assert len(first.resolve_path("child").ports) == 1
+
+    child.write_text("Module Child { ScanInPort first; ScanInPort second; }\n")
+    refreshed = icl.load(top, cache_dir=cache)
+    assert len(refreshed.resolve_path("child").ports) == 2
+
+
+def test_qualified_namespace_resolution(tmp_path):
+    source = tmp_path / "namespaces.icl"
+    source.write_text(
+        "NameSpace Vendor;\n"
+        "Module Leaf { ScanInPort vendor; }\n"
+        "NameSpace;\n"
+        "Module Leaf { ScanInPort root; }\n"
+        "Module Top {\n"
+        "  Instance vendor Of Vendor::Leaf;\n"
+        "  Instance root Of Leaf;\n"
+        "}\n"
+    )
+    model = icl.load(source, top="Top")
+    assert model.resolve_path("vendor").qualified_module_type == "Vendor::Leaf"
+    assert model.resolve_path("root").qualified_module_type == "Leaf"
+    assert len(model.find_instances_of("Vendor::Leaf")) == 1

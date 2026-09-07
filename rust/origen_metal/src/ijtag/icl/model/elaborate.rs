@@ -10,6 +10,13 @@ struct ModuleKey {
     name: SymbolId,
 }
 
+#[derive(Default)]
+struct SpecializationLookup {
+    children: HashMap<SymbolId, (InstanceDefId, SpecializationId)>,
+    endpoints: HashMap<SymbolId, (AliasEndpoint, u32, u32, u32)>,
+    aliases: HashMap<SymbolId, AliasId>,
+}
+
 struct Elaborator {
     parsed: ParsedIcl,
     modules: Vec<ModuleDef>,
@@ -21,6 +28,7 @@ struct Elaborator {
     internal_signals_def: Vec<InternalSignalDef>,
     enum_values_def: Vec<EnumValueDef>,
     parameters_def: Vec<ParameterDef>,
+    parameter_value_nodes: Vec<Vec<SyntaxId>>,
     module_keys: HashMap<ModuleKey, ModuleDefId>,
     specializations: Vec<Specialization>,
     specialization_cache: HashMap<(ModuleDefId, Vec<(SymbolId, ParameterValue)>), SpecializationId>,
@@ -31,6 +39,7 @@ struct Elaborator {
     internal_signals: Vec<ResolvedInternalSignal>,
     alias_segments: Vec<AliasSegment>,
     connections: Vec<ResolvedConnection>,
+    specialization_lookups: Vec<SpecializationLookup>,
 }
 
 pub(super) fn build(parsed: ParsedIcl, top: Option<&str>) -> Result<IclModel> {
@@ -39,6 +48,7 @@ pub(super) fn build(parsed: ParsedIcl, top: Option<&str>) -> Result<IclModel> {
     let top_module = elaborator.select_top(top)?;
     let root_specialization =
         elaborator.ensure_specialization(top_module, HashMap::new(), &mut HashSet::new())?;
+    elaborator.build_specialization_lookups();
     elaborator.resolve_aliases()?;
     elaborator.resolve_connections()?;
 
@@ -133,9 +143,7 @@ pub(super) fn build(parsed: ParsedIcl, top: Option<&str>) -> Result<IclModel> {
 
     let mut module_by_name = HashMap::new();
     for (index, module) in elaborator.modules.iter().enumerate() {
-        module_by_name
-            .entry(module.name)
-            .or_insert(ModuleDefId(index as u32));
+        module_by_name.insert(module.qualified_name.clone(), ModuleDefId(index as u32));
     }
 
     Ok(IclModel {
@@ -184,6 +192,7 @@ impl Elaborator {
             internal_signals_def: Vec::new(),
             enum_values_def: Vec::new(),
             parameters_def: Vec::new(),
+            parameter_value_nodes: Vec::new(),
             module_keys: HashMap::new(),
             specializations: Vec::new(),
             specialization_cache: HashMap::new(),
@@ -194,6 +203,7 @@ impl Elaborator {
             internal_signals: Vec::new(),
             alias_segments: Vec::new(),
             connections: Vec::new(),
+            specialization_lookups: Vec::new(),
         }
     }
 
@@ -225,15 +235,11 @@ impl Elaborator {
         let name = first_direct_symbol(&self.parsed, syntax)
             .ok_or_else(|| Error::new("Module is missing its name"))?;
         let key = ModuleKey { namespace, name };
-        if self.module_keys.contains_key(&key) {
-            return Err(Error::new(&format!(
-                "Duplicate module definition: {}",
-                self.parsed.symbol(name)
-            )));
+        let existing = self.module_keys.get(&key).copied();
+        let module_id = existing.unwrap_or(ModuleDefId(self.modules.len() as u32));
+        if existing.is_none() {
+            self.module_keys.insert(key, module_id);
         }
-
-        let module_id = ModuleDefId(self.modules.len() as u32);
-        self.module_keys.insert(key, module_id);
         let qualified_name = namespace
             .map(|namespace| {
                 format!(
@@ -347,7 +353,11 @@ impl Elaborator {
                 _ => {}
             }
         }
-        self.modules.push(module);
+        if let Some(existing) = existing {
+            self.modules[existing.as_usize()] = module;
+        } else {
+            self.modules.push(module);
+        }
         Ok(())
     }
 
@@ -441,6 +451,8 @@ impl Elaborator {
             syntax,
             local: self.parsed.kind(syntax) == SyntaxKind::LocalParameter,
         });
+        self.parameter_value_nodes
+            .push(parameter_value_nodes(&self.parsed, syntax));
         Ok(id)
     }
 
@@ -494,7 +506,7 @@ impl Elaborator {
     fn select_top(&self, top: Option<&str>) -> Result<ModuleDefId> {
         if let Some(top) = top {
             let (namespace, name) = if let Some((namespace, name)) = top.rsplit_once("::") {
-                (Some(namespace), name)
+                ((!namespace.is_empty()).then_some(namespace), name)
             } else {
                 (None, top)
             };
@@ -517,8 +529,12 @@ impl Elaborator {
         }
 
         let mut referenced = HashSet::new();
-        for instance in &self.instances_def {
-            referenced.insert(self.resolve_module_reference(instance.module_type)?);
+        for module in &self.modules {
+            for instance in &module.instances {
+                referenced.insert(self.resolve_module_reference(
+                    self.instances_def[instance.as_usize()].module_type,
+                )?);
+            }
         }
         let roots: Vec<_> = (0..self.modules.len())
             .map(|index| ModuleDefId(index as u32))
@@ -543,7 +559,9 @@ impl Elaborator {
             return Err(Error::new("Cycle detected in ICL module hierarchy"));
         }
         let module = self.modules[module_id.as_usize()].clone();
-        let environment = self.parameter_environment(&module, overrides)?;
+        let environment = self
+            .parameter_environment(&module, overrides)
+            .map_err(|error| self.parsed.error_at(module.syntax, error))?;
         let key_parameters: Vec<_> = module
             .parameters
             .iter()
@@ -593,7 +611,8 @@ impl Elaborator {
         for definition in &module.ports {
             let parsed = &self.ports_def[definition.as_usize()];
             let (first_index, last_index, width) =
-                resolved_shape(&self.parsed, parsed.syntax, &environment)?;
+                resolved_shape(&self.parsed, parsed.syntax, &environment)
+                    .map_err(|error| self.parsed.error_at(parsed.syntax, error))?;
             let id = PortId(self.ports.len() as u32);
             self.ports.push(ResolvedPort {
                 definition: *definition,
@@ -618,7 +637,8 @@ impl Elaborator {
         for definition in &module.scan_registers {
             let parsed = &self.scan_registers_def[definition.as_usize()];
             let (first_index, last_index, width) =
-                resolved_shape(&self.parsed, parsed.syntax, &environment)?;
+                resolved_shape(&self.parsed, parsed.syntax, &environment)
+                    .map_err(|error| self.parsed.error_at(parsed.syntax, error))?;
             let id = ScanRegisterId(self.scan_registers.len() as u32);
             self.scan_registers.push(ResolvedScanRegister {
                 definition: *definition,
@@ -647,7 +667,8 @@ impl Elaborator {
         for definition in &module.data_registers {
             let parsed = &self.data_registers_def[definition.as_usize()];
             let (first_index, last_index, width) =
-                resolved_shape(&self.parsed, parsed.syntax, &environment)?;
+                resolved_shape(&self.parsed, parsed.syntax, &environment)
+                    .map_err(|error| self.parsed.error_at(parsed.syntax, error))?;
             let id = DataRegisterId(self.data_registers.len() as u32);
             self.data_registers.push(ResolvedDataRegister {
                 definition: *definition,
@@ -703,7 +724,8 @@ impl Elaborator {
         for definition in &module.internal_signals {
             let parsed = &self.internal_signals_def[definition.as_usize()];
             let (first_index, last_index, width) =
-                resolved_shape(&self.parsed, parsed.syntax, &environment)?;
+                resolved_shape(&self.parsed, parsed.syntax, &environment)
+                    .map_err(|error| self.parsed.error_at(parsed.syntax, error))?;
             let id = InternalSignalId(self.internal_signals.len() as u32);
             self.internal_signals.push(ResolvedInternalSignal {
                 definition: *definition,
@@ -728,17 +750,25 @@ impl Elaborator {
 
         let mut child_specializations = Vec::with_capacity(module.instances.len());
         for instance_id in &module.instances {
-            let instance = self.instances_def[instance_id.as_usize()].clone();
-            let child_module = self.resolve_module_reference(instance.module_type)?;
+            let instance = &self.instances_def[instance_id.as_usize()];
+            let module_type = instance.module_type;
+            let overrides = instance.overrides.clone();
+            let child_module = self
+                .resolve_module_reference(module_type)
+                .map_err(|error| self.parsed.error_at(instance.syntax, error))?;
             let mut child_overrides = HashMap::new();
-            for override_id in &instance.overrides {
+            for override_id in &overrides {
                 let parameter = &self.parameters_def[override_id.as_usize()];
-                let value = evaluate_parameter(&self.parsed, parameter.syntax, &environment)?
+                let value = self
+                    .evaluate_parameter_def(*override_id, &environment)?
                     .ok_or_else(|| {
-                        Error::new(&format!(
-                            "Unable to resolve parameter override {}",
-                            self.parsed.symbol(parameter.name)
-                        ))
+                        self.parsed.error_at(
+                            parameter.syntax,
+                            Error::new(&format!(
+                                "Unable to resolve parameter override {}",
+                                self.parsed.symbol(parameter.name)
+                            )),
+                        )
                     })?;
                 child_overrides.insert(parameter.name, value);
             }
@@ -788,7 +818,7 @@ impl Elaborator {
             let before = pending.len();
             pending.retain(|id| {
                 let parameter = &self.parameters_def[id.as_usize()];
-                match evaluate_parameter(&self.parsed, parameter.syntax, &environment) {
+                match self.evaluate_parameter_def(*id, &environment) {
                     Ok(Some(value)) => {
                         environment.insert(parameter.name, value);
                         false
@@ -809,6 +839,77 @@ impl Elaborator {
             }
         }
         Ok(environment)
+    }
+
+    fn evaluate_parameter_def(
+        &self,
+        id: ParameterDefId,
+        environment: &HashMap<SymbolId, ParameterValue>,
+    ) -> Result<Option<ParameterValue>> {
+        evaluate_sequence(
+            &self.parsed,
+            &self.parameter_value_nodes[id.as_usize()],
+            environment,
+        )
+    }
+
+    fn build_specialization_lookups(&mut self) {
+        self.specialization_lookups = self
+            .specializations
+            .iter()
+            .map(|specialization| {
+                let mut lookup = SpecializationLookup::default();
+                for id in &specialization.ports {
+                    let value = &self.ports[id.as_usize()];
+                    lookup.endpoints.entry(value.name).or_insert((
+                        AliasEndpoint::Port(*id),
+                        value.first_index,
+                        value.last_index,
+                        value.width,
+                    ));
+                }
+                for id in &specialization.scan_registers {
+                    let value = &self.scan_registers[id.as_usize()];
+                    lookup.endpoints.entry(value.name).or_insert((
+                        AliasEndpoint::ScanRegister(*id),
+                        value.first_index,
+                        value.last_index,
+                        value.width,
+                    ));
+                }
+                for id in &specialization.data_registers {
+                    let value = &self.data_registers[id.as_usize()];
+                    lookup.endpoints.entry(value.name).or_insert((
+                        AliasEndpoint::DataRegister(*id),
+                        value.first_index,
+                        value.last_index,
+                        value.width,
+                    ));
+                }
+                for id in &specialization.internal_signals {
+                    let value = &self.internal_signals[id.as_usize()];
+                    lookup.endpoints.entry(value.name).or_insert((
+                        AliasEndpoint::InternalSignal(*id),
+                        value.first_index,
+                        value.last_index,
+                        value.width,
+                    ));
+                }
+                for id in &specialization.aliases {
+                    lookup
+                        .aliases
+                        .entry(self.aliases[id.as_usize()].name)
+                        .or_insert(*id);
+                }
+                for (definition, child) in &specialization.child_specializations {
+                    lookup
+                        .children
+                        .entry(self.instances_def[definition.as_usize()].name)
+                        .or_insert((*definition, *child));
+                }
+                lookup
+            })
+            .collect();
     }
 
     fn resolve_connections(&mut self) -> Result<()> {
@@ -920,19 +1021,20 @@ impl Elaborator {
             }
 
             for (definition, child_specialization) in &specialization.child_specializations {
-                let instance = self.instances_def[definition.as_usize()].clone();
+                let instance_syntax = self.instances_def[definition.as_usize()].syntax;
                 let inputs: Vec<_> = self
                     .parsed
-                    .children(instance.syntax)
+                    .children(instance_syntax)
                     .filter(|child| self.parsed.kind(*child) == SyntaxKind::InputPortConnection)
                     .collect();
                 for input in inputs {
                     let target_name = declaration_name(&self.parsed, input)?;
-                    let port = self.specializations[child_specialization.as_usize()]
-                        .ports
-                        .iter()
-                        .find(|id| self.ports[id.as_usize()].name == target_name)
-                        .copied()
+                    let port = self
+                        .local_endpoint(*child_specialization, target_name)
+                        .and_then(|(endpoint, _, _, _)| match endpoint {
+                            AliasEndpoint::Port(id) => Some(id),
+                            _ => None,
+                        })
                         .ok_or_else(|| {
                             Error::new(&format!(
                                 "Unable to resolve instance input port {}",
@@ -972,6 +1074,9 @@ impl Elaborator {
                 SyntaxKind::Enable => Some(ConnectionKind::Enable),
                 SyntaxKind::ScanInSource => Some(ConnectionKind::ScanInSource),
                 SyntaxKind::CaptureSource => Some(ConnectionKind::CaptureSource),
+                // The grammar wraps WriteEnSource's optional leading inversion around its
+                // data-signal child. collect_connection_segments deliberately carries that
+                // inversion state into the resolved segment.
                 SyntaxKind::WriteEnSource => Some(ConnectionKind::WriteEnSource),
                 SyntaxKind::WriteDataSource => Some(ConnectionKind::WriteDataSource),
                 SyntaxKind::ReadDataSource => Some(ConnectionKind::ReadDataSource),
@@ -1057,7 +1162,8 @@ impl Elaborator {
         output: &mut Vec<ConnectionId>,
     ) -> Result<()> {
         let mut segments = Vec::new();
-        self.collect_connection_segments(nodes, specialization, environment, false, &mut segments)?;
+        self.collect_connection_segments(nodes, specialization, environment, false, &mut segments)
+            .map_err(|error| self.parsed.error_at(syntax, error))?;
         if !segments.is_empty() {
             let id = ConnectionId(self.connections.len() as u32);
             self.connections.push(ResolvedConnection {
@@ -1173,10 +1279,9 @@ impl Elaborator {
                 })?;
         }
         if path.is_empty() {
-            if let Some((definition, _)) = self.specializations[specialization.as_usize()]
-                .child_specializations
-                .iter()
-                .find(|(definition, _)| self.instances_def[definition.as_usize()].name == name)
+            if let Some((definition, _)) = self.specialization_lookups[specialization.as_usize()]
+                .children
+                .get(&name)
             {
                 return Ok(ConnectionEndpoint::Instance(*definition));
             }
@@ -1237,23 +1342,28 @@ impl Elaborator {
         let targets = alias_target_nodes(&self.parsed, definition.syntax);
         let mut resolved = Vec::new();
         for (inverted, target_node) in targets {
-            let (path, name, selection) = signal_target(&self.parsed, target_node, &environment)?;
+            let (path, name, selection) = signal_target(&self.parsed, target_node, &environment)
+                .map_err(|error| self.parsed.error_at(target_node, error))?;
             let mut target_specialization = alias.specialization;
             for component in &path {
                 target_specialization = self
                     .child_specialization(target_specialization, *component)
                     .ok_or_else(|| {
-                        Error::new(&format!(
-                            "Unable to resolve alias instance path component {}",
-                            self.parsed.symbol(*component)
-                        ))
+                        self.parsed.error_at(
+                            target_node,
+                            Error::new(&format!(
+                                "Unable to resolve alias instance path component {}",
+                                self.parsed.symbol(*component)
+                            )),
+                        )
                     })?;
             }
             if let Some((endpoint, first_index, last_index, endpoint_width)) =
                 self.local_endpoint(target_specialization, name)
             {
                 let selected_width = selection.width(endpoint_width);
-                validate_selection(selection, first_index, last_index)?;
+                validate_selection(selection, first_index, last_index)
+                    .map_err(|error| self.parsed.error_at(target_node, error))?;
                 resolved.push((path, endpoint, selection, inverted, selected_width));
             } else if let Some(target_alias) = self.local_alias(target_specialization, name) {
                 self.resolve_alias(target_alias, states)?;
@@ -1271,10 +1381,13 @@ impl Elaborator {
                     ));
                 }
             } else {
-                return Err(Error::new(&format!(
-                    "Unable to resolve alias target {}",
-                    self.parsed.symbol(name)
-                )));
+                return Err(self.parsed.error_at(
+                    target_node,
+                    Error::new(&format!(
+                        "Unable to resolve alias target {}",
+                        self.parsed.symbol(name)
+                    )),
+                ));
             }
         }
 
@@ -1320,12 +1433,10 @@ impl Elaborator {
         specialization: SpecializationId,
         name: SymbolId,
     ) -> Option<SpecializationId> {
-        self.specializations[specialization.as_usize()]
-            .child_specializations
-            .iter()
-            .find_map(|(definition, child)| {
-                (self.instances_def[definition.as_usize()].name == name).then_some(*child)
-            })
+        self.specialization_lookups[specialization.as_usize()]
+            .children
+            .get(&name)
+            .map(|(_, child)| *child)
     }
 
     fn local_endpoint(
@@ -1333,59 +1444,17 @@ impl Elaborator {
         specialization: SpecializationId,
         name: SymbolId,
     ) -> Option<(AliasEndpoint, u32, u32, u32)> {
-        let specialization = &self.specializations[specialization.as_usize()];
-        for id in &specialization.ports {
-            let port = &self.ports[id.as_usize()];
-            if port.name == name {
-                return Some((
-                    AliasEndpoint::Port(*id),
-                    port.first_index,
-                    port.last_index,
-                    port.width,
-                ));
-            }
-        }
-        for id in &specialization.scan_registers {
-            let register = &self.scan_registers[id.as_usize()];
-            if register.name == name {
-                return Some((
-                    AliasEndpoint::ScanRegister(*id),
-                    register.first_index,
-                    register.last_index,
-                    register.width,
-                ));
-            }
-        }
-        for id in &specialization.data_registers {
-            let register = &self.data_registers[id.as_usize()];
-            if register.name == name {
-                return Some((
-                    AliasEndpoint::DataRegister(*id),
-                    register.first_index,
-                    register.last_index,
-                    register.width,
-                ));
-            }
-        }
-        for id in &specialization.internal_signals {
-            let signal = &self.internal_signals[id.as_usize()];
-            if signal.name == name {
-                return Some((
-                    AliasEndpoint::InternalSignal(*id),
-                    signal.first_index,
-                    signal.last_index,
-                    signal.width,
-                ));
-            }
-        }
-        None
+        self.specialization_lookups[specialization.as_usize()]
+            .endpoints
+            .get(&name)
+            .copied()
     }
 
     fn local_alias(&self, specialization: SpecializationId, name: SymbolId) -> Option<AliasId> {
-        self.specializations[specialization.as_usize()]
+        self.specialization_lookups[specialization.as_usize()]
             .aliases
-            .iter()
-            .find_map(|id| (self.aliases[id.as_usize()].name == name).then_some(*id))
+            .get(&name)
+            .copied()
     }
 
     fn select_alias_segments(
@@ -2062,11 +2131,9 @@ fn build_occurrences(
         specialization,
         children: Vec::new(),
     });
-    let child_specs = elaborator.specializations[specialization.as_usize()]
-        .child_specializations
-        .clone();
+    let child_specs = &elaborator.specializations[specialization.as_usize()].child_specializations;
     let mut children = Vec::with_capacity(child_specs.len());
-    for (definition, child_specialization) in child_specs {
+    for &(definition, child_specialization) in child_specs {
         let child_name = elaborator.instances_def[definition.as_usize()].name;
         children.push(build_occurrences(
             elaborator,

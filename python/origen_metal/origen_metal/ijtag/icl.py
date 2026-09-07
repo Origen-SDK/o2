@@ -15,6 +15,7 @@ AliasSegment = _icl.AliasSegment
 AliasBit = _icl.AliasBit
 Connection = _icl.Connection
 ConnectionSegment = _icl.ConnectionSegment
+InternalSignal = _icl.InternalSignal
 BitSelection = _icl.BitSelection
 BitValue = _icl.BitValue
 InstanceResults = _icl.InstanceResults
@@ -39,6 +40,7 @@ __all__ = [
     "AliasBit",
     "Connection",
     "ConnectionSegment",
+    "InternalSignal",
     "BitSelection",
     "BitValue",
     "InstanceResults",

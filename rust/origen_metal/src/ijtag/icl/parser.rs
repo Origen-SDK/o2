@@ -1,10 +1,10 @@
 use super::nodes::{AccessLinkStandard, MuxType, PortType, SignalType, ICL};
+use super::source;
 use super::ParseOptions;
 use crate::ast::{Node, AST};
 use crate::{Error, Result};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
-use std::fs;
 use std::path::Path;
 
 #[derive(Parser)]
@@ -19,14 +19,18 @@ pub(crate) fn parse_file_with_options(path: &Path, options: ParseOptions) -> Res
         )));
     }
 
-    let contents = fs::read_to_string(path)?;
-    parse_str_with_options(&contents, Some(&path.display().to_string()), options).map_err(|e| {
-        let display_path = path
-            .canonicalize()
-            .unwrap_or_else(|_| path.to_path_buf())
-            .display()
-            .to_string();
-        Error::new(&format!("Error parsing file {}:\n{}", display_path, e.msg))
+    let expanded = source::from_file(path)?;
+    parse_expanded_with_options(
+        &expanded.text,
+        Some(&expanded.entry),
+        Some(&expanded.map),
+        options,
+    )
+    .map_err(|e| {
+        Error::new(&format!(
+            "Error parsing file {}:\n{}",
+            expanded.entry, e.msg
+        ))
     })
 }
 
@@ -35,8 +39,27 @@ pub(crate) fn parse_str_with_options(
     source_file: Option<&str>,
     options: ParseOptions,
 ) -> Result<Node<ICL>> {
+    let expanded = source::from_str(icl, source_file)?;
+    parse_expanded_with_options(&expanded.text, source_file, Some(&expanded.map), options)
+}
+
+fn parse_expanded_with_options(
+    icl: &str,
+    source_file: Option<&str>,
+    source_map: Option<&source::SourceMap>,
+    options: ParseOptions,
+) -> Result<Node<ICL>> {
     match ICLParser::parse(Rule::icl_source, icl) {
-        Err(e) => Err(Error::new(&e.to_string())),
+        Err(error) => {
+            let offset = match error.location {
+                pest::error::InputLocation::Pos(offset) => offset,
+                pest::error::InputLocation::Span((offset, _)) => offset,
+            };
+            let location = source_map
+                .map(|map| map.location(offset as u32, icl))
+                .unwrap_or_else(|| source_file.unwrap_or("<string>").to_string());
+            Err(Error::new(&format!("{location}:\n{error}")))
+        }
         Ok(mut parsed) => to_ast(parsed.next().unwrap(), source_file, options),
     }
 }
@@ -45,6 +68,7 @@ enum Action {
     Open(ICL),
     Leaf(ICL),
     Transparent,
+    Ignore,
 }
 
 fn action(pair: &Pair<'_, Rule>, options: ParseOptions) -> Action {
@@ -53,6 +77,8 @@ fn action(pair: &Pair<'_, Rule>, options: ParseOptions) -> Action {
         Rule::namespace_def => ICL::NameSpace,
         Rule::use_namespace_def => ICL::UseNameSpace,
         Rule::module_def => ICL::Module,
+
+        Rule::pdl_statement | Rule::iproc_def | Rule::pdl_hash_comment => return Action::Ignore,
 
         Rule::scan_in_port_def => ICL::Port(PortType::ScanIn),
         Rule::scan_out_port_def => ICL::Port(PortType::ScanOut),
@@ -287,6 +313,7 @@ fn to_ast(
                         frames.push((inner, None));
                     }
                 }
+                Action::Ignore => {}
             }
         } else {
             let close_id = *close_id;
@@ -304,6 +331,7 @@ fn to_ast(
 mod tests {
     use super::super::{from_str, Parser as ConfigurableParser};
     use super::*;
+    use std::fs;
 
     fn count(node: &Node<ICL>, predicate: &dyn Fn(&ICL) -> bool) -> usize {
         usize::from(predicate(&node.attrs))
@@ -496,15 +524,71 @@ mod tests {
     fn rejects_non_standard_or_malformed_input() {
         for source in [
             "#include \"dummy.icl\"",
-            "iProcsForModule Dummy",
             "module WrongCase {}",
             "Module _Bad {}",
             "Module Bad { ScanRegister r { ResetValue 2'b2; } }",
             "Module Bad { ScanInPort missing_terminator }",
-            "iProcsForModule Dummy",
         ] {
             assert!(from_str(source).is_err(), "unexpectedly parsed: {source}");
         }
+    }
+
+    #[test]
+    fn skips_standard_top_level_pdl() {
+        let source = r#"
+            iPDLLevel 0 -version STD_1687_2014
+            Module Dummy { ScanInPort si; }
+            iProcsForModule Dummy
+            iUseProcNameSpace Vendor
+            iProc exercise {arg} {
+                # A brace in a comment does not end the body: }
+                iNote -comment "nested { text }";
+                ifTrue { iWrite si 1; }
+            }
+        "#;
+        let ast = from_str(source).expect("standard top-level PDL should be ignored");
+        assert_eq!(count(&ast, &|node| matches!(node, ICL::Module)), 1);
+    }
+
+    #[test]
+    fn file_api_expands_nested_relative_includes() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocks = dir.path().join("blocks");
+        fs::create_dir(&blocks).unwrap();
+        fs::write(blocks.join("leaf.icl"), "Module Leaf { ScanInPort si; }\n").unwrap();
+        fs::write(
+            blocks.join("middle.icl"),
+            "#include \"leaf.icl\"\nModule Middle { Instance leaf Of Leaf; }\n",
+        )
+        .unwrap();
+        let top = dir.path().join("top.icl");
+        fs::write(
+            &top,
+            "#include \"blocks/middle.icl\"\nModule Top { Instance middle Of Middle; }\n",
+        )
+        .unwrap();
+
+        let ast = super::super::from_file(&top).unwrap();
+        assert_eq!(count(&ast, &|node| matches!(node, ICL::Module)), 3);
+    }
+
+    #[test]
+    fn include_errors_report_missing_files_and_cycles() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing_top.icl");
+        fs::write(&missing, "#include \"not_here.icl\"\nModule Top {}\n").unwrap();
+        let error = super::super::from_file(&missing).unwrap_err();
+        assert!(error.to_string().contains("not_here.icl"));
+        assert!(error.to_string().contains("missing_top.icl:1:1"));
+
+        let first = dir.path().join("first.icl");
+        let second = dir.path().join("second.icl");
+        fs::write(&first, "#include \"second.icl\"\nModule First {}\n").unwrap();
+        fs::write(&second, "#include \"first.icl\"\nModule Second {}\n").unwrap();
+        let error = super::super::from_file(&first).unwrap_err();
+        assert!(error.to_string().contains("include cycle"));
+        assert!(error.to_string().contains("first.icl"));
+        assert!(error.to_string().contains("second.icl"));
     }
 
     #[test]

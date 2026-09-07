@@ -1,11 +1,11 @@
 use super::super::parser::{ICLParser, Rule};
+use super::super::source::{self, ExpandedSource, SourceMap};
 use super::super::{AccessLinkStandard, MuxType, PortType, SignalType};
 use crate::{Error, Result};
 use ahash::AHashMap as HashMap;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser as PestParser;
 use rayon::prelude::*;
-use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -141,6 +141,7 @@ pub(super) struct ParsedStorage {
     pub(super) nodes: Vec<SyntaxNode>,
     pub(super) symbols: Vec<String>,
     pub(super) symbol_ids: HashMap<String, SymbolId>,
+    pub(super) source_map: SourceMap,
 }
 
 #[derive(Clone, Debug)]
@@ -152,6 +153,7 @@ impl ParsedIcl {
     pub(super) fn from_parts(
         source: String,
         source_file: Option<String>,
+        source_map: SourceMap,
         nodes: Vec<SyntaxNode>,
         symbols: Vec<String>,
     ) -> Self {
@@ -167,6 +169,7 @@ impl ParsedIcl {
                 nodes,
                 symbols,
                 symbol_ids,
+                source_map,
             }),
         }
     }
@@ -208,6 +211,20 @@ impl ParsedIcl {
 
     pub fn node_count(&self) -> usize {
         self.inner.nodes.len()
+    }
+
+    pub(crate) fn location(&self, span: SourceSpan) -> String {
+        self.inner
+            .source_map
+            .location(span.start, &self.inner.source)
+    }
+
+    pub(crate) fn error_at(&self, syntax: SyntaxId, error: Error) -> Error {
+        Error::new(&format!(
+            "{}: {}",
+            self.location(self.span(syntax)),
+            error.msg
+        ))
     }
 
     pub fn syntax_ids(&self) -> impl Iterator<Item = SyntaxId> + '_ {
@@ -280,20 +297,19 @@ impl Parser {
                 path.display()
             )));
         }
-        let source = fs::read_to_string(path)?;
-        self.parse_owned(source, Some(path.display().to_string()))
-            .map_err(|e| {
-                let display_path = path
-                    .canonicalize()
-                    .unwrap_or_else(|_| path.to_path_buf())
-                    .display()
-                    .to_string();
-                Error::new(&format!("Error parsing file {}:\n{}", display_path, e.msg))
-            })
+        let expanded = source::from_file(path)?;
+        self.parse_expanded(expanded).map_err(|e| {
+            let display_path = path
+                .canonicalize()
+                .unwrap_or_else(|_| path.to_path_buf())
+                .display()
+                .to_string();
+            Error::new(&format!("Error parsing file {}:\n{}", display_path, e.msg))
+        })
     }
 
     pub fn from_str(&self, source: &str) -> Result<ParsedIcl> {
-        self.parse_owned(source.to_string(), None)
+        self.parse_expanded(source::from_str(source, None)?)
     }
 
     pub fn load_or_elaborate(
@@ -319,19 +335,31 @@ impl Parser {
         Ok(model)
     }
 
-    fn parse_owned(&self, source: String, source_file: Option<String>) -> Result<ParsedIcl> {
+    pub(super) fn parse_expanded(&self, expanded: ExpandedSource) -> Result<ParsedIcl> {
+        let source = expanded.text;
+        let source_file = Some(expanded.entry);
         if source.len() > u32::MAX as usize {
             return Err(Error::new(
                 "ICL sources larger than 4 GiB are not supported",
             ));
         }
-        let builder = if self.threads > 1 && source.len() >= 1_000_000 {
-            build_parallel(&source, self.preserve_comments, self.threads)?
-        } else {
-            let pairs = ICLParser::parse(Rule::icl_source, &source)
-                .map_err(|e| Error::new(&e.to_string()))?;
-            build(&source, pairs, self.preserve_comments)?
-        };
+        let builder =
+            if self.threads > 1 && source.len() >= 1_000_000 && !contains_top_level_pdl(&source) {
+                build_parallel(&source, self.preserve_comments, self.threads)?
+            } else {
+                let pairs = ICLParser::parse(Rule::icl_source, &source).map_err(|error| {
+                    let offset = match error.location {
+                        pest::error::InputLocation::Pos(offset) => offset,
+                        pest::error::InputLocation::Span((offset, _)) => offset,
+                    };
+                    Error::new(&format!(
+                        "{}:\n{}",
+                        expanded.map.location(offset as u32, &source),
+                        error
+                    ))
+                })?;
+                build(&source, pairs, self.preserve_comments)?
+            };
         Ok(ParsedIcl {
             inner: Arc::new(ParsedStorage {
                 source,
@@ -339,15 +367,27 @@ impl Parser {
                 nodes: builder.nodes,
                 symbols: builder.symbols,
                 symbol_ids: builder.symbol_ids,
+                source_map: expanded.map,
             }),
         })
     }
+}
+
+fn contains_top_level_pdl(source: &str) -> bool {
+    source.lines().any(|line| {
+        let line = line.trim_start();
+        ["iPDLLevel", "iProcsForModule", "iUseProcNameSpace", "iProc"]
+            .iter()
+            .any(|keyword| line.starts_with(keyword))
+            || line.starts_with('#')
+    })
 }
 
 enum Action {
     Open(SyntaxKind),
     Leaf(SyntaxKind),
     Transparent,
+    Ignore,
 }
 
 struct Builder {
@@ -480,6 +520,7 @@ fn build(source: &str, mut pairs: Pairs<'_, Rule>, preserve_comments: bool) -> R
                         frames.push((inner, parent));
                     }
                 }
+                Action::Ignore => {}
             }
         } else {
             frames.pop();
@@ -689,6 +730,7 @@ fn direct_child_count(pair: &Pair<'_, Rule>, rule: Rule) -> usize {
 fn classify(pair: &Pair<'_, Rule>, builder: &mut Builder, preserve_comments: bool) -> Action {
     let text = pair.as_str();
     let kind = match pair.as_rule() {
+        Rule::pdl_statement | Rule::iproc_def | Rule::pdl_hash_comment => return Action::Ignore,
         Rule::namespace_def => SyntaxKind::NameSpace,
         Rule::use_namespace_def => SyntaxKind::UseNameSpace,
         Rule::module_def => SyntaxKind::Module,

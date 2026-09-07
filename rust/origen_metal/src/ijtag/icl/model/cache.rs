@@ -1,11 +1,12 @@
 use super::syntax::SyntaxNode;
 use super::*;
+use crate::ijtag::icl::source;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
 
 const CACHE_MAGIC: [u8; 8] = *b"O2ICL001";
-const CACHE_SCHEMA: u32 = 4;
+const CACHE_SCHEMA: u32 = 5;
 
 pub(super) fn path_for(
     source_path: &Path,
@@ -74,7 +75,7 @@ struct CacheFile {
     connections: Vec<ResolvedConnection>,
     connections_by_owner: HashMap<ConnectionOwner, Vec<ConnectionId>>,
     root: InstanceId,
-    module_by_name: HashMap<SymbolId, ModuleDefId>,
+    module_by_name: HashMap<String, ModuleDefId>,
     child_index: HashMap<(InstanceId, SymbolId), InstanceId>,
     instances_by_name: HashMap<SymbolId, Vec<InstanceId>>,
     instances_by_type: HashMap<ModuleDefId, Vec<InstanceId>>,
@@ -113,7 +114,7 @@ struct CacheWrite<'a> {
     connections: &'a [ResolvedConnection],
     connections_by_owner: &'a HashMap<ConnectionOwner, Vec<ConnectionId>>,
     root: InstanceId,
-    module_by_name: &'a HashMap<SymbolId, ModuleDefId>,
+    module_by_name: &'a HashMap<String, ModuleDefId>,
     child_index: &'a HashMap<(InstanceId, SymbolId), InstanceId>,
     instances_by_name: &'a HashMap<SymbolId, Vec<InstanceId>>,
     instances_by_type: &'a HashMap<ModuleDefId, Vec<InstanceId>>,
@@ -132,7 +133,7 @@ pub(super) fn load(
     if !cache_path.is_file() {
         return Ok(None);
     }
-    let source = fs::read_to_string(source_path)?;
+    let expanded = source::from_file(source_path)?;
     let file = match File::open(cache_path) {
         Ok(file) => file,
         Err(_) => return Ok(None),
@@ -145,7 +146,7 @@ pub(super) fn load(
         };
     if cache.magic != CACHE_MAGIC
         || cache.schema != CACHE_SCHEMA
-        || cache.source_hash != source_hash(source.as_bytes())
+        || cache.source_hash != source_hash(expanded.text.as_bytes())
         || cache.top.as_deref() != top
         || cache.preserve_comments != preserve_comments
     {
@@ -153,8 +154,9 @@ pub(super) fn load(
     }
 
     let parsed = ParsedIcl::from_parts(
-        source,
-        Some(source_path.display().to_string()),
+        expanded.text,
+        Some(expanded.entry),
+        expanded.map,
         cache.nodes,
         cache.symbols,
     );

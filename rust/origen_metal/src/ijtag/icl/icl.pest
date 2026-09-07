@@ -3,10 +3,19 @@ module_source = { SOI ~ module_def ~ EOI }
 namespace_source = { SOI ~ namespace_def ~ EOI }
 use_namespace_source = { SOI ~ use_namespace_def ~ EOI }
 
-source_item = _{ namespace_def | use_namespace_def | module_def }
+source_item = _{ namespace_def | use_namespace_def | module_def | pdl_statement | iproc_def | pdl_hash_comment }
 namespace_def = { k_namespace ~ scalar_id? ~ ";" }
 use_namespace_def = { k_use_namespace ~ scalar_id? ~ ";" }
 module_def = { k_module ~ scalar_id ~ "{" ~ module_item* ~ "}" }
+
+// PDL is intentionally opaque here. Real ICL deliveries commonly append standard PDL setup
+// declarations and procedures; accepting these forms does not make them part of the ICL model.
+pdl_statement = @{ ("iPDLLevel" | "iProcsForModule" | "iUseProcNameSpace") ~ !id_continue ~ (!NEWLINE ~ ANY)* ~ NEWLINE? }
+iproc_def = ${ "iProc" ~ !id_continue ~ (!"{" ~ ANY)* ~ pdl_block ~ ((" " | "\t" | NEWLINE)* ~ pdl_block)? }
+pdl_block = ${ "{" ~ (pdl_block | string | pdl_hash_comment | pdl_slash_comment | pdl_block_char)* ~ "}" }
+pdl_hash_comment = @{ "#" ~ (!NEWLINE ~ ANY)* ~ NEWLINE? }
+pdl_slash_comment = @{ "//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE? }
+pdl_block_char = @{ !("{" | "}" | "\"") ~ ANY }
 
 module_item = _{
     use_namespace_def | port_def | instance_def | scan_register_def | data_register_def |
