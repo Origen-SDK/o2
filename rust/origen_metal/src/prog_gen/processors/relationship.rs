@@ -80,6 +80,10 @@ impl Processor<PGM> for ExtractTestResults {
             _ => Return::ProcessChildren,
         })
     }
+
+    fn on_processed_node(&mut self, _node: &Node<PGM>) -> crate::Result<Return<PGM>> {
+        Ok(Return::None)
+    }
 }
 
 fn process_test_results(
