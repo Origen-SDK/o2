@@ -1,0 +1,135 @@
+{ Multi-pattern WGL file
+  Covers: multiple Pattern blocks in one file, 
+          Subroutine with Call, nested Loop/Repeat,
+          various vector data characters (0,1,X,H,L,Z),
+          2026 TimePlates without FirstEvent }
+
+Waveform MultiPatternDevice
+
+  Signal
+    { Clock and control }
+    SYS_CLK  : input;
+    nRST     : input;
+    MODE     : input;
+
+    { 8-bit data bus }
+    D0       : input;
+    D1       : input;
+    D2       : input;
+    D3       : input;
+    D4       : input;
+    D5       : input;
+    D6       : input;
+    D7       : input;
+
+    { 8-bit output }
+    Q0       : output;
+    Q1       : output;
+    Q2       : output;
+    Q3       : output;
+    Q4       : output;
+    Q5       : output;
+    Q6       : output;
+    Q7       : output;
+
+    { Status }
+    READY    : output;
+    ERR      : output;
+  End
+
+  { 2026 feature: tracks without FirstEvent (no 0ps required) }
+  Timeplate TP_10M Period 100nS
+    SYS_CLK  := input[0nS:S, 50nS:R];
+    nRST     := input[0nS:S];
+    MODE     := input[0nS:S];
+    D0       := input[5nS:S];
+    D1       := input[5nS:S];
+    D2       := input[5nS:S];
+    D3       := input[5nS:S];
+    D4       := input[5nS:S];
+    D5       := input[5nS:S];
+    D6       := input[5nS:S];
+    D7       := input[5nS:S];
+    Q0       := output[75nS:Q];
+    Q1       := output[75nS:Q];
+    Q2       := output[75nS:Q];
+    Q3       := output[75nS:Q];
+    Q4       := output[75nS:Q];
+    Q5       := output[75nS:Q];
+    Q6       := output[75nS:Q];
+    Q7       := output[75nS:Q];
+    READY    := output[75nS:Q];
+    ERR      := output[75nS:Q];
+  End
+
+  { Pattern 1: Power-on reset and idle check }
+  Pattern P1_PowerOnReset (SYS_CLK, nRST, MODE, D0, D1, D2, D3, D4, D5, D6, D7,
+                            Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7, READY, ERR)
+    { Assert reset, hold 8 cycles }
+    Loop 8
+      Vector(+, TP_10M) := [0 0 0  0 0 0 0 0 0 0 0  X X X X X X X X X X];
+    End
+    { Deassert reset }
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  X X X X X X X X 0 0];
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0 1 0];
+    { Verify outputs are cleared after reset }
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0 1 0];
+  End
+
+  { Pattern 2: Walking-ones data test }
+  Pattern P2_WalkingOnes (SYS_CLK, nRST, MODE, D0, D1, D2, D3, D4, D5, D6, D7,
+                           Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7, READY, ERR)
+    { Reset sequence inline }
+    Loop 8
+      Vector(+, TP_10M) := [0 0 0  0 0 0 0 0 0 0 0  X X X X X X X X X X];
+    End
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  X X X X X X X X 0 0];
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0 1 0];
+
+    { Load and check each walking-one combination }
+    Vector(+, TP_10M) := [0 1 1  1 0 0 0 0 0 0 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  1 0 0 0 0 0 0 0  1 0 0 0 0 0 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 1 0 0 0 0 0 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 1 0 0 0 0 0 0  0 1 0 0 0 0 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 1 0 0 0 0 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 1 0 0 0 0 0  0 0 1 0 0 0 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 1 0 0 0 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 1 0 0 0 0  0 0 0 1 0 0 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 1 0 0 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 1 0 0 0  0 0 0 0 1 0 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 1 0 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 1 0 0  0 0 0 0 0 1 0 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 0 1 0  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 0 1 0  0 0 0 0 0 0 1 0 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 0 0 1  X X X X X X X X 1 0];
+    Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 0 0 1  0 0 0 0 0 0 0 1 1 0];
+  End
+
+  { Pattern 3: All-ones and all-zeros boundary test }
+  Pattern P3_BoundaryTest (SYS_CLK, nRST, MODE, D0, D1, D2, D3, D4, D5, D6, D7,
+                            Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7, READY, ERR)
+    { Reset sequence inline }
+    Loop 8
+      Vector(+, TP_10M) := [0 0 0  0 0 0 0 0 0 0 0  X X X X X X X X X X];
+    End
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  X X X X X X X X 0 0];
+    Vector(+, TP_10M) := [0 1 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0 1 0];
+
+    Loop 3
+      { All zeros }
+      Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 0 0 0  X X X X X X X X 1 0];
+      Vector(+, TP_10M) := [0 1 1  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0 1 0];
+      { All ones }
+      Vector(+, TP_10M) := [0 1 1  1 1 1 1 1 1 1 1  X X X X X X X X 1 0];
+      Vector(+, TP_10M) := [0 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1 1 0];
+      { Checkerboard A }
+      Vector(+, TP_10M) := [0 1 1  1 0 1 0 1 0 1 0  X X X X X X X X 1 0];
+      Vector(+, TP_10M) := [0 1 1  1 0 1 0 1 0 1 0  1 0 1 0 1 0 1 0 1 0];
+      { Checkerboard B }
+      Vector(+, TP_10M) := [0 1 1  0 1 0 1 0 1 0 1  X X X X X X X X 1 0];
+      Vector(+, TP_10M) := [0 1 1  0 1 0 1 0 1 0 1  0 1 0 1 0 1 0 1 1 0];
+    End
+  End
+
+End
