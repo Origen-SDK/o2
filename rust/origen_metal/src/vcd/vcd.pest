@@ -1,0 +1,108 @@
+vcd_source = { SOI ~ vcd_header_section ~ vcd_data_section? ~ EOI }
+
+vcd_header_section = { (comment_command | date_command | enddefinitions_command | 
+                        scope_command | timescale_command | upscope_command | 
+                        var_command | version_command | vcdclose_command)+ }
+
+vcd_data_section = { (comment_command | dumpall_command | dumpoff_command |
+                       dumpon_command | dumpvars_command | dumpportsall_command |
+                       dumpportsoff_command | dumpportson_command | dumpports_command | 
+                       simulation_time | value_change |
+                       vcdclose_command)+ }
+
+//#############################################################################
+//# Declaration Commands
+//#############################################################################
+comment_command = { "$comment" ~ text ~ "$end" }
+date_command = { "$date" ~ text ~ "$end" }
+version_command = { "$version" ~ text ~ "$end" }
+scope_command = { "$scope" ~ scope_type ~ scope_identifier ~ "$end" }
+timescale_command = { "$timescale" ~ time_number ~ time_unit ~ "$end" }
+var_command = { "$var" ~ var_type ~ var_size ~ var_identifier ~ var_reference ~ "$end" }
+upscope_command = { "$upscope" ~ "$end" }
+enddefinitions_command = { "$enddefinitions" ~ "$end" }
+vcdclose_command = { "$vcdclose" ~ "$end" }
+
+text = { (!"$end" ~ ANY)+ }
+
+scope_type = { "begin" | "fork" | "function" | "module" | "task" }
+scope_identifier = @{ (!"$end" ~ printable_ascii_character)+ }
+
+time_number = { "100" | "10" | "1" }
+time_unit = { "fs" | "ps" | "ns" | "us" | "ms" | "s" }
+
+var_type = { "event" | "integer" | "parameter" | "port" | "real" | "reg" |
+             "supply0" | "supply1" | "time" | "triand" | "trior" |
+             "trireg" | "tri0"| "tri1" | "tri" | "wand" | "wire" | "wor" }
+var_size = { non_zero_unsigned_number | ("[" ~ range_index ~ ":" ~ range_index ~ "]") }
+var_reference = { ref_name ~ bit_or_range_select? }
+ref_name = @{ (!"$end" ~ !"[" ~ printable_ascii_character)+ }
+bit_or_range_select = { "[" ~ range_index ~ (":" ~ range_index)? ~ "]" }
+range_index = @{ decimal_digit+ }
+var_identifier = { identifier_code }
+
+identifier_code = @{ (!"$end" ~ printable_ascii_character)+ }
+
+//#############################################################################
+//# Simulation Commands
+//#############################################################################
+dumpall_command = { "$dumpall" ~ value_change* ~ "$end" }
+dumpoff_command = { "$dumpoff" ~ value_change* ~ "$end" }
+dumpon_command = { "$dumpon" ~ value_change* ~ "$end" }
+dumpvars_command = { "$dumpvars" ~ value_change* ~ "$end" }
+dumpportsall_command = { "$dumpportsall" ~ value_change* ~ "$end" }
+dumpportsoff_command = { "$dumpportsoff" ~ value_change* ~ "$end" }
+dumpportson_command = { "$dumpportson" ~ value_change* ~ "$end" }
+dumpports_command = { "$dumpports" ~ value_change* ~ "$end" }
+
+simulation_time = { "#" ~ unsigned_number }
+
+// Value changes: four-state (scalar/vector) and extended (port)
+value_change = { port_value_change | scalar_value_change | vector_value_change }
+
+// Four-state value changes (§18.2)
+scalar_value_change = @{ value ~ identifier_code }
+value = { "0" | "1" | "x" | "X" | "z" | "Z" }
+vector_value_change = { binary_vector_value | real_vector_value }
+binary_vector_value = { binary_vector_prefix ~ identifier_code }
+binary_vector_prefix = @{ ("b" | "B") ~ binary_value }
+real_vector_value = { real_vector_prefix ~ identifier_code }
+real_vector_prefix = @{ ("r" | "R") ~ real_number }
+
+// Extended VCD port value changes (§18.4)
+port_value_change = { "p" ~ port_state ~ strength_component ~ strength_component ~ extended_identifier_code }
+port_state = { "D" | "U" | "N" | "Z" | "d" | "u" |
+               "L" | "H" | "X" | "T" | "l" | "h" |
+               "0" | "1" | "?" | "F" | "A" | "a" | "B" | "b" | "C" | "c" | "f" }
+strength_component = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" }
+extended_identifier_code = @{ "<" ~ decimal_digit+ }
+
+//#############################################################################
+//# Numbers
+//#############################################################################
+real_number = { (unsigned_number ~ "." ~ unsigned_number) |
+                (unsigned_number ~ ("." ~ unsigned_number)? ~ exp ~ (sign)? ~ unsigned_number)}
+exp = { "e" | "E" }
+sign = { "+" | "-" }
+non_zero_unsigned_number = @{ non_zero_decimal_digit ~ ("_" | decimal_digit)* }
+unsigned_number = @{ decimal_digit ~ ("_" | decimal_digit)* }
+binary_value = @{ binary_digit ~ ("_" | binary_digit)* }
+non_zero_decimal_digit = { "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" }
+decimal_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" }
+binary_digit = { x_digit | z_digit | "0" | "1" }
+x_digit = { "x" | "X" }
+z_digit = { "z" | "Z" | "?" }
+
+//#############################################################################
+//# Text and Whitespace
+//#############################################################################
+printable_ascii_character = { ASCII_ALPHANUMERIC | special_character }
+special_character = {
+    "!" | "\"" | "#" | "$" | "%" | "&" | "'" | "(" | ")" | 
+    "*" | "+" | "," | "-" | "." | "/" | ":" | ";" | "<" | 
+    "=" | ">" | "?" | "@" | "[" | "\\" | "]" | "^" | "_" | 
+    "`" | "{" | "|" | "}" | "~"
+}
+
+// For Pest implicit whitespace insertion
+WHITESPACE = _{ " " | "\t" | NEWLINE }
