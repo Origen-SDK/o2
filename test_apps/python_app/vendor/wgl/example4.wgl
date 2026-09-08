@@ -1,0 +1,116 @@
+Waveform Sample
+
+  Signal
+    Stim00   : input;
+    Stim01   : input;
+    Stim02   : input;
+    Stim03   : input;
+    Stim04   : input;
+    Stim05   : input;
+    Stim06   : input;
+    Stim07   : input;
+    Stim08   : input;
+    Stim09   : input;
+    Stim10   : input;
+    Stim11   : input;
+    Stim12   : input;
+    Stim13   : input;
+    Stim14   : input;
+    Stim15   : input;
+    Resp00   : output;
+    Resp01   : output;
+    Resp02   : output;
+    Resp03   : output;
+    Resp04   : output;
+    Resp05   : output;
+    Resp06   : output;
+    Resp07   : output;
+    Resp08   : output;
+    Resp09   : output;
+    Resp10   : output;
+    Resp11   : output;
+    Resp12   : output;
+    Resp13   : output;
+    Resp14   : output;
+    Resp15   : output;
+  End
+
+  Timeplate Match_0 Period 100nS
+    Stim00   := input[0pS:S];
+    Stim01   := input[0pS:S];
+    Stim02   := input[0pS:S];
+    Stim03   := input[0pS:S];
+    Stim04   := input[0pS:S];
+    Stim05   := input[0pS:S];
+    Stim06   := input[0pS:S];
+    Stim07   := input[0pS:S];
+    Stim08   := input[0pS:S];
+    Stim09   := input[0pS:S];
+    Stim10   := input[0pS:S];
+    Stim11   := input[0pS:S];
+    Stim12   := input[0pS:S];
+    Stim13   := input[0pS:S];
+    Stim14   := input[0pS:S];
+    Stim15   := input[0pS:S];
+    Resp00   := output[0pS:Q];
+    Resp01   := output[0pS:Q];
+    Resp02   := output[0pS:Q];
+    Resp03   := output[0pS:Q];
+    Resp04   := output[0pS:Q];
+    Resp05   := output[0pS:Q];
+    Resp06   := output[0pS:Q];
+    Resp07   := output[0pS:Q];
+    Resp08   := output[0pS:Q];
+    Resp09   := output[0pS:Q];
+    Resp10   := output[0pS:Q];
+    Resp11   := output[0pS:Q];
+    Resp12   := output[0pS:Q];
+    Resp13   := output[0pS:Q];
+    Resp14   := output[0pS:Q];
+    Resp15   := output[0pS:Q];
+  End
+
+  Pattern Loopback (Stim00,Stim01,Stim02,Stim03,Stim04,Stim05,Stim06,Stim07,Stim08,Stim09,Stim10,Stim11,Stim12,Stim13,
+                    Stim14,Stim15,Resp00,Resp01,Resp02,Resp03,Resp04,Resp05,Resp06,Resp07,Resp08,Resp09,Resp10,Resp11,
+                    Resp12,Resp13,Resp14,Resp15)
+
+    {Start Vectors}
+    Loop 32
+      Vector(+, Match_0) := [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+      Vector(+, Match_0) := [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+    End
+
+    {End Vectors}
+    Repeat 4 Vector(+, Match_0) := [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+  End
+End

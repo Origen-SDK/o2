@@ -35,6 +35,7 @@ pub mod prog_gen;
 pub mod stil;
 pub mod utils;
 pub mod vcd;
+pub mod wgl;
 use std::fmt::Display;
 use std::sync::Mutex;
 

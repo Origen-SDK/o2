@@ -1,0 +1,30 @@
+{ Simple 2-input AND gate test
+  Tests all four input combinations and verifies output.
+  Covers: Signal block, single Timeplate, Pattern with plain Vectors, no loops }
+
+Waveform AndGate
+
+  Signal
+    A    : input;
+    B    : input;
+    Y    : output;
+  End
+
+  Timeplate TP_STD Period 20nS
+    A := input[0nS:S];
+    B := input[0nS:S];
+    Y := output[10nS:Q];
+  End
+
+  Pattern AndGate_Functional (A, B, Y)
+    { A=0 B=0 -> Y=0 }
+    Vector(+, TP_STD) := [0 0 0];
+    { A=0 B=1 -> Y=0 }
+    Vector(+, TP_STD) := [0 1 0];
+    { A=1 B=0 -> Y=0 }
+    Vector(+, TP_STD) := [1 0 0];
+    { A=1 B=1 -> Y=1 }
+    Vector(+, TP_STD) := [1 1 1];
+  End
+
+End
