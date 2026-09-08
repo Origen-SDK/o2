@@ -59,6 +59,11 @@ impl CurrentState {
     }
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct ProgramGenerationConfig {
+    pub flow_visualization: bool,
+}
+
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
 // * pyapi/src/lib.rs to convert it to Python
@@ -87,6 +92,7 @@ pub struct Config {
     pub release: Option<HashMap<String, String>>,
     pub app_session_root: Option<String>,
     pub commands: Option<Vec<String>>,
+    pub program_generation: ProgramGenerationConfig,
 }
 
 impl Config {
@@ -108,6 +114,7 @@ impl Config {
         self.release = latest.release;
         self.app_session_root = latest.app_session_root;
         self.commands = latest.commands;
+        self.program_generation = latest.program_generation;
     }
 
     /// Builds a new config from all application.toml files found at the given app root
@@ -133,6 +140,8 @@ impl Config {
             .set_default("app_session_root", None::<String>)
             .unwrap()
             .set_default("commands", None::<Vec<String>>)
+            .unwrap()
+            .set_default("program_generation.flow_visualization", false)
             .unwrap();
 
         let mut files: Vec<PathBuf> = Vec::new();
@@ -204,6 +213,8 @@ impl Config {
         if !default_only {
             CurrentState::build_and_apply(&mut c);
         }
+        origen_metal::PROG_GEN_CONFIG
+            .set_flow_visualization_enabled(c.program_generation.flow_visualization);
 
         c
     }

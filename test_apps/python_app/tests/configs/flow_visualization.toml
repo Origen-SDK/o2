@@ -1,0 +1,4 @@
+name = "example"
+
+[program_generation]
+flow_visualization = true

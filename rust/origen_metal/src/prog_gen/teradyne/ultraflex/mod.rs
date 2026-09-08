@@ -4,8 +4,9 @@ mod patterns;
 mod resources;
 
 use crate::ast::Node;
+use crate::prog_gen::visualization::render_flow_visualization;
 use crate::prog_gen::{process_flow, Model, SupportedTester, PGM};
-use crate::{Result, FLOW};
+use crate::{Result, FLOW, PROG_GEN_CONFIG};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -34,6 +35,15 @@ pub fn render(output_dir: &Path) -> Result<(Vec<PathBuf>, Model)> {
         let mut model = Model::new(SupportedTester::ULTRAFLEX);
         for (name, flow) in flows {
             let (ast, next_model) = process_flow(flow, model, SupportedTester::ULTRAFLEX, true)?;
+            if PROG_GEN_CONFIG.flow_visualization_enabled() {
+                generated.append(&mut render_flow_visualization(
+                    name,
+                    SupportedTester::ULTRAFLEX,
+                    &ast,
+                    &next_model,
+                    output_dir,
+                )?);
+            }
             let (next_model, mut files, mut rows, mut patterns) =
                 render_flow(&ast, output_dir, next_model, name)?;
             model = next_model;

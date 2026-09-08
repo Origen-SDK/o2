@@ -23,6 +23,11 @@ class Base(_origen.application.PyApplication):
         return self._name
 
     @property
+    def program_generation(self):
+        '''Returns application-wide test-program generation configuration.'''
+        return _origen.app_config()["program_generation"]
+
+    @property
     def output_dir(self):
         ''' Returns the directory in which generated content should be placed '''
         return _origen.output_directory()
