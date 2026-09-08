@@ -536,6 +536,7 @@ dependencies = [
  "origen",
  "origen_metal",
  "pathdiff 0.1.0",
+ "pep440_rs",
  "phf 0.8.0",
  "regex",
  "semver 0.9.0",
@@ -2511,6 +2512,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pep440_rs"
+version = "0.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "466eada3179c2e069ca897b99006cbb33f816290eaeec62464eea907e22ae385"
+dependencies = [
+ "once_cell",
+ "unicode-width",
+ "unscanny",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4208,6 +4220,12 @@ dependencies = [
  "generic-array",
  "subtle",
 ]
+
+[[package]]
+name = "unscanny"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9df2af067a7953e9c3831320f35c1cc0600c30d44d9f7a12b01db1cd88d6b47"
 
 [[package]]
 name = "untrusted"

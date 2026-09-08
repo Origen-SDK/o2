@@ -7,7 +7,7 @@ requires-python = ">=3.7,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Origen-SDK" }]
 dependencies = [
-    "origen-metal~=1.5.1",
+    "origen-metal>=1.6.0,<2",
     "termcolor>=1.1.0",
     "colorama>=0.4",
     "bs4==0.0.1",

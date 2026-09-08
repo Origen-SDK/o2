@@ -7,11 +7,13 @@ use origen_metal::utils::pypi::is_package_version_available;
 use origen_metal::utils::revision_control::supported::git;
 use origen_metal::utils::revision_control::RevisionControlAPI;
 use origen_metal::utils::version::{ReleaseType, Version, VersionWithTOML};
+use pep440_rs::{Version as Pep440Version, VersionSpecifiers};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
@@ -657,19 +659,29 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         });
     }
 
-    let metal_version = plans
+    let metal_release = plans
         .iter()
-        .find(|p| p.product == Product::Metal && p.release_type != "current")
-        .map(|p| p.version.version().to_string());
-    let updated_metal_requirement = metal_version.clone();
-    if let Some(metal_version) = metal_version {
+        .find(|p| p.product == Product::Metal)
+        .map(|p| (p.version.version().to_string(), p.release_type != "current"));
+    let mut updated_metal_requirement = None;
+    if let Some((metal_version, metal_version_changed)) = metal_release {
         if let Some(origen_plan) = plans.iter_mut().find(|p| p.product == Product::Origen) {
-            if origen_plan.release_type == "current" {
-                bail!("A combined release that changes Origen Metal must also increment Origen so its Metal dependency can be updated")
+            if metal_version_changed {
+                if origen_plan.release_type == "current" {
+                    bail!("A combined release that changes Origen Metal must also increment Origen so its Metal dependency can be updated")
+                }
+                let requirement = compatible_major_requirement(&metal_version)?;
+                origen_plan
+                    .version
+                    .set_dependency("origen-metal", &requirement)?;
+                updated_metal_requirement = Some(requirement);
             }
-            origen_plan
-                .version
-                .set_dependency("origen-metal", &format!("~={}", metal_version))?;
+        } else {
+            let origen = Version::from_pyproject_with_toml_handle(
+                root.join("python/origen/pyproject.toml"),
+            )?;
+            let requirement = origen.get_dependency("origen-metal")?;
+            validate_metal_only_release(&requirement, &metal_version)?;
         }
     }
 
@@ -734,8 +746,8 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     }
     displayln!("  Author: {}", author);
     if plans.iter().any(|p| p.product == Product::Origen) {
-        if let Some(version) = &updated_metal_requirement {
-            displayln!("  Origen dependency: origen-metal~={}", version);
+        if let Some(requirement) = &updated_metal_requirement {
+            displayln!("  Origen dependency: origen-metal{}", requirement);
         }
     }
     displayln!("  Source: {} ({})", configured_remote, release_branch);
@@ -1407,6 +1419,73 @@ fn production_version(
     origen_metal::utils::version::Version::new_pep440(&pieces[..3].join("."))
 }
 
+fn compatible_major_requirement(version: &str) -> Result<String> {
+    let version = Pep440Version::from_str(version).map_err(|error| {
+        origen::Error::new(&format!(
+            "Could not parse Origen Metal version '{}': {}",
+            version, error
+        ))
+    })?;
+    let major = version
+        .release()
+        .first()
+        .copied()
+        .ok_or_else(|| origen::Error::new("Origen Metal version has no release components"))?;
+    let next_major = major
+        .checked_add(1)
+        .ok_or_else(|| origen::Error::new("Origen Metal major version overflowed"))?;
+    Ok(format!(">={},<{}", version, next_major))
+}
+
+fn dependency_specifiers(requirement: &str, dependency: &str) -> Result<VersionSpecifiers> {
+    let requirement = requirement.trim();
+    let name_end = requirement
+        .find(|character: char| {
+            matches!(
+                character,
+                '<' | '>' | '=' | '!' | '~' | '[' | ' ' | '@' | ';'
+            )
+        })
+        .unwrap_or(requirement.len());
+    let found_name = requirement[..name_end].to_lowercase().replace('_', "-");
+    let expected_name = dependency.to_lowercase().replace('_', "-");
+    if found_name != expected_name {
+        bail!(
+            "Expected dependency '{}', found '{}'",
+            dependency,
+            &requirement[..name_end]
+        )
+    }
+    let specifiers = requirement[name_end..].trim();
+    if specifiers.is_empty() {
+        return Ok(VersionSpecifiers::empty());
+    }
+    VersionSpecifiers::from_str(specifiers).map_err(|error| {
+        origen::Error::new(&format!(
+            "Could not parse dependency requirement '{}': {}",
+            requirement, error
+        ))
+    })
+}
+
+fn validate_metal_only_release(requirement: &str, metal_version: &str) -> Result<()> {
+    let specifiers = dependency_specifiers(requirement, "origen-metal")?;
+    let version = Pep440Version::from_str(metal_version).map_err(|error| {
+        origen::Error::new(&format!(
+            "Could not parse Origen Metal version '{}': {}",
+            metal_version, error
+        ))
+    })?;
+    if !specifiers.contains(&version) {
+        bail!(
+            "Cannot release Origen Metal {} alone because Origen requires '{}'; select both products and increment Origen so its Metal dependency can be updated",
+            metal_version,
+            requirement
+        )
+    }
+    Ok(())
+}
+
 fn proposed_version(current: &Version, release_type: &str) -> Result<Version> {
     if release_type == "current" {
         return Ok(current.clone());
@@ -1566,6 +1645,33 @@ mod tests {
             "2.0.0"
         );
         assert!(proposed_version(&production, "production").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn compatible_major_requirements_allow_future_minor_releases() -> Result<()> {
+        assert_eq!(compatible_major_requirement("1.6.0")?, ">=1.6.0,<2");
+        assert_eq!(compatible_major_requirement("1.7.2")?, ">=1.7.2,<2");
+        assert_eq!(
+            compatible_major_requirement("2.0.0.dev1")?,
+            ">=2.0.0.dev1,<3"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn metal_only_releases_must_satisfy_origens_requirement() -> Result<()> {
+        validate_metal_only_release("origen-metal>=1.6.0,<2", "1.6.0")?;
+        validate_metal_only_release("origen-metal>=1.6.0,<2", "1.9.7")?;
+        validate_metal_only_release("origen_metal>=1.6.0,<2", "1.7.0")?;
+        assert!(validate_metal_only_release("origen-metal>=1.6.0,<2", "2.0.0").is_err());
+        assert!(validate_metal_only_release("origen-metal~=1.5.1", "1.6.0").is_err());
+        assert!(
+            validate_metal_only_release("origen-metal definitely-not-a-range", "1.6.0")
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse dependency requirement")
+        );
         Ok(())
     }
 
