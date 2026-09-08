@@ -28,7 +28,7 @@ dev = [
 [tool.uv]
 cache-keys = [
     { file = "pyproject.toml" },
-    { file = "origen_metal/**/*" },
+    { file = "origen_metal/**/*.py" },
     { file = "../../rust/pyapi_metal/Cargo.toml" },
     { file = "../../rust/pyapi_metal/**/*.rs" },
     { file = "../../rust/origen_metal/Cargo.toml" },

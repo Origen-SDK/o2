@@ -31,6 +31,7 @@ pub mod ast;
 mod error;
 pub mod framework;
 pub mod frontend;
+pub mod ijtag;
 pub mod prog_gen;
 pub mod stil;
 pub mod utils;

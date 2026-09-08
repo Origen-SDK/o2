@@ -10,6 +10,7 @@ _origen.pyd
 _origen.so
 _origen_metal.pyd
 _origen_metal.so
+*.so
 log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt
