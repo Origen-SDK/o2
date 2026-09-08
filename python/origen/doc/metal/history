@@ -1,3 +1,20 @@
+(release-origen-metal-1-6-0)=
+# Origen Metal 1.6.0
+
+- **Released:** 2026-09-08
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.6.0`
+
+This release adds major new visualization, waveform parsing, and IEEE 1687 capabilities to Origen Metal, while significantly improving SMT8 program-generation performance.
+
+- Added interactive test-flow visualization for V93K SMT7, V93K SMT8, and UltraFLEX. Applications can generate self-contained HTML viewers and versioned JSON containing the processed flow graph, test details, execution paths, bins, parameters, and constraints. Contributed by Priyavadan Kumar in #239.
+- Added IEEE 1687-2014 Instrument Connectivity Language support, including parsing, hierarchy elaboration, parameter specialization, aliases, resolved connectivity, indexed model searches, optional validated caching, and Python APIs under `origen_metal.ijtag.icl`. Contributed by Stephen McGinty in #240.
+- Added a Pest-based WGL parser covering all 16 program block types in the WGL 2026.0 specification, including TimePlates without FirstEvent and Anonymous Scan Runs. Contributed by Ronnie Lajaunie in #241.
+- Added four-state and extended VCD parsing based on IEEE 1364-2001, with typed syntax trees, hierarchical scope processing, identifier dereferencing, and transparent support for gzip-compressed VCD files. Contributed by Ronnie Lajaunie in #242.
+- Improved SMT8 program rendering by buffering flow and limits output and reducing unnecessary allocation and I/O. A representative large workload showed a 46% reduction in renderer time with unchanged generated output. Contributed by Stephen McGinty in #243.
+
+---
+
 (release-origen-metal-1-5-1)=
 # Origen Metal 1.5.1
 
