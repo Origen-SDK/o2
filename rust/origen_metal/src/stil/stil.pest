@@ -34,7 +34,7 @@ paren_expression = { "(" ~ expression ~ ")" }
 
 sigref_expr = { signal_name | (single_quote ~ expression_ ~ single_quote) }
 expression_ = { factor_ ~ ((add | subtract) ~ factor_)* }
-factor_ = { paren_expression_ | name }
+factor_ = { paren_expression_ | signal_name | name }
 paren_expression_ = { "(" ~ expression_ ~ ")" }
 
 number_with_unit = { number+ ~ engineering_prefix? ~ si_unit }
