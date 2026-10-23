@@ -963,6 +963,7 @@ pub(crate) fn to_ast_with_options(
                 let cmt = cmt.replace("\n", "");
                 ast.push(node!(STIL::Comment, cmt))
             }
+            Rule::vector_inner_comment => ast.push(node!(STIL::Comment, pair.as_str().to_string())),
             Rule::cyclized_data => {
                 ids.push(ast.push_and_open(node!(STIL::CyclizedData)));
                 pairs.push(pair.into_inner());
@@ -1564,6 +1565,57 @@ mod tests {
         assert!(
             find_vector_with_comment_child(&root),
             "Trailing comment should be a Vector child even when internal comments are present"
+        );
+    }
+
+    /// Verifies that comments inside a Vector block are retained as Comment children of the
+    /// Vector node, since they commonly carry vector/cycle metadata.
+    #[test]
+    fn test_vector_internal_comments_are_children_of_vector() {
+        let stil = concat!(
+            "STIL 1.0;\n",
+            "Pattern p1 {\n",
+            "    V { /* Vec 0 Pat_Cycle 0 Tot_Cycle 0 */\n",
+            "        sig1 = 0;\n",
+            "    }\n",
+            "    V {\n",
+            "        // Vec 1 Pat_Cycle 1 Tot_Cycle 1\n",
+            "        sig1 = 1;\n",
+            "        /* between assignments */\n",
+            "        sig2 = 0;\n",
+            "    }\n",
+            "}\n"
+        );
+        let root = parse_str(stil, None).expect("Should parse vectors with internal comments");
+
+        fn collect_vector_comments(node: &Node<STIL>, comments: &mut Vec<Vec<String>>) {
+            if matches!(node.attrs, STIL::Vector) {
+                comments.push(
+                    node.children
+                        .iter()
+                        .filter_map(|c| match &c.attrs {
+                            STIL::Comment(cmt) => Some(cmt.clone()),
+                            _ => None,
+                        })
+                        .collect(),
+                );
+            }
+            for c in &node.children {
+                collect_vector_comments(c, comments);
+            }
+        }
+
+        let mut comments = Vec::new();
+        collect_vector_comments(&root, &mut comments);
+        assert_eq!(
+            comments,
+            vec![
+                vec!["/* Vec 0 Pat_Cycle 0 Tot_Cycle 0 */".to_string()],
+                vec![
+                    "// Vec 1 Pat_Cycle 1 Tot_Cycle 1".to_string(),
+                    "/* between assignments */".to_string(),
+                ],
+            ]
         );
     }
 }

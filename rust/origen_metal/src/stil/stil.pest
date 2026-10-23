@@ -290,7 +290,11 @@ time_unit = { "TimeUnit" ~ time_expr ~ EOS }
 pattern_statement = !{ label | vector | waveform_statement | condition | fixed_statement | call | macro_statement |
                       loop_statement | match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation | udb_stmt }
 
-vector = ${ "V" ~ "ector"? ~ s ~ "{" ~ (s ~ (cyclized_data | non_cyclized_data))* ~ s ~ "}" ~ vector_comment? }
+vector = ${ "V" ~ "ector"? ~ vector_s ~ "{" ~ (vector_s ~ (cyclized_data | non_cyclized_data))* ~ vector_s ~ "}" ~ vector_comment? }
+// Like `s`, but comments inside a vector are kept in the AST since they commonly carry
+// vector/cycle metadata (e.g. /* Vec 0 Pat_Cycle 0 Tot_Cycle 0 */)
+vector_s = _{ (space | N | vector_inner_comment)* }
+vector_inner_comment = { block_comment | one_line_comment }
 vector_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 cyclized_data = !{ (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
 vec_data = { repeat | capture | noop | waveform_format | hex_format | dec_format | data_string | wfc_data_string }
