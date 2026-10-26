@@ -1,3 +1,17 @@
+(release-origen-metal-1-6-1)=
+# Origen Metal 1.6.1
+
+- **Released:** 2026-10-26
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.6.1`
+
+This bugfix release improves STIL parsing compatibility.
+
+- Fixed comments inside STIL `V { ... }` blocks being discarded since 1.4.0. They are again kept as `Comment` children of the `Vector` AST node, restoring cycle metadata such as `/* Vec 0 Pat_Cycle 0 Tot_Cycle 0 */` for downstream converters. Contributed by Stephen McGinty in #245.
+- Added support for bracketed pin names in STIL signal groups. Contributed by Ronnie Lajaunie in #244.
+
+---
+
 (release-origen-metal-1-6-0)=
 # Origen Metal 1.6.0
 
