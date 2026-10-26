@@ -64,7 +64,7 @@ fn find_plugin_roots<'py>(py: Python<'py>, plugins: Vec<&str>) -> PyResult<&'py 
         &format!(
             r#"
 from pathlib import Path
-import importlib, importlib_metadata
+import importlib.util, importlib_metadata
 
 for to_load in [{}]:
     s = importlib.util.find_spec(to_load)
@@ -99,7 +99,7 @@ fn collect_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
     py.run(
         r#"
 from pathlib import Path
-import importlib, importlib_metadata
+import importlib.util, importlib_metadata
 
 for dist in importlib_metadata.distributions():
     n = str(Path(dist._path).name).split('-')[0].lower()

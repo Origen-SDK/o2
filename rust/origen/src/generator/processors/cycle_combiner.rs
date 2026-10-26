@@ -73,9 +73,9 @@ pub struct UnpackCaptures {
 impl UnpackCaptures {
     pub fn run(node: &Node<PAT>) -> Result<Node<PAT>> {
         let mut p = UnpackCaptures {
-            captures__least_cycles_remaining: std::usize::MAX,
+            captures__least_cycles_remaining: usize::MAX,
             capturing: HashMap::new(),
-            overlays__least_cycles_remaining: std::usize::MAX,
+            overlays__least_cycles_remaining: usize::MAX,
             overlaying: HashMap::new(),
         };
         Ok(node.process(&mut p)?.unwrap())
@@ -198,14 +198,14 @@ impl Processor<PAT> for UnpackCaptures {
                             if self.is_capturing() {
                                 self.captures__least_cycles_remaining -= this_repeat;
                                 if self.captures__least_cycles_remaining == 0 {
-                                    self.captures__least_cycles_remaining = std::usize::MAX;
+                                    self.captures__least_cycles_remaining = usize::MAX;
                                 }
                             }
 
                             if self.is_overlaying() {
                                 self.overlays__least_cycles_remaining -= this_repeat;
                                 if self.overlays__least_cycles_remaining == 0 {
-                                    self.overlays__least_cycles_remaining = std::usize::MAX;
+                                    self.overlays__least_cycles_remaining = usize::MAX;
                                 }
                             }
                         } else {

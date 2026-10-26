@@ -99,7 +99,7 @@ impl<'a> Renderer<'a> {
             states: None,
             pin_header_printed: false,
             pin_header_id: None,
-            least_cycles_remaining: std::usize::MAX,
+            least_cycles_remaining: usize::MAX,
             capturing: HashMap::new(),
             overlaying: HashMap::new(),
         }

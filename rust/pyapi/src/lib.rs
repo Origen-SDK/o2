@@ -341,15 +341,13 @@ fn exit_pass() -> PyResult<()> {
 
 fn origen_mod_path() -> PyResult<PathBuf> {
     Python::with_gil(|py| {
-        let locals = PyDict::new(py);
-        locals.set_item("importlib", py.import("importlib")?)?;
+        // Import importlib.util explicitly, importing importlib alone does not load its
+        // util submodule
         let p = PathBuf::from(
-            py.eval(
-                "importlib.util.find_spec('_origen').origin",
-                None,
-                Some(&locals),
-            )?
-            .extract::<String>()?,
+            py.import("importlib.util")?
+                .call_method1("find_spec", ("_origen",))?
+                .getattr("origin")?
+                .extract::<String>()?,
         );
         Ok(p.parent().unwrap().to_path_buf())
     })
