@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use crate::ast::*;
+use crate::prog_gen::expressions::expression_variables;
 use crate::prog_gen::FlowCondition;
 use crate::prog_gen::GroupType;
 use crate::prog_gen::PGM;
@@ -34,6 +35,10 @@ pub struct FlowData {
     pub modified_flags: HashSet<String>,
     pub auto_flags: HashSet<String>,
     pub downstream_flags: HashSet<String>,
+    /// Flow variables, case preserved, which are assigned or read by expressions in this flow
+    pub referenced_variables: HashSet<String>,
+    /// Flow variables, case preserved, which are passed into this flow
+    pub input_variables: HashSet<String>,
 }
 
 impl FlowData {
@@ -78,6 +83,9 @@ impl FlowData {
         for f in &self.input_flags {
             vars.insert(f.to_string());
         }
+        for v in &self.input_variables {
+            vars.insert(v.to_string());
+        }
         let mut vars_vec: Vec<_> = vars.into_iter().collect();
         vars_vec.sort();
         vars_vec
@@ -88,6 +96,21 @@ impl FlowData {
 pub struct Collector {
     flows: Vec<FlowData>,
     processing_subflow: bool,
+    /// Counter variables of the loops which enclose the current node
+    loop_variables: Vec<String>,
+}
+
+impl Collector {
+    fn reference_variable(&mut self, name: &str) {
+        if self.loop_variables.iter().any(|v| v == name) {
+            return;
+        }
+        self.flows
+            .last_mut()
+            .unwrap()
+            .referenced_variables
+            .insert(name.to_string());
+    }
 }
 
 impl Processor<PGM> for Collector {
@@ -140,6 +163,19 @@ impl Processor<PGM> for Collector {
                 }
                 current_flow.modified_flags.insert(flag);
             }
+            PGM::SetVariable(name, value) => {
+                self.reference_variable(name);
+                for v in expression_variables(value) {
+                    self.reference_variable(&v);
+                }
+            }
+            PGM::Loop(_, variable, _) => {
+                let variable = variable.clone().unwrap_or_else(|| "index".to_string());
+                self.loop_variables.push(variable);
+                let n = node.process_and_update_children(self)?;
+                self.loop_variables.pop();
+                return Ok(Return::Replace(n));
+            }
             PGM::Condition(cond) => match cond {
                 FlowCondition::IfJob(_jobs) | FlowCondition::UnlessJob(_jobs) => {
                     self.flows.last_mut().unwrap().references_job = true;
@@ -158,6 +194,11 @@ impl Processor<PGM> for Collector {
                     for f in flags {
                         let flag = f.to_uppercase();
                         self.flows.last_mut().unwrap().referenced_flags.insert(flag);
+                    }
+                }
+                FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
+                    for v in expression_variables(expression) {
+                        self.reference_variable(&v);
                     }
                 }
                 _ => {}
@@ -264,6 +305,17 @@ impl PassthroughCollector {
             // Ensure every flow in the stack passses through referenced enables
             for f in &mut self.flow_stack {
                 f.input_enables.insert(en.to_string());
+            }
+        }
+        for v in &flow_data.referenced_variables {
+            // A flag set by this flow is declared as a flag, not as an input variable
+            if flow_data.modified_flags.contains(v) {
+                continue;
+            }
+            flow_data.input_variables.insert(v.to_string());
+            // Ensure every flow in the stack passes through referenced variables
+            for f in &mut self.flow_stack {
+                f.input_variables.insert(v.to_string());
             }
         }
         // Make sure that all referenced flags that originate from an upstream flow are input

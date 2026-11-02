@@ -674,7 +674,7 @@ impl Processor<PGM> for FlowGenerator {
             | PGM::Synchronize
             | PGM::OnError(_)
             | PGM::Call(_, _)
-            | PGM::Loop(_, _)
+            | PGM::Loop(_, _, _)
             | PGM::Report(_, _)
             | PGM::Assertion(_, _)
             | PGM::Callback(_, _) => {

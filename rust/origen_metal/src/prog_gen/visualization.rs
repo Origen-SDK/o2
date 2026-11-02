@@ -188,7 +188,7 @@ impl<'a> GraphBuilder<'a> {
         if has_fallthrough(&node.attrs) {
             exits.push(id.clone());
         }
-        if matches!(node.attrs, PGM::Loop(_, _)) {
+        if matches!(node.attrs, PGM::Loop(_, _, _)) {
             for exit in &exits {
                 if exit != &id {
                     self.push_edge(exit, &id, "loop", Some("repeat"));
@@ -492,17 +492,18 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
             format!("Call {}({})", name, args.join(", ")),
             None,
         ),
-        PGM::Loop(count, variable) => (
+        PGM::Loop(count, variable, descending) => (
             "condition",
             format!(
-                "Loop {}{}",
+                "Loop {}{}{}",
                 count
                     .map(|count| count.to_string())
                     .unwrap_or_else(|| "until complete".to_string()),
                 variable
                     .as_ref()
                     .map(|variable| format!(" as {}", variable))
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
+                if *descending { " (descending)" } else { "" }
             ),
             None,
         ),
@@ -561,7 +562,7 @@ fn block_edge_label(attrs: &PGM) -> Option<&'static str> {
         PGM::OnPassed(_) => Some("pass"),
         PGM::OnFailed(_) => Some("fail"),
         PGM::OnError(_) => Some("error"),
-        PGM::Loop(_, _) => Some("body"),
+        PGM::Loop(_, _, _) => Some("body"),
         _ => None,
     }
 }
@@ -571,7 +572,7 @@ fn block_edge_kind(attrs: &PGM) -> &'static str {
         PGM::OnPassed(_) => "pass",
         PGM::OnFailed(_) => "fail",
         PGM::OnError(_) => "error",
-        PGM::Loop(_, _) => "loop",
+        PGM::Loop(_, _, _) => "loop",
         _ => "branch",
     }
 }
@@ -585,7 +586,7 @@ fn has_fallthrough(attrs: &PGM) -> bool {
             | PGM::OnPassed(_)
             | PGM::OnFailed(_)
             | PGM::OnError(_)
-            | PGM::Loop(_, _)
+            | PGM::Loop(_, _, _)
     )
 }
 

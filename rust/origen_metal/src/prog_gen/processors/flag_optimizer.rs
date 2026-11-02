@@ -106,6 +106,7 @@ impl Processor<PGM> for FlagOptimizer {
             PGM::Flow(_)
             | PGM::SubFlow(_, _)
             | PGM::Else
+            | PGM::Loop(_, _, _)
             | PGM::Whenever
             | PGM::WheneverAny
             | PGM::WheneverAll => {
@@ -417,6 +418,37 @@ mod tests {
 
         let output = node!(PGM::Flow, "f1".to_string() =>
             node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::Continue),
+                        node!(PGM::Test, 2, FlowID::from_int(2)),
+                    ),
+                ),
+            ),
+        );
+
+        assert_eq!(output, run(&input, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn it_applies_the_optimization_within_loops() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Loop, Some(3), Some("index".to_string()), false =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::Continue),
+                        node!(PGM::SetFlag, "t1_FAILED".to_string(), true, true),
+                    ),
+                ),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2))
+                ),
+            ),
+        );
+
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Loop, Some(3), Some("index".to_string()), false =>
                 node!(PGM::Test, 1, FlowID::from_int(1) =>
                     node!(PGM::OnFailed, FlowID::from_int(1) =>
                         node!(PGM::Continue),
