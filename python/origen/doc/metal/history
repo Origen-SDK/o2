@@ -1,3 +1,18 @@
+(release-origen-metal-1-7-0)=
+# Origen Metal 1.7.0
+
+- **Released:** 2026-11-02
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.7.0`
+
+This release adds SMT8 flow control to the program generator and fixes the handling of test result blocks and SMT8 flow names.
+
+- Added SMT8 flow-control APIs to `PyInterface`: `set_flag`, `set_variable`, `if_expr`/`unless_expr` expression conditions (as context managers or flow options), fixed-count ascending or descending `loop`s, and bypassed groups via `group(..., bypass=True)`. Assigned and expression-read variables become flow inputs and are passed down through enclosing flows, and SMT8 now renders `bypass = true;` for bypassed sub-flows, matching SMT7's `groupbypass`. UltraFLEX still rejects loops and variable assignments. Contributed by Stephen McGinty in #246.
+- Fixed tests with more than one result block, such as a bin and an `on_fail` flag, silently losing all but the last block on every tester. Blocks of the same kind are now merged in order, and SMT8 renders a test with both passed and failed branches as a single `if (t.pass) { ... } else { ... }`. Contributed by Stephen McGinty in #247.
+- SMT8 flow names now keep the consecutive underscores of their group or flow name, for example `main__retest` becomes `MAIN__RETEST` instead of `MAIN_RETEST`, and leading or trailing spaces no longer produce leading or trailing underscores. Generated flow and file names change for existing programs whose group or flow names contain consecutive underscores. Contributed by Stephen McGinty in #248.
+
+---
+
 (release-origen-metal-1-6-1)=
 # Origen Metal 1.6.1
 
