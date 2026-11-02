@@ -208,51 +208,61 @@ impl FlowGenerator {
         }
     }
 
+    /// Renders the content of a test's OnPassed or OnFailed branch into a buffer
     fn render_result_branch(
         &mut self,
         branch: &Node<PGM>,
-        subject_name: &str,
         suppress_bins: bool,
-    ) -> Result<()> {
-        let guard = match &branch.attrs {
-            PGM::OnPassed(_) => Some(format!("if ({}.pass) {{", subject_name)),
-            PGM::OnFailed(_) => Some(format!("if (!{}.pass) {{", subject_name)),
-            _ => None,
-        };
-
-        if let Some(guard) = guard {
-            let original_render_bins = {
-                let current_flow = self.flow_stack.last_mut().unwrap();
-                let original_render_bins = current_flow.render_bins;
-                current_flow.start_execute_buffer();
-                if suppress_bins {
-                    current_flow.render_bins = false;
-                }
-                original_render_bins
-            };
-            branch.process_children(self)?;
-            {
-                let current_flow = self.flow_stack.last_mut().unwrap();
-                current_flow.render_bins = original_render_bins;
-                let buffered_lines = current_flow.finish_execute_buffer();
-                if !buffered_lines.is_empty() {
-                    current_flow.execute_line(guard);
-                    current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                    current_flow.execute_line("}".to_string());
-                }
+    ) -> Result<Vec<String>> {
+        let original_render_bins = {
+            let current_flow = self.flow_stack.last_mut().unwrap();
+            let original_render_bins = current_flow.render_bins;
+            current_flow.start_execute_buffer();
+            if suppress_bins {
+                current_flow.render_bins = false;
             }
-        }
-        Ok(())
+            original_render_bins
+        };
+        branch.process_children(self)?;
+        let current_flow = self.flow_stack.last_mut().unwrap();
+        current_flow.render_bins = original_render_bins;
+        Ok(current_flow.finish_execute_buffer())
     }
 
+    /// Renders a test's result branches. A test with both passed and failed content renders
+    /// them as `if (<test>.pass) { ... } else { ... }`.
     fn render_result_branches(
         &mut self,
         children: &Vec<Box<Node<PGM>>>,
         subject_name: &str,
         suppress_bins: bool,
     ) -> Result<()> {
+        let mut passed: Vec<String> = vec![];
+        let mut failed: Vec<String> = vec![];
         for branch in children {
-            self.render_result_branch(branch, subject_name, suppress_bins)?;
+            match &branch.attrs {
+                PGM::OnPassed(_) => {
+                    passed.extend(self.render_result_branch(branch, suppress_bins)?)
+                }
+                PGM::OnFailed(_) => {
+                    failed.extend(self.render_result_branch(branch, suppress_bins)?)
+                }
+                _ => {}
+            }
+        }
+        let current_flow = self.flow_stack.last_mut().unwrap();
+        if !passed.is_empty() {
+            current_flow.execute_line(format!("if ({}.pass) {{", subject_name));
+            current_flow.flush_buffered_execute_lines(passed, 1);
+            if !failed.is_empty() {
+                current_flow.execute_line("} else {".to_string());
+                current_flow.flush_buffered_execute_lines(failed, 1);
+            }
+            current_flow.execute_line("}".to_string());
+        } else if !failed.is_empty() {
+            current_flow.execute_line(format!("if (!{}.pass) {{", subject_name));
+            current_flow.flush_buffered_execute_lines(failed, 1);
+            current_flow.execute_line("}".to_string());
         }
         Ok(())
     }
@@ -1413,6 +1423,82 @@ mod tests {
 
         assert!(flow.contains("        initialize();\n        test1.execute();"));
         assert!(flow.contains("if (TEST1_FAILED == 1) {\n            stop();\n        }"));
+        Ok(())
+    }
+
+    #[test]
+    fn passed_and_failed_branches_render_as_if_else() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "branches".to_string() =>
+            node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None =>
+                node!(PGM::OnFailed, FlowID::from_str("t1") =>
+                    node!(PGM::Render, "failed();".to_string())
+                ),
+                node!(PGM::OnPassed, FlowID::from_str("t1") =>
+                    node!(PGM::Render, "passed();".to_string())
+                )
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| path.file_name().and_then(|name| name.to_str()) == Some("BRANCHES.flow"))
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(
+            flow.contains("t1.execute();\n        if (t1.pass) {\n            passed();\n        } else {\n            failed();\n        }"),
+            "{}",
+            flow
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn only_failed_branch_renders_as_if_not_passed() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "failed_only".to_string() =>
+            node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None =>
+                node!(PGM::OnFailed, FlowID::from_str("t1") =>
+                    node!(PGM::Render, "failed();".to_string())
+                )
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| {
+                path.file_name().and_then(|name| name.to_str()) == Some("FAILED_ONLY.flow")
+            })
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(
+            flow.contains(
+                "t1.execute();\n        if (!t1.pass) {\n            failed();\n        }\n"
+            ),
+            "{}",
+            flow
+        );
+        assert!(!flow.contains("else"), "{}", flow);
         Ok(())
     }
 
