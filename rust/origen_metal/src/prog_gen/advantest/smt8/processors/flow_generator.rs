@@ -1198,6 +1198,26 @@ mod tests {
         let flow = render_flow_file(flow, "EXPRESSIONS.flow")?;
 
         assert!(flow.contains("in mode = -1;"));
+        // Like flag conditions, adjacent opposite expressions are combined into an if/else
+        assert!(flow.contains(
+            "if (mode == 6) {\n            when_6.execute();\n        } else {\n            unless_6.execute();\n        }"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn expression_conditions_render_both_branches() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "branches".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
+                node!(PGM::TestStr, "when_6".to_string(), FlowID::from_str("when_6"), None, None, None)
+            ),
+            node!(PGM::TestStr, "between".to_string(), FlowID::from_str("between"), None, None, None),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("mode == 6".to_string()) =>
+                node!(PGM::TestStr, "unless_6".to_string(), FlowID::from_str("unless_6"), None, None, None)
+            )
+        );
+        let flow = render_flow_file(flow, "BRANCHES.flow")?;
+
         // Like flag conditions, an expression condition always renders both branches
         assert!(flow.contains(
             "if (mode == 6) {\n            when_6.execute();\n        } else {\n        }"
