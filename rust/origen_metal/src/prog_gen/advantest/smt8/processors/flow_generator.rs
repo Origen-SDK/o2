@@ -1020,20 +1020,28 @@ impl Processor<PGM> for FlowGenerator {
                     let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
                     {
                         let current_flow = self.flow_stack.last_mut().unwrap();
-                        if matches!(cond, FlowCondition::IfExpr(_)) {
-                            current_flow.execute_line(format!("if ({}) {{", expression));
-                        } else {
-                            current_flow.execute_line(format!("if (!({})) {{", expression));
-                        }
+                        current_flow.execute_line(format!("if ({}) {{", expression));
                         current_flow.indent += 1;
                     }
-                    node.process_children(self)?;
-                    if let Some(else_node) = else_node {
+                    if matches!(cond, FlowCondition::IfExpr(_)) {
+                        node.process_children(self)?;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
+                    }
+                    {
                         let current_flow = self.flow_stack.last_mut().unwrap();
                         current_flow.indent -= 1;
                         current_flow.execute_line("} else {".to_string());
                         current_flow.indent += 1;
-                        else_node.process_children(self)?;
+                    }
+                    if matches!(cond, FlowCondition::UnlessExpr(_)) {
+                        node.process_children(self)?;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
                     let current_flow = self.flow_stack.last_mut().unwrap();
                     current_flow.indent -= 1;
@@ -1190,8 +1198,13 @@ mod tests {
         let flow = render_flow_file(flow, "EXPRESSIONS.flow")?;
 
         assert!(flow.contains("in mode = -1;"));
-        assert!(flow.contains("if (mode == 6) {\n            when_6.execute();\n        }"));
-        assert!(flow.contains("if (!(mode == 6)) {\n            unless_6.execute();\n        }"));
+        // Like flag conditions, an expression condition always renders both branches
+        assert!(flow.contains(
+            "if (mode == 6) {\n            when_6.execute();\n        } else {\n        }"
+        ));
+        assert!(flow.contains(
+            "if (mode == 6) {\n        } else {\n            unless_6.execute();\n        }"
+        ));
         Ok(())
     }
 
