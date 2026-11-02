@@ -308,6 +308,10 @@ impl PassthroughCollector {
             }
         }
         for v in &flow_data.referenced_variables {
+            // A flag set by this flow is declared as a flag, not as an input variable
+            if flow_data.modified_flags.contains(v) {
+                continue;
+            }
             flow_data.input_variables.insert(v.to_string());
             // Ensure every flow in the stack passes through referenced variables
             for f in &mut self.flow_stack {

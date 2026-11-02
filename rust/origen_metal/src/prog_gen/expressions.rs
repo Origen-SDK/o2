@@ -2,8 +2,9 @@
 
 /// Returns the flow variables read by the given tester expression.
 ///
-/// Literals (numbers, strings, true/false), function names and the parts of dotted
-/// references (e.g. a sub-flow's variable) are not flow variables of the current flow.
+/// Literals (numbers, strings, true/false), the operators and/or/not, function names and
+/// the parts of dotted references (e.g. a sub-flow's variable) are not flow variables of
+/// the current flow.
 pub fn expression_variables(expression: &str) -> Vec<String> {
     let chars: Vec<char> = expression.chars().collect();
     let mut vars: Vec<String> = vec![];
@@ -34,9 +35,10 @@ pub fn expression_variables(expression: &str) -> Vec<String> {
             let prev = chars[..start].iter().rev().find(|c| !c.is_whitespace());
             let next = chars[i..].iter().find(|c| !c.is_whitespace());
             let is_literal = name == "true" || name == "false";
+            let is_operator = name == "and" || name == "or" || name == "not";
             let is_dotted = prev == Some(&'.') || next == Some(&'.');
             let is_function = next == Some(&'(');
-            if !is_literal && !is_dotted && !is_function && !vars.contains(&name) {
+            if !is_literal && !is_operator && !is_dotted && !is_function && !vars.contains(&name) {
                 vars.push(name);
             }
         } else {
@@ -62,5 +64,13 @@ mod tests {
             vec!["delta", "name"]
         );
         assert_eq!(expression_variables("count + count"), vec!["count"]);
+    }
+
+    #[test]
+    fn expression_variables_excludes_operators() {
+        assert_eq!(
+            expression_variables("A == 1 or not (B and C)"),
+            vec!["A", "B", "C"]
+        );
     }
 }

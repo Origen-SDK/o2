@@ -1229,6 +1229,28 @@ mod tests {
     }
 
     #[test]
+    fn flags_read_by_expressions_are_not_input_variables() -> crate::Result<()> {
+        // The flag is set before and after the expression that reads it
+        for set_first in [true, false] {
+            let set_flag = node!(PGM::SetFlag, "RETRY".to_string(), true, false);
+            let condition = node!(PGM::Condition, FlowCondition::IfExpr("RETRY == 1".to_string()) =>
+                node!(PGM::TestStr, "retry".to_string(), FlowID::from_str("retry"), None, None, None)
+            );
+            let (first, second) = if set_first {
+                (set_flag, condition)
+            } else {
+                (condition, set_flag)
+            };
+            let flow = node!(PGM::Flow, "flags".to_string() => first, second);
+            let flow = render_flow_file(flow, "FLAGS.flow")?;
+
+            assert!(flow.contains("out RETRY = -1;"), "{}", flow);
+            assert!(!flow.contains("in RETRY"), "{}", flow);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn variables_are_assigned_and_passed_down() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "variables".to_string() =>
             node!(PGM::SetVariable, "per_tile_passed".to_string(), "0".to_string()),
