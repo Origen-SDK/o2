@@ -457,12 +457,13 @@ impl FlowGenerator {
     }
 
     fn open_flow_file(&mut self, name: &str, flow_data: FlowData) -> Result<()> {
-        // Create a clean name where all spaces are underscores and lowercase and any multiple underscores
-        // are reduced to single underscores
-        let mut name = name.replace(" ", "_").to_uppercase();
-        while name.contains("__") {
-            name = name.replace("__", "_");
-        }
+        // Create a clean upper case name where each run of spaces is an underscore, keeping any
+        // underscores of the name itself, e.g. a MAIN__RETEST sub-flow
+        let mut name = name
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join("_")
+            .to_uppercase();
         if let Some(current_flow) = self.flow_stack.last_mut() {
             if current_flow.existing_flow_counter.contains_key(&name) {
                 let count = current_flow.existing_flow_counter.get(&name).unwrap() + 1;
@@ -1499,6 +1500,33 @@ mod tests {
             flow
         );
         assert!(!flow.contains("else"), "{}", flow);
+        Ok(())
+    }
+
+    #[test]
+    fn flow_names_keep_their_underscores() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main__retest  final".to_string() =>
+            node!(PGM::TestStr, "test1".to_string(), FlowID::from_str("test1"), None, None, None)
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        // A run of spaces is one underscore, the name's own underscores are kept
+        assert!(
+            files.iter().any(|path| {
+                path.file_name().and_then(|name| name.to_str()) == Some("MAIN__RETEST_FINAL.flow")
+            }),
+            "{:?}",
+            files
+        );
         Ok(())
     }
 
