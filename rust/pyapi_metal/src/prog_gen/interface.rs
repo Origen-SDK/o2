@@ -1,7 +1,7 @@
 use super::flow_options;
 use super::src_caller_meta;
 use super::tester_apis::IGXL;
-use super::{Condition, Group, Resources, Test, TestInvocation};
+use super::{Condition, Group, LoopBlock, Resources, Test, TestInvocation};
 use origen_metal::prog_gen::{
     flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType, SupportedTester,
 };
@@ -175,8 +175,58 @@ impl PyInterface {
             let g = Group::new(name, None, GroupType::Flow, Some(id));
             Ok(g)
         })?;
-        g.open_conditions = ref_ids;
+        let mut ref_ids = ref_ids.unwrap_or_default();
+        let mut bypass = false;
+        if let Some(kwargs) = kwargs {
+            if let Some(v) = kwargs.get_item("bypass")? {
+                bypass = v.is_truthy()?;
+            }
+        }
+        if bypass {
+            ref_ids.push(flow_api::start_bypass_sub_flows(src_caller_meta())?);
+        }
+        g.open_conditions = if ref_ids.is_empty() {
+            None
+        } else {
+            Some(ref_ids)
+        };
         Ok(g)
+    }
+
+    /// Set the given flow flag, or clear it when state is false
+    #[pyo3(signature=(name, state=true))]
+    fn set_flag(&mut self, name: String, state: bool) -> PyResult<()> {
+        flow_api::set_flag(name, state, src_caller_meta())?;
+        Ok(())
+    }
+
+    /// Assign a value, a number or a tester expression, to the given flow variable
+    fn set_variable(&mut self, name: String, value: String) -> PyResult<()> {
+        flow_api::set_variable(name, value, src_caller_meta())?;
+        Ok(())
+    }
+
+    /// Repeat the content of the returned context manager block count times
+    #[pyo3(signature=(count, variable="index".to_string(), descending=false))]
+    fn loop_block(
+        &mut self,
+        count: u32,
+        variable: String,
+        descending: bool,
+    ) -> PyResult<LoopBlock> {
+        Ok(LoopBlock::new(count, variable, descending))
+    }
+
+    /// Generate the content of the returned context manager block only when the given tester
+    /// expression is true
+    fn if_expr(&mut self, expression: String) -> PyResult<Condition> {
+        Ok(Condition::new(FlowCondition::IfExpr(expression)))
+    }
+
+    /// Generate the content of the returned context manager block only when the given tester
+    /// expression is false
+    fn unless_expr(&mut self, expression: String) -> PyResult<Condition> {
+        Ok(Condition::new(FlowCondition::UnlessExpr(expression)))
     }
 
     fn resources(&mut self) -> PyResult<Resources> {

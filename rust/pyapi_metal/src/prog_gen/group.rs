@@ -54,7 +54,8 @@ impl Group {
     ) -> PyResult<bool> {
         flow_api::end_block(self.ref_id)?;
         if let Some(ref_ids) = &self.open_conditions {
-            for id in ref_ids {
+            // Close in the reverse order of opening, innermost first
+            for id in ref_ids.iter().rev() {
                 flow_api::end_block(*id)?;
             }
         }

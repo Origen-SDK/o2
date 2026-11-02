@@ -34,6 +34,10 @@ pub struct FlowData {
     pub modified_flags: HashSet<String>,
     pub auto_flags: HashSet<String>,
     pub downstream_flags: HashSet<String>,
+    /// Flow variables, case preserved, which are assigned or read by expressions in this flow
+    pub referenced_variables: HashSet<String>,
+    /// Flow variables, case preserved, which are passed into this flow
+    pub input_variables: HashSet<String>,
 }
 
 impl FlowData {
@@ -78,16 +82,80 @@ impl FlowData {
         for f in &self.input_flags {
             vars.insert(f.to_string());
         }
+        for v in &self.input_variables {
+            vars.insert(v.to_string());
+        }
         let mut vars_vec: Vec<_> = vars.into_iter().collect();
         vars_vec.sort();
         vars_vec
     }
 }
 
+/// Returns the flow variables read by the given tester expression.
+///
+/// Literals (numbers, strings, true/false), function names and the parts of dotted
+/// references (e.g. a sub-flow's variable) are not flow variables of the current flow.
+pub fn expression_variables(expression: &str) -> Vec<String> {
+    let chars: Vec<char> = expression.chars().collect();
+    let mut vars: Vec<String> = vec![];
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '"' || c == '\'' {
+            i += 1;
+            while i < chars.len() && chars[i] != c {
+                if chars[i] == '\\' {
+                    i += 1;
+                }
+                i += 1;
+            }
+            i += 1;
+        } else if c.is_ascii_digit() {
+            while i < chars.len()
+                && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '.')
+            {
+                i += 1;
+            }
+        } else if c.is_ascii_alphabetic() || c == '_' {
+            let start = i;
+            while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
+                i += 1;
+            }
+            let name: String = chars[start..i].iter().collect();
+            let prev = chars[..start].iter().rev().find(|c| !c.is_whitespace());
+            let next = chars[i..].iter().find(|c| !c.is_whitespace());
+            let is_literal = name == "true" || name == "false";
+            let is_dotted = prev == Some(&'.') || next == Some(&'.');
+            let is_function = next == Some(&'(');
+            if !is_literal && !is_dotted && !is_function && !vars.contains(&name) {
+                vars.push(name);
+            }
+        } else {
+            i += 1;
+        }
+    }
+    vars
+}
+
 #[derive(Default)]
 pub struct Collector {
     flows: Vec<FlowData>,
     processing_subflow: bool,
+    /// Counter variables of the loops which enclose the current node
+    loop_variables: Vec<String>,
+}
+
+impl Collector {
+    fn reference_variable(&mut self, name: &str) {
+        if self.loop_variables.iter().any(|v| v == name) {
+            return;
+        }
+        self.flows
+            .last_mut()
+            .unwrap()
+            .referenced_variables
+            .insert(name.to_string());
+    }
 }
 
 impl Processor<PGM> for Collector {
@@ -140,6 +208,19 @@ impl Processor<PGM> for Collector {
                 }
                 current_flow.modified_flags.insert(flag);
             }
+            PGM::SetVariable(name, value) => {
+                self.reference_variable(name);
+                for v in expression_variables(value) {
+                    self.reference_variable(&v);
+                }
+            }
+            PGM::Loop(_, variable, _) => {
+                let variable = variable.clone().unwrap_or_else(|| "index".to_string());
+                self.loop_variables.push(variable);
+                let n = node.process_and_update_children(self)?;
+                self.loop_variables.pop();
+                return Ok(Return::Replace(n));
+            }
             PGM::Condition(cond) => match cond {
                 FlowCondition::IfJob(_jobs) | FlowCondition::UnlessJob(_jobs) => {
                     self.flows.last_mut().unwrap().references_job = true;
@@ -158,6 +239,11 @@ impl Processor<PGM> for Collector {
                     for f in flags {
                         let flag = f.to_uppercase();
                         self.flows.last_mut().unwrap().referenced_flags.insert(flag);
+                    }
+                }
+                FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
+                    for v in expression_variables(expression) {
+                        self.reference_variable(&v);
                     }
                 }
                 _ => {}
@@ -266,6 +352,13 @@ impl PassthroughCollector {
                 f.input_enables.insert(en.to_string());
             }
         }
+        for v in &flow_data.referenced_variables {
+            flow_data.input_variables.insert(v.to_string());
+            // Ensure every flow in the stack passes through referenced variables
+            for f in &mut self.flow_stack {
+                f.input_variables.insert(v.to_string());
+            }
+        }
         // Make sure that all referenced flags that originate from an upstream flow are input
         for fl in &flow_data.referenced_flags {
             if flow_data.modified_flags.contains(fl)
@@ -309,5 +402,24 @@ impl PassthroughCollector {
             }
         }
         flow_data
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::expression_variables;
+
+    #[test]
+    fn expression_variables_excludes_literals_functions_and_references() {
+        assert_eq!(expression_variables("mode == 6"), vec!["mode"]);
+        assert_eq!(
+            expression_variables("failCaptureModeVarStd == 6 && (Other_var != 1.5e3)"),
+            vec!["failCaptureModeVarStd", "Other_var"]
+        );
+        assert_eq!(
+            expression_variables("abs(delta) > 2 && sub.result == true && name == \"a b\""),
+            vec!["delta", "name"]
+        );
+        assert_eq!(expression_variables("count + count"), vec!["count"]);
     }
 }

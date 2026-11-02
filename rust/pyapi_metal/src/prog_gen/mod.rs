@@ -2,6 +2,7 @@ mod condition;
 mod flow_options;
 mod group;
 pub mod interface;
+mod loop_block;
 mod pattern_group;
 mod resources;
 mod test;
@@ -14,6 +15,7 @@ use std::str::FromStr;
 
 use condition::Condition;
 use group::Group;
+use loop_block::LoopBlock;
 use pattern_group::PatternGroup;
 use resources::Resources;
 use test::Test;
