@@ -3,7 +3,9 @@ use crate::prog_gen::{FlowID, PGM};
 use crate::Result;
 use indexmap::IndexMap;
 
-/// This nests OnFailed and OnPassed nodes into their parent tests (or groups)
+/// This nests OnFailed and OnPassed nodes into their parent tests (or groups). When a test has
+/// more than one of a kind, e.g. one from its bin and one from continue_on_fail, they are merged
+/// into one node, keeping the order of their contents.
 ///
 /// Input:
 ///     PGMTest(4, FlowID { id: "3" })
@@ -12,6 +14,10 @@ use indexmap::IndexMap;
 ///     PGMTest(6, FlowID { id: "7" })
 ///     PGMOnFailed(FlowID { id: "7" })
 ///         PGMBin(100, Some(1100), Bad)
+///     PGMOnFailed(FlowID { id: "7" })
+///         PGMContinue
+///     PGMOnPassed(FlowID { id: "7" })
+///         PGMTest(8, FlowID { id: "9" })
 ///
 /// Output:
 ///     PGMTest(4, FlowID { id: "3" })
@@ -20,8 +26,12 @@ use indexmap::IndexMap;
 ///     PGMTest(6, FlowID { id: "7" })
 ///         PGMOnFailed(FlowID { id: "7" })
 ///             PGMBin(100, Some(1100), Bad)
+///             PGMContinue
+///         PGMOnPassed(FlowID { id: "7" })
+///             PGMTest(8, FlowID { id: "9" })
 pub struct NestOnResultNodes {
-    nodes: IndexMap<FlowID, Node<PGM>>,
+    /// The OnFailed and OnPassed nodes of each test or group, at most one of each kind
+    nodes: IndexMap<FlowID, Vec<Node<PGM>>>,
     pass: usize,
 }
 
@@ -44,7 +54,12 @@ impl Processor<PGM> for NestOnResultNodes {
             PGM::OnFailed(fid) | PGM::OnPassed(fid) => {
                 if self.pass == 0 {
                     let n = { node.process_and_update_children(self)? };
-                    self.nodes.insert(fid.to_owned(), n);
+                    let nodes = self.nodes.entry(fid.to_owned()).or_default();
+                    if let Some(existing) = nodes.iter_mut().find(|e| e.attrs == n.attrs) {
+                        existing.children.extend(n.children);
+                    } else {
+                        nodes.push(n);
+                    }
                     Ok(Return::None)
                 } else {
                     Ok(Return::ProcessChildren)
@@ -52,8 +67,10 @@ impl Processor<PGM> for NestOnResultNodes {
             }
             PGM::Test(_, fid) | PGM::TestStr(_, fid, _, _, _) | PGM::Cz(_, _, fid) => {
                 if self.pass == 1 && self.nodes.contains_key(fid) {
-                    let n = { self.nodes.shift_remove(fid).unwrap() };
-                    let mut nodes = vec![n.process_and_update_children(self)?];
+                    let mut nodes = vec![];
+                    for n in self.nodes.shift_remove(fid).unwrap() {
+                        nodes.push(n.process_and_update_children(self)?);
+                    }
                     nodes.append(&mut node.process_children(self)?);
                     Ok(Return::ReplaceChildren(nodes))
                 } else {
@@ -63,8 +80,10 @@ impl Processor<PGM> for NestOnResultNodes {
             PGM::Group(_, _, _, fid) => {
                 if let Some(fid) = fid {
                     if self.pass == 1 && self.nodes.contains_key(fid) {
-                        let n = { self.nodes.shift_remove(fid).unwrap() };
-                        let mut nodes = vec![n.process_and_update_children(self)?];
+                        let mut nodes = vec![];
+                        for n in self.nodes.shift_remove(fid).unwrap() {
+                            nodes.push(n.process_and_update_children(self)?);
+                        }
                         nodes.append(&mut node.process_children(self)?);
                         Ok(Return::ReplaceChildren(nodes))
                     } else {
@@ -116,6 +135,37 @@ mod tests {
                             node!(PGM::Bin, 10, None, BinType::Bad)
                         )
                     )
+                )
+            )
+        );
+
+        assert_eq!(run(&input)?, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn it_merges_the_result_blocks_of_a_test() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::OnFailed, FlowID::from_int(1) =>
+                node!(PGM::Bin, 10, None, BinType::Bad)
+            ),
+            node!(PGM::OnFailed, FlowID::from_int(1) =>
+                node!(PGM::Continue)
+            ),
+            node!(PGM::OnPassed, FlowID::from_int(1) =>
+                node!(PGM::Test, 2, FlowID::from_int(2))
+            )
+        );
+
+        let expected = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1) =>
+                node!(PGM::OnFailed, FlowID::from_int(1) =>
+                    node!(PGM::Bin, 10, None, BinType::Bad),
+                    node!(PGM::Continue)
+                ),
+                node!(PGM::OnPassed, FlowID::from_int(1) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2))
                 )
             )
         );

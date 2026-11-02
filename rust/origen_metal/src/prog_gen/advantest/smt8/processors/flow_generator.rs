@@ -5,7 +5,7 @@ use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamValue, PGM}
 use crate::Result;
 use indexmap::IndexMap;
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
@@ -43,6 +43,8 @@ struct FlowFile {
     existing_test_counter: HashMap<String, usize>,
     existing_flow_counter: HashMap<String, usize>,
     sub_flows: Vec<String>,
+    /// Sub-flows which are called with bypass enabled
+    bypassed_sub_flows: HashSet<String>,
     flow_data: FlowData,
 }
 
@@ -206,51 +208,61 @@ impl FlowGenerator {
         }
     }
 
+    /// Renders the content of a test's OnPassed or OnFailed branch into a buffer
     fn render_result_branch(
         &mut self,
         branch: &Node<PGM>,
-        subject_name: &str,
         suppress_bins: bool,
-    ) -> Result<()> {
-        let guard = match &branch.attrs {
-            PGM::OnPassed(_) => Some(format!("if ({}.pass) {{", subject_name)),
-            PGM::OnFailed(_) => Some(format!("if (!{}.pass) {{", subject_name)),
-            _ => None,
-        };
-
-        if let Some(guard) = guard {
-            let original_render_bins = {
-                let current_flow = self.flow_stack.last_mut().unwrap();
-                let original_render_bins = current_flow.render_bins;
-                current_flow.start_execute_buffer();
-                if suppress_bins {
-                    current_flow.render_bins = false;
-                }
-                original_render_bins
-            };
-            branch.process_children(self)?;
-            {
-                let current_flow = self.flow_stack.last_mut().unwrap();
-                current_flow.render_bins = original_render_bins;
-                let buffered_lines = current_flow.finish_execute_buffer();
-                if !buffered_lines.is_empty() {
-                    current_flow.execute_line(guard);
-                    current_flow.flush_buffered_execute_lines(buffered_lines, 1);
-                    current_flow.execute_line("}".to_string());
-                }
+    ) -> Result<Vec<String>> {
+        let original_render_bins = {
+            let current_flow = self.flow_stack.last_mut().unwrap();
+            let original_render_bins = current_flow.render_bins;
+            current_flow.start_execute_buffer();
+            if suppress_bins {
+                current_flow.render_bins = false;
             }
-        }
-        Ok(())
+            original_render_bins
+        };
+        branch.process_children(self)?;
+        let current_flow = self.flow_stack.last_mut().unwrap();
+        current_flow.render_bins = original_render_bins;
+        Ok(current_flow.finish_execute_buffer())
     }
 
+    /// Renders a test's result branches. A test with both passed and failed content renders
+    /// them as `if (<test>.pass) { ... } else { ... }`.
     fn render_result_branches(
         &mut self,
         children: &Vec<Box<Node<PGM>>>,
         subject_name: &str,
         suppress_bins: bool,
     ) -> Result<()> {
+        let mut passed: Vec<String> = vec![];
+        let mut failed: Vec<String> = vec![];
         for branch in children {
-            self.render_result_branch(branch, subject_name, suppress_bins)?;
+            match &branch.attrs {
+                PGM::OnPassed(_) => {
+                    passed.extend(self.render_result_branch(branch, suppress_bins)?)
+                }
+                PGM::OnFailed(_) => {
+                    failed.extend(self.render_result_branch(branch, suppress_bins)?)
+                }
+                _ => {}
+            }
+        }
+        let current_flow = self.flow_stack.last_mut().unwrap();
+        if !passed.is_empty() {
+            current_flow.execute_line(format!("if ({}.pass) {{", subject_name));
+            current_flow.flush_buffered_execute_lines(passed, 1);
+            if !failed.is_empty() {
+                current_flow.execute_line("} else {".to_string());
+                current_flow.flush_buffered_execute_lines(failed, 1);
+            }
+            current_flow.execute_line("}".to_string());
+        } else if !failed.is_empty() {
+            current_flow.execute_line(format!("if (!{}.pass) {{", subject_name));
+            current_flow.flush_buffered_execute_lines(failed, 1);
+            current_flow.execute_line("}".to_string());
         }
         Ok(())
     }
@@ -572,9 +584,8 @@ impl FlowGenerator {
                 .parent()
                 .unwrap()
                 .join(flow_file.name.to_lowercase());
-            writeln!(
-                &mut f,
-                "        flow {} calls {}flows.{}.{} {{ }}",
+            let call = format!(
+                "        flow {} calls {}flows.{}.{} {{",
                 sub_flow,
                 &namespace,
                 relative_path
@@ -583,7 +594,14 @@ impl FlowGenerator {
                     .replace("\\", ".")
                     .replace("/", "."),
                 sub_flow
-            )?;
+            );
+            if flow_file.bypassed_sub_flows.contains(sub_flow) {
+                writeln!(&mut f, "{}", call)?;
+                writeln!(&mut f, "            bypass = true;")?;
+                writeln!(&mut f, "        }}")?;
+            } else {
+                writeln!(&mut f, "{} }}", call)?;
+            }
         }
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
@@ -681,7 +699,11 @@ impl Processor<PGM> for FlowGenerator {
                 self.open_flow_file(name, flow_data)?;
                 let orig = self.sub_flow_open;
                 self.sub_flow_open = true;
+                // Bypass applies to the call of this flow, not to the flows that it calls
+                let orig_bypass = self.bypass_sub_flows;
+                self.bypass_sub_flows = false;
                 node.process_children(self)?;
+                self.bypass_sub_flows = orig_bypass;
                 self.sub_flow_open = orig;
                 let flow = self.close_flow_file(self.namespaces.last().cloned())?;
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -690,6 +712,9 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 current_flow.execute_line(format!("{}.execute();", flow.name));
                 current_flow.sub_flows.push(flow.name.clone());
+                if self.bypass_sub_flows {
+                    current_flow.bypassed_sub_flows.insert(flow.name.clone());
+                }
                 for v in flow.flow_data.sorted_output_flags() {
                     if current_flow.flow_data.output_flags.contains(&v)
                         || current_flow.flow_data.referenced_flags.contains(&v)
@@ -708,7 +733,11 @@ impl Processor<PGM> for FlowGenerator {
                         FlowData::default()
                     };
                     self.open_flow_file(name, flow_data)?;
+                    // Bypass applies to the call of this flow, not to the flows that it calls
+                    let orig_bypass = self.bypass_sub_flows;
+                    self.bypass_sub_flows = false;
                     node.process_children(self)?;
+                    self.bypass_sub_flows = orig_bypass;
                     let flow = self.close_flow_file(self.namespaces.last().cloned())?;
                     let current_flow = self.flow_stack.last_mut().unwrap();
                     for v in flow.flow_data.sorted_input_vars() {
@@ -716,6 +745,9 @@ impl Processor<PGM> for FlowGenerator {
                     }
                     current_flow.execute_line(format!("{}.execute();", flow.name));
                     current_flow.sub_flows.push(flow.name.clone());
+                    if self.bypass_sub_flows {
+                        current_flow.bypassed_sub_flows.insert(flow.name.clone());
+                    }
                     for v in flow.flow_data.sorted_output_flags() {
                         if current_flow.flow_data.output_flags.contains(&v)
                             || current_flow.flow_data.referenced_flags.contains(&v)
@@ -995,8 +1027,66 @@ impl Processor<PGM> for FlowGenerator {
                     current_flow.execute_line("}".to_string());
                     Return::None
                 }
+                FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
+                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
+                    {
+                        let current_flow = self.flow_stack.last_mut().unwrap();
+                        current_flow.execute_line(format!("if ({}) {{", expression));
+                        current_flow.indent += 1;
+                    }
+                    if matches!(cond, FlowCondition::IfExpr(_)) {
+                        node.process_children(self)?;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
+                    }
+                    {
+                        let current_flow = self.flow_stack.last_mut().unwrap();
+                        current_flow.indent -= 1;
+                        current_flow.execute_line("} else {".to_string());
+                        current_flow.indent += 1;
+                    }
+                    if matches!(cond, FlowCondition::UnlessExpr(_)) {
+                        node.process_children(self)?;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
+                    }
+                    let current_flow = self.flow_stack.last_mut().unwrap();
+                    current_flow.indent -= 1;
+                    current_flow.execute_line("}".to_string());
+                    Return::None
+                }
                 _ => Return::ProcessChildren,
             },
+            PGM::Loop(count, variable, descending) => {
+                let count = match count {
+                    Some(c) => *c,
+                    None => bail!("V93K SMT8 flow generation only supports loops with a fixed iteration count"),
+                };
+                let variable = variable.clone().unwrap_or_else(|| "index".to_string());
+                {
+                    let current_flow = self.flow_stack.last_mut().unwrap();
+                    if *descending {
+                        current_flow.execute_line(format!("for ({} : {}..1) {{", variable, count));
+                    } else {
+                        current_flow.execute_line(format!("for ({} : 1..{}) {{", variable, count));
+                    }
+                    current_flow.indent += 1;
+                }
+                node.process_children(self)?;
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                current_flow.indent -= 1;
+                current_flow.execute_line("}".to_string());
+                Return::None
+            }
+            PGM::SetVariable(name, value) => {
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                current_flow.execute_line(format!("{} = {};", name, value));
+                Return::None
+            }
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -1061,11 +1151,167 @@ impl Processor<PGM> for FlowGenerator {
 mod tests {
     use super::{run, FlowGenerator};
     use crate::prog_gen::{
-        process_flow, FlowCondition, FlowID, Model, ParamValue, SupportedTester, PGM,
+        process_flow, FlowCondition, FlowID, GroupType, Model, ParamValue, SupportedTester, PGM,
     };
     use std::cmp::Ordering;
     use std::fs;
     use tempfile::tempdir;
+
+    /// Renders the given flow AST for SMT8 and returns the content of the named flow file
+    fn render_flow_file(flow: crate::ast::Node<PGM>, file_name: &str) -> crate::Result<String> {
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| path.file_name().and_then(|name| name.to_str()) == Some(file_name))
+            .expect("expected generated SMT8 flow file");
+        Ok(fs::read_to_string(flow_path)?)
+    }
+
+    #[test]
+    fn loops_are_rendered_ascending_and_descending() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "loops".to_string() =>
+            node!(PGM::Loop, Some(3), Some("attempt".to_string()), false =>
+                node!(PGM::TestStr, "looped".to_string(), FlowID::from_str("looped"), None, None, None)
+            ),
+            node!(PGM::Loop, Some(9), None, true =>
+                node!(PGM::TestStr, "countdown".to_string(), FlowID::from_str("countdown"), None, None, None)
+            )
+        );
+        let flow = render_flow_file(flow, "LOOPS.flow")?;
+
+        assert!(flow.contains("for (attempt : 1..3) {\n            looped.execute();\n        }"));
+        assert!(flow.contains("for (index : 9..1) {\n            countdown.execute();\n        }"));
+        // Loop counters are local to the flow, not inputs
+        assert!(!flow.contains("in attempt"));
+        assert!(!flow.contains("in index"));
+        Ok(())
+    }
+
+    #[test]
+    fn expression_conditions_are_rendered_and_their_variables_input() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "expressions".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
+                node!(PGM::TestStr, "when_6".to_string(), FlowID::from_str("when_6"), None, None, None)
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("mode == 6".to_string()) =>
+                node!(PGM::TestStr, "unless_6".to_string(), FlowID::from_str("unless_6"), None, None, None)
+            )
+        );
+        let flow = render_flow_file(flow, "EXPRESSIONS.flow")?;
+
+        assert!(flow.contains("in mode = -1;"));
+        // Like flag conditions, adjacent opposite expressions are combined into an if/else
+        assert!(flow.contains(
+            "if (mode == 6) {\n            when_6.execute();\n        } else {\n            unless_6.execute();\n        }"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn expression_conditions_render_both_branches() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "branches".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
+                node!(PGM::TestStr, "when_6".to_string(), FlowID::from_str("when_6"), None, None, None)
+            ),
+            node!(PGM::TestStr, "between".to_string(), FlowID::from_str("between"), None, None, None),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("mode == 6".to_string()) =>
+                node!(PGM::TestStr, "unless_6".to_string(), FlowID::from_str("unless_6"), None, None, None)
+            )
+        );
+        let flow = render_flow_file(flow, "BRANCHES.flow")?;
+
+        // Like flag conditions, an expression condition always renders both branches
+        assert!(flow.contains(
+            "if (mode == 6) {\n            when_6.execute();\n        } else {\n        }"
+        ));
+        assert!(flow.contains(
+            "if (mode == 6) {\n        } else {\n            unless_6.execute();\n        }"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn flags_read_by_expressions_are_not_input_variables() -> crate::Result<()> {
+        // The flag is set before and after the expression that reads it
+        for set_first in [true, false] {
+            let set_flag = node!(PGM::SetFlag, "RETRY".to_string(), true, false);
+            let condition = node!(PGM::Condition, FlowCondition::IfExpr("RETRY == 1".to_string()) =>
+                node!(PGM::TestStr, "retry".to_string(), FlowID::from_str("retry"), None, None, None)
+            );
+            let (first, second) = if set_first {
+                (set_flag, condition)
+            } else {
+                (condition, set_flag)
+            };
+            let flow = node!(PGM::Flow, "flags".to_string() => first, second);
+            let flow = render_flow_file(flow, "FLAGS.flow")?;
+
+            assert!(flow.contains("out RETRY = -1;"), "{}", flow);
+            assert!(!flow.contains("in RETRY"), "{}", flow);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn variables_are_assigned_and_passed_down() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "variables".to_string() =>
+            node!(PGM::SetVariable, "per_tile_passed".to_string(), "0".to_string()),
+            node!(PGM::Group, "inner".to_string(), None, GroupType::Flow, Some(FlowID::from_str("inner")) =>
+                node!(PGM::Loop, Some(9), Some("per_tile_index".to_string()), true =>
+                    node!(PGM::Condition, FlowCondition::IfExpr("per_tile_passed == 0 && per_tile_index > 1".to_string()) =>
+                        node!(PGM::SetVariable, "per_tile_passed".to_string(), "1".to_string())
+                    )
+                )
+            )
+        );
+        let top = render_flow_file(flow.clone(), "VARIABLES.flow")?;
+        assert!(top.contains("in per_tile_passed = -1;"));
+        assert!(top.contains("per_tile_passed = 0;"));
+        assert!(top.contains("INNER.per_tile_passed = per_tile_passed;\n        INNER.execute();"));
+
+        let inner = render_flow_file(flow, "INNER.flow")?;
+        assert!(inner.contains("in per_tile_passed = -1;"));
+        assert!(!inner.contains("in per_tile_index"));
+        assert!(inner.contains("for (per_tile_index : 9..1) {"));
+        assert!(inner.contains("if (per_tile_passed == 0 && per_tile_index > 1) {"));
+        assert!(inner.contains("per_tile_passed = 1;"));
+        Ok(())
+    }
+
+    #[test]
+    fn bypassed_groups_are_called_with_bypass() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "bypassing".to_string() =>
+            node!(PGM::BypassSubFlows =>
+                node!(PGM::Group, "skipped".to_string(), None, GroupType::Flow, Some(FlowID::from_str("skipped")) =>
+                    node!(PGM::Group, "nested".to_string(), None, GroupType::Flow, Some(FlowID::from_str("nested")) =>
+                        node!(PGM::TestStr, "in_nested".to_string(), FlowID::from_str("in_nested"), None, None, None)
+                    )
+                )
+            ),
+            node!(PGM::Group, "kept".to_string(), None, GroupType::Flow, Some(FlowID::from_str("kept")) =>
+                node!(PGM::TestStr, "in_kept".to_string(), FlowID::from_str("in_kept"), None, None, None)
+            )
+        );
+        let top = render_flow_file(flow.clone(), "BYPASSING.flow")?;
+        assert!(top.contains("flow SKIPPED calls"));
+        assert!(top.contains(".SKIPPED {\n            bypass = true;\n        }"));
+        assert!(top.contains(".KEPT { }"));
+
+        // Bypass applies only to the call of the bypassed flow, not to the flows it calls
+        let skipped = render_flow_file(flow, "SKIPPED.flow")?;
+        assert!(skipped.contains(".NESTED { }"));
+        assert!(!skipped.contains("bypass = true;"));
+        Ok(())
+    }
 
     #[test]
     fn natural_sort_orders_numeric_suffixes() {
@@ -1178,6 +1424,82 @@ mod tests {
 
         assert!(flow.contains("        initialize();\n        test1.execute();"));
         assert!(flow.contains("if (TEST1_FAILED == 1) {\n            stop();\n        }"));
+        Ok(())
+    }
+
+    #[test]
+    fn passed_and_failed_branches_render_as_if_else() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "branches".to_string() =>
+            node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None =>
+                node!(PGM::OnFailed, FlowID::from_str("t1") =>
+                    node!(PGM::Render, "failed();".to_string())
+                ),
+                node!(PGM::OnPassed, FlowID::from_str("t1") =>
+                    node!(PGM::Render, "passed();".to_string())
+                )
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| path.file_name().and_then(|name| name.to_str()) == Some("BRANCHES.flow"))
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(
+            flow.contains("t1.execute();\n        if (t1.pass) {\n            passed();\n        } else {\n            failed();\n        }"),
+            "{}",
+            flow
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn only_failed_branch_renders_as_if_not_passed() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "failed_only".to_string() =>
+            node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None =>
+                node!(PGM::OnFailed, FlowID::from_str("t1") =>
+                    node!(PGM::Render, "failed();".to_string())
+                )
+            )
+        );
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| {
+                path.file_name().and_then(|name| name.to_str()) == Some("FAILED_ONLY.flow")
+            })
+            .expect("expected generated SMT8 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+
+        assert!(
+            flow.contains(
+                "t1.execute();\n        if (!t1.pass) {\n            failed();\n        }\n"
+            ),
+            "{}",
+            flow
+        );
+        assert!(!flow.contains("else"), "{}", flow);
         Ok(())
     }
 

@@ -171,12 +171,13 @@ pub enum PGM {
     /// it through unchanged.
     Call(String, Vec<String>),
 
-    /// A bounded iteration loop: (iteration_count, counter_variable_name).
+    /// A bounded iteration loop: (iteration_count, counter_variable_name, descending).
     /// `iteration_count` is None for condition-driven or infinite loops.
     /// `counter_variable_name` is None if the loop counter is not exposed as a variable.
+    /// `descending` counts the loop variable down from `iteration_count` to 1 instead of up.
     /// Child nodes form the loop body. Fills the gap left by the payload-less Whenever* placeholders
     /// for formats with explicit loop constructs (e.g. SMT7 loops).
-    Loop(Option<u32>, Option<String>),
+    Loop(Option<u32>, Option<String>, bool),
 
     /// A structured result report entry: (category, message).
     /// Distinct from Log (runtime stdout) and Comment (source annotation).

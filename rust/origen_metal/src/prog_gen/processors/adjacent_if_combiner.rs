@@ -1,8 +1,10 @@
 use crate::ast::{Node, Processor, Return};
+use crate::prog_gen::expressions::expression_variables;
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
 
-/// This combines adjacent if flag nodes where the flag is in the opposite state
+/// This combines adjacent if flag nodes where the flag is in the opposite state, and likewise
+/// adjacent enable and expression conditions
 ///
 /// Input:
 ///
@@ -11,6 +13,10 @@ use crate::Result;
 ///            PGMTest(1, FlowID("t1"))
 ///        PGMCondition(UnlessFlag(["SOME_FLAG"]))
 ///            PGMTest(2, FlowID("t2"))
+///        PGMCondition(IfExpr("mode == 6"))
+///            PGMTest(3, FlowID("t3"))
+///        PGMCondition(UnlessExpr("mode == 6"))
+///            PGMTest(4, FlowID("t4"))
 ///
 /// Output:
 ///
@@ -19,6 +25,10 @@ use crate::Result;
 ///            PGMTest(1, FlowID("t1"))
 ///            PGMElse
 ///                PGMTest(2, FlowID("t2"))
+///        PGMCondition(IfExpr("mode == 6"))
+///            PGMTest(3, FlowID("t3"))
+///            PGMElse
+///                PGMTest(4, FlowID("t4"))
 ///
 /// See here for an example of the kind of flow level effect it has:
 /// https://github.com/Origen-SDK/origen_testers/issues/43
@@ -107,11 +117,22 @@ impl AdjacentIfCombiner {
                 return f1[0] == f2[0];
             }
         }
+        if let PGM::Condition(FlowCondition::IfExpr(e1)) = &node1.attrs {
+            if let PGM::Condition(FlowCondition::UnlessExpr(e2)) = &node2.attrs {
+                return e1 == e2;
+            }
+        }
+        if let PGM::Condition(FlowCondition::UnlessExpr(e1)) = &node1.attrs {
+            if let PGM::Condition(FlowCondition::IfExpr(e2)) = &node2.attrs {
+                return e1 == e2;
+            }
+        }
         false
     }
 
-    /// Nodes won't be collapsed if node1 touches the shared run flag, i.e. if there is any chance
-    /// that by the time it would naturally execute node2, the flag could have been changed by node1
+    /// Nodes won't be collapsed if node1 touches the shared run flag, enable or expression
+    /// variables, i.e. if there is any chance that by the time it would naturally execute node2,
+    /// the condition could have been changed by node1
     fn is_safe_to_combine(&self, node1: &Box<Node<PGM>>, _node2: &Box<Node<PGM>>) -> bool {
         match &node1.attrs {
             PGM::Condition(cond) => match cond {
@@ -124,6 +145,11 @@ impl AdjacentIfCombiner {
                         return !ChangesFlag::run(node1, flag);
                     }
                 }
+                FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
+                    return expression_variables(expression)
+                        .iter()
+                        .all(|variable| !ChangesFlag::run(node1, variable));
+                }
                 _ => {}
             },
             _ => {}
@@ -132,6 +158,7 @@ impl AdjacentIfCombiner {
     }
 }
 
+/// Finds whether a node changes the given flag, enable or flow variable
 struct ChangesFlag<'a> {
     flag: &'a str,
     flag_found: bool,
@@ -151,7 +178,10 @@ impl<'a> ChangesFlag<'a> {
 impl<'a> Processor<PGM> for ChangesFlag<'a> {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            PGM::SetFlag(flag, _, _) | PGM::Enable(flag) | PGM::Disable(flag) => {
+            PGM::SetFlag(flag, _, _)
+            | PGM::Enable(flag)
+            | PGM::Disable(flag)
+            | PGM::SetVariable(flag, _) => {
                 if flag == self.flag {
                     self.flag_found = true;
                 }
@@ -299,6 +329,73 @@ mod tests {
         );
 
         assert_eq!(output, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn should_combine_adjacent_nodes_with_the_opposite_expression() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("mode == 6".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("count > 0".to_string()) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfExpr("count > 0".to_string()) =>
+                node!(PGM::Test, 4, FlowID::from_int(4)),
+            ),
+        );
+
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Else =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("count > 0".to_string()) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+                node!(PGM::Else =>
+                    node!(PGM::Test, 4, FlowID::from_int(4)),
+                ),
+            ),
+        );
+
+        assert_eq!(output, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn should_not_combine_adjacent_nodes_with_different_expressions() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("mode == 7".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        );
+
+        assert_eq!(input, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn should_not_combine_if_the_first_node_assigns_a_variable_of_the_expression() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("passed == 0".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::SetVariable, "passed".to_string(), "1".to_string()),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("passed == 0".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        );
+
+        assert_eq!(input, run(&input)?);
         Ok(())
     }
 }

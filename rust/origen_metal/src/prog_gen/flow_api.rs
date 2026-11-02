@@ -291,6 +291,26 @@ pub fn set_default_flag_state(name: String, state: bool, meta: Option<Meta>) -> 
     FLOW.push(n)
 }
 
+/// Assign a value, a literal or a tester expression, to a flow variable
+pub fn set_variable(name: String, value: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGM::SetVariable, name, value; meta);
+    FLOW.push(n)
+}
+
+/// Start a loop which repeats its contents `count` times, the returned reference should be
+/// retained and passed to end_block.
+/// The iteration number is available within the loop as the given variable, counting from 1 up to
+/// `count`, or from `count` down to 1 when `descending` is true.
+pub fn start_loop(
+    count: Option<u32>,
+    variable: Option<String>,
+    descending: bool,
+    meta: Option<Meta>,
+) -> Result<usize> {
+    let n = node!(PGM::Loop, count, variable, descending; meta);
+    FLOW.push_and_open(n)
+}
+
 pub fn set_namespace(namespace: String, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::Namespace, namespace; meta);
     FLOW.push(n)
