@@ -1,8 +1,8 @@
 mod condition;
 mod flow_options;
+mod flow_loop;
 mod group;
 pub mod interface;
-mod loop_block;
 mod pattern_group;
 mod resources;
 mod test;
@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use condition::Condition;
+use flow_loop::Loop;
 use group::Group;
-use loop_block::LoopBlock;
 use pattern_group::PatternGroup;
 use resources::Resources;
 use test::Test;

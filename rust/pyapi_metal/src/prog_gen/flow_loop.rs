@@ -6,34 +6,36 @@ use pyo3::types::{PyAny, PyType};
 /// A context manager which repeats the flow content generated within it
 #[pyclass]
 #[derive(Debug, Clone)]
-pub struct LoopBlock {
+pub struct Loop {
     count: u32,
     variable: String,
     descending: bool,
     ref_id: usize,
+    pub open_conditions: Option<Vec<usize>>,
 }
 
-impl LoopBlock {
-    pub fn new(count: u32, variable: String, descending: bool) -> LoopBlock {
-        LoopBlock {
+impl Loop {
+    pub fn new(count: u32, variable: String, descending: bool) -> Loop {
+        Loop {
             count: count,
             variable: variable,
             descending: descending,
             ref_id: 0,
+            open_conditions: None,
         }
     }
 }
 
 #[pymethods]
-impl LoopBlock {
-    fn __enter__(&mut self) -> PyResult<()> {
+impl Loop {
+    fn __enter__(&mut self) -> PyResult<Loop> {
         self.ref_id = flow_api::start_loop(
             Some(self.count),
             Some(self.variable.clone()),
             self.descending,
             src_caller_meta(),
         )?;
-        Ok(())
+        Ok(self.clone())
     }
 
     fn __exit__(
@@ -43,6 +45,11 @@ impl LoopBlock {
         _traceback: Option<&PyAny>,
     ) -> PyResult<bool> {
         flow_api::end_block(self.ref_id)?;
+        if let Some(ref_ids) = &self.open_conditions {
+            for id in ref_ids {
+                flow_api::end_block(*id)?;
+            }
+        }
         Ok(false)
     }
 }

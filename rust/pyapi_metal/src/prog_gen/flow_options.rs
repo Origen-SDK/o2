@@ -3,7 +3,7 @@
 use super::src_caller_meta;
 use origen_metal::prog_gen::{flow_api, FlowCondition, FlowID};
 use origen_metal::Result;
-use pyo3::types::PyDict;
+use pyo3::types::{PyAny, PyDict};
 
 pub fn is_flow_option(key: &str) -> bool {
     match key {
@@ -25,6 +25,8 @@ pub fn is_flow_option(key: &str) -> bool {
         "unless_failed" => true,
         "if_flag" => true,
         "unless_flag" => true,
+        "if_expr" => true,
+        "unless_expr" => true,
         _ => false,
     }
 }
@@ -127,6 +129,18 @@ where
                 src_caller_meta(),
             )?);
         }
+        if let Some(expression) = extract_expression("if_expr", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfExpr(expression),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(expression) = extract_expression("unless_expr", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessExpr(expression),
+                src_caller_meta(),
+            )?);
+        }
         let r = func()?;
         ref_ids.reverse();
         if leave_open {
@@ -157,6 +171,27 @@ fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>>
         }
     } else {
         Ok(None)
+    }
+}
+
+fn extract_expression(name: &str, kwargs: &PyDict) -> Result<Option<String>> {
+    if let Some(v) = kwargs.get_item(name)? {
+        Ok(Some(to_expression(name, v)?))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Extracts a tester expression condition value, which must be a single String
+pub fn to_expression(name: &str, value: &PyAny) -> Result<String> {
+    if let Ok(v) = value.extract::<String>() {
+        Ok(v)
+    } else {
+        bail!(
+            "Illegal '{}' value, expected a String expression, got: '{}' (combine multiple expressions within the String, e.g. with && or ||)",
+            name,
+            value
+        )
     }
 }
 

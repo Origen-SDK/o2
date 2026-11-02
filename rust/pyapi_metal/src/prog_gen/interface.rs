@@ -1,7 +1,7 @@
 use super::flow_options;
 use super::src_caller_meta;
 use super::tester_apis::IGXL;
-use super::{Condition, Group, LoopBlock, Resources, Test, TestInvocation};
+use super::{Condition, Group, Loop, Resources, Test, TestInvocation};
 use origen_metal::prog_gen::{
     flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType, SupportedTester,
 };
@@ -183,7 +183,8 @@ impl PyInterface {
             }
         }
         if bypass {
-            ref_ids.push(flow_api::start_bypass_sub_flows(src_caller_meta())?);
+            // Opened inside any conditions, so it is closed first (ref_ids is innermost first)
+            ref_ids.insert(0, flow_api::start_bypass_sub_flows(src_caller_meta())?);
         }
         g.open_conditions = if ref_ids.is_empty() {
             None
@@ -191,6 +192,25 @@ impl PyInterface {
             Some(ref_ids)
         };
         Ok(g)
+    }
+
+    /// Repeats the flow content generated within the returned context manager count times.
+    /// The iteration number, counting from 1 up to count (or down from count to 1 when
+    /// descending), is available within the loop as the given flow variable.
+    /// Flow options, e.g. if_enable, are applied to the whole loop.
+    #[pyo3(signature=(count, variable="index".to_string(), descending=false, **kwargs))]
+    fn r#loop(
+        &mut self,
+        count: u32,
+        variable: String,
+        descending: bool,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Loop> {
+        let (mut l, ref_ids) = flow_options::wrap_in_conditions(kwargs, true, || {
+            Ok(Loop::new(count, variable, descending))
+        })?;
+        l.open_conditions = ref_ids;
+        Ok(l)
     }
 
     /// Set the given flow flag, or clear it when state is false
@@ -204,29 +224,6 @@ impl PyInterface {
     fn set_variable(&mut self, name: String, value: String) -> PyResult<()> {
         flow_api::set_variable(name, value, src_caller_meta())?;
         Ok(())
-    }
-
-    /// Repeat the content of the returned context manager block count times
-    #[pyo3(signature=(count, variable="index".to_string(), descending=false))]
-    fn loop_block(
-        &mut self,
-        count: u32,
-        variable: String,
-        descending: bool,
-    ) -> PyResult<LoopBlock> {
-        Ok(LoopBlock::new(count, variable, descending))
-    }
-
-    /// Generate the content of the returned context manager block only when the given tester
-    /// expression is true
-    fn if_expr(&mut self, expression: String) -> PyResult<Condition> {
-        Ok(Condition::new(FlowCondition::IfExpr(expression)))
-    }
-
-    /// Generate the content of the returned context manager block only when the given tester
-    /// expression is false
-    fn unless_expr(&mut self, expression: String) -> PyResult<Condition> {
-        Ok(Condition::new(FlowCondition::UnlessExpr(expression)))
     }
 
     fn resources(&mut self) -> PyResult<Resources> {
@@ -354,6 +351,26 @@ impl PyInterface {
     fn unless_flag(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessFlag(v))),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
+        }
+    }
+
+    /// Generates the content of the returned context manager only when the given tester
+    /// expression is true
+    #[pyo3(signature=(expression, **_kwargs))]
+    fn if_expr(&mut self, expression: &PyAny, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
+        match flow_options::to_expression("if_expr", expression) {
+            Ok(v) => Ok(Condition::new(FlowCondition::IfExpr(v))),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
+        }
+    }
+
+    /// Generates the content of the returned context manager only when the given tester
+    /// expression is false
+    #[pyo3(signature=(expression, **_kwargs))]
+    fn unless_expr(&mut self, expression: &PyAny, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
+        match flow_options::to_expression("unless_expr", expression) {
+            Ok(v) => Ok(Condition::new(FlowCondition::UnlessExpr(v))),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
