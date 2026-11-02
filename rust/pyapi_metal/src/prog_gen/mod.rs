@@ -1,6 +1,6 @@
 mod condition;
-mod flow_options;
 mod flow_loop;
+mod flow_options;
 mod group;
 pub mod interface;
 mod pattern_group;
