@@ -180,21 +180,37 @@ pub fn process_flow(
     //flow.to_file("unprocessed_ast.txt")?;
     let mut ast = flow.process(&mut |n| processors::target_tester::run(n, tester))?;
 
-    if validate {
-        log_debug!("Validating flow for tester {:?}", tester);
-        validators::duplicate_ids::run(&ast)?;
-        validators::missing_ids::run(&ast)?;
-        validators::jobs::run(&ast)?;
-        validators::flags::run(&ast)?;
-        log_debug!("Flow validation completed successfully");
-    }
-
     // This should be run at the very start after the AST has been validated, it removes all define test
-    // and attribute nodes
+    // and attribute nodes.
+    // The validators only read the flow, they check it on another thread while the model is
+    // extracted, which reads it too. A validation error is returned as before, ahead of any
+    // error from the extraction.
     let mut m;
-    log_debug!("Extracting initial model from flow for tester {:?}", tester);
-    //ast.to_file("pre_initial_model_extract_ast.txt")?;
-    (ast, m) = processors::initial_model_extract::run(&ast, tester, model)?;
+    let extracted: crate::Result<(Node<PGM>, Model)> = if validate {
+        log_debug!("Validating flow for tester {:?}", tester);
+        let (validated, extracted) = std::thread::scope(|scope| {
+            let validation = scope.spawn(|| -> crate::Result<()> {
+                validators::duplicate_ids::run(&ast)?;
+                validators::missing_ids::run(&ast)?;
+                validators::jobs::run(&ast)?;
+                validators::flags::run(&ast)
+            });
+            log_debug!("Extracting initial model from flow for tester {:?}", tester);
+            let extracted = processors::initial_model_extract::run(&ast, tester, model);
+            match validation.join() {
+                Ok(validated) => (validated, extracted),
+                Err(panic) => std::panic::resume_unwind(panic),
+            }
+        });
+        validated?;
+        log_debug!("Flow validation completed successfully");
+        extracted
+    } else {
+        log_debug!("Extracting initial model from flow for tester {:?}", tester);
+        //ast.to_file("pre_initial_model_extract_ast.txt")?;
+        processors::initial_model_extract::run(&ast, tester, model)
+    };
+    (ast, m) = extracted?;
 
     //ast.to_file("unprocesed_ast.txt")?;
     log_debug!("Processing flow for tester {:?}", tester);
