@@ -35,7 +35,8 @@ use crate::Result;
 ///
 pub struct Condition {
     volatiles: Vec<String>,
-    conditions_to_remove: Vec<Node<PGM>>,
+    /// The conditions to remove from nested nodes, only their attributes are compared
+    conditions_to_remove: Vec<PGM>,
 }
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
@@ -64,14 +65,13 @@ impl Processor<PGM> for Condition {
                     if self
                         .conditions_to_remove
                         .iter()
-                        .any(|n| n.attrs == node.attrs)
+                        .any(|attrs| *attrs == node.attrs)
                     {
                         let children = node.process_and_box_children(self)?;
                         Return::InlineBoxed(self.optimize(children)?)
                     } else {
                         // Remove any nested occurences of this same group
-                        self.conditions_to_remove
-                            .push(node.updated(None, Some(vec![]), None));
+                        self.conditions_to_remove.push(node.attrs.clone());
                         let children = node.process_and_box_children(self)?;
                         self.conditions_to_remove.pop();
                         Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
@@ -93,14 +93,13 @@ impl Processor<PGM> for Condition {
                     if self
                         .conditions_to_remove
                         .iter()
-                        .any(|n| n.attrs == node.attrs)
+                        .any(|attrs| *attrs == node.attrs)
                     {
                         let children = node.process_and_box_children(self)?;
                         Return::InlineBoxed(self.optimize(children)?)
                     } else {
                         // Remove any nested occurences of this same group
-                        self.conditions_to_remove
-                            .push(node.updated(None, Some(vec![]), None));
+                        self.conditions_to_remove.push(node.attrs.clone());
                         let children = node.process_and_box_children(self)?;
                         self.conditions_to_remove.pop();
                         Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
@@ -137,10 +136,10 @@ impl Condition {
 
     fn can_be_combined(&mut self, node1: &Box<Node<PGM>>, node2: &Box<Node<PGM>>) -> bool {
         if is_condition_node(node1) && is_condition_node(node2) {
-            let n2_conditions = self.conditions(node2);
-            self.conditions(node1)
+            let n2_conditions = self.condition_attrs(node2);
+            self.condition_attrs(node1)
                 .iter()
-                .any(|n| n2_conditions.iter().any(|n2| n.attrs == n2.attrs))
+                .any(|n| n2_conditions.iter().any(|n2| n == n2))
         } else {
             false
         }
@@ -148,11 +147,13 @@ impl Condition {
 
     fn combine(&mut self, node1: Box<Node<PGM>>, node2: Box<Node<PGM>>) -> Result<Box<Node<PGM>>> {
         let mut n1_conditions = self.conditions(&node1);
-        let n2_conditions = self.conditions(&node2);
-        n1_conditions.retain(|n1| n2_conditions.iter().any(|n2| n1.attrs == n2.attrs));
+        {
+            let n2_conditions = self.condition_attrs(&node2);
+            n1_conditions.retain(|n1| n2_conditions.iter().any(|n2| n1.attrs == **n2));
+        }
         let n = n1_conditions.len();
         for node in &n1_conditions {
-            self.conditions_to_remove.push(node.to_owned());
+            self.conditions_to_remove.push(node.attrs.clone());
         }
         let node1 = node1.process(self)?.unwrap();
         let node2 = node2.process(self)?.unwrap();
@@ -208,6 +209,49 @@ impl Condition {
             _ => {}
         }
         results
+    }
+
+    /// The attributes of `conditions()`, without copying the nodes
+    fn condition_attrs<'a>(&self, node: &'a Box<Node<PGM>>) -> Vec<&'a PGM> {
+        let mut results = vec![];
+        self.collect_condition_attrs(node, &mut results);
+        results
+    }
+
+    fn collect_condition_attrs<'a>(&self, node: &'a Box<Node<PGM>>, results: &mut Vec<&'a PGM>) {
+        match &node.attrs {
+            PGM::Condition(cond) => match cond {
+                FlowCondition::IfEnable(flags)
+                | FlowCondition::UnlessEnable(flags)
+                | FlowCondition::IfFlag(flags)
+                | FlowCondition::UnlessFlag(flags) => {
+                    let flag = &flags[0];
+                    if !self.volatiles.contains(flag) {
+                        results.push(&node.attrs);
+                        // If potentially another condition is a direct child
+                        if node.children.len() == 1 {
+                            self.collect_condition_attrs(node.children.first().unwrap(), results);
+                        }
+                    }
+                }
+                _ => {
+                    results.push(&node.attrs);
+                    // If potentially another condition is a direct child
+                    if node.children.len() == 1 {
+                        self.collect_condition_attrs(node.children.first().unwrap(), results);
+                    }
+                }
+            },
+            PGM::Group(_, _, kind, _) => {
+                if matches!(kind, GroupType::Flow) {
+                    results.push(&node.attrs);
+                    if node.children.len() == 1 {
+                        self.collect_condition_attrs(node.children.first().unwrap(), results);
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }
 
