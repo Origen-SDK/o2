@@ -16,7 +16,7 @@ pub fn run(node: &Node<PGM>) -> Result<()> {
         conflicting: vec![],
         volatile_flags: vec![],
     };
-    let _ = node.process(&mut p)?;
+    node.walk(&mut p)?;
 
     let mut msg = "".to_string();
 
@@ -60,7 +60,7 @@ impl Processor<PGM> for Flags {
                             }
                         }
                         self.open_if.push(node.without_children());
-                        let _ = node.process_children(self)?;
+                        node.walk_children(self)?;
                         self.open_if.pop();
                         Return::None
                     }
@@ -80,7 +80,7 @@ impl Processor<PGM> for Flags {
                             }
                         }
                         self.open_unless.push(node.without_children());
-                        let _ = node.process_children(self)?;
+                        node.walk_children(self)?;
                         self.open_unless.pop();
                         Return::None
                     }
@@ -89,9 +89,5 @@ impl Processor<PGM> for Flags {
             },
             _ => Return::ProcessChildren,
         })
-    }
-
-    fn on_processed_node(&mut self, _node: &Node<PGM>) -> crate::Result<Return<PGM>> {
-        Ok(Return::None)
     }
 }

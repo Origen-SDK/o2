@@ -660,7 +660,7 @@ impl Processor<PGM> for FlowGenerator {
                 self.name = name.to_owned();
                 self.model.select_flow(name)?;
                 let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                    fdata.clone()
+                    (**fdata).clone()
                 } else {
                     FlowData::default()
                 };
@@ -692,7 +692,7 @@ impl Processor<PGM> for FlowGenerator {
             PGM::SubFlow(name, _fid) => {
                 log_debug!("Rendering sub-flow '{}'", name);
                 let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                    fdata.clone()
+                    (**fdata).clone()
                 } else {
                     FlowData::default()
                 };
@@ -728,7 +728,7 @@ impl Processor<PGM> for FlowGenerator {
                 if kind == &GroupType::Flow {
                     log_debug!("Rendering group '{}'", name);
                     let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                        fdata.clone()
+                        (**fdata).clone()
                     } else {
                         FlowData::default()
                     };

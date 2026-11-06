@@ -109,7 +109,8 @@ pub enum PGM {
     /// Select the output name for one IG-XL worksheet family.
     IGXLResourcesFilename(crate::prog_gen::IGXLResourceKind, String),
 
-    FlowData(FlowData),
+    /// Boxed to keep every AST node small (FlowData is several hundred bytes, PGM is stored in every node)
+    FlowData(Box<FlowData>),
 
     /// A typed data variable declaration: (name, type_name, initial_value).
     /// Used for declaring local or global variables in any tester format that supports them

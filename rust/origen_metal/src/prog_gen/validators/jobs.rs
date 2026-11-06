@@ -14,7 +14,7 @@ pub fn run(node: &Node<PGM>) -> Result<()> {
         conflicting: vec![],
         stack: vec![],
     };
-    let _ = node.process(&mut p)?;
+    node.walk(&mut p)?;
 
     let mut failed = false;
     let mut msg = "".to_string();
@@ -91,7 +91,7 @@ impl Processor<PGM> for Jobs {
                         ));
                     } else {
                         self.stack.push((node.without_children(), state));
-                        let _ = node.process_children(self)?;
+                        node.walk_children(self)?;
                         self.stack.pop();
                     }
                     Return::None
@@ -100,9 +100,5 @@ impl Processor<PGM> for Jobs {
             },
             _ => Return::ProcessChildren,
         })
-    }
-
-    fn on_processed_node(&mut self, _node: &Node<PGM>) -> crate::Result<Return<PGM>> {
-        Ok(Return::None)
     }
 }

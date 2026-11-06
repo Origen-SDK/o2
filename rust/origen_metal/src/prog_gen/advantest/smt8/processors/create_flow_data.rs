@@ -122,9 +122,12 @@ impl Processor<PGM> for Collector {
                 });
                 let orig = self.processing_subflow;
                 self.processing_subflow = true;
-                let n = node.process_and_update_children(self)?;
+                let children = node.process_and_box_children(self)?;
                 self.processing_subflow = orig;
-                return Ok(Return::Replace(n));
+                // The flow's data, collected from its children, is its first child. This is
+                // done here, rather than once the node has been processed, to build the new
+                // node from the processed children without cloning them
+                return Ok(Return::Replace(self.with_flow_data(node, children)));
             }
             PGM::Group(_, _, kind, _) => {
                 if kind == &GroupType::Flow {
@@ -134,9 +137,12 @@ impl Processor<PGM> for Collector {
                 }
                 let orig = self.processing_subflow;
                 self.processing_subflow = true;
-                let n = node.process_and_update_children(self)?;
+                let children = node.process_and_box_children(self)?;
                 self.processing_subflow = orig;
-                return Ok(Return::Replace(n));
+                if kind == &GroupType::Flow {
+                    return Ok(Return::Replace(self.with_flow_data(node, children)));
+                }
+                return Ok(Return::Replace(node.replace_children(children)));
             }
             PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
                 let orig = self.processing_subflow;
@@ -208,27 +214,17 @@ impl Processor<PGM> for Collector {
         }
         Ok(Return::ProcessChildren)
     }
+}
 
-    fn on_processed_node(&mut self, node: &Node<PGM>) -> Result<Return<PGM>> {
-        match &node.attrs {
-            PGM::Flow(_) | PGM::SubFlow(_, _) => {
-                let fdata = self.flows.pop().unwrap();
-                let mut children = vec![Box::new(node!(PGM::FlowData, fdata))];
-                children.extend(node.children.clone());
-                Ok(Return::Replace(node.updated(None, Some(children), None)))
-            }
-            PGM::Group(_, _, kind, _) => {
-                if kind == &GroupType::Flow {
-                    let fdata = self.flows.pop().unwrap();
-                    let mut children = vec![Box::new(node!(PGM::FlowData, fdata))];
-                    children.extend(node.children.clone());
-                    Ok(Return::Replace(node.updated(None, Some(children), None)))
-                } else {
-                    Ok(Return::Unmodified)
-                }
-            }
-            _ => Ok(Return::Unmodified),
-        }
+impl Collector {
+    /// Returns a copy of the given flow node with the given (processed) children, preceded by
+    /// the flow's data
+    fn with_flow_data(&mut self, node: &Node<PGM>, children: Vec<Box<Node<PGM>>>) -> Node<PGM> {
+        let fdata = self.flows.pop().unwrap();
+        let mut new_children = Vec::with_capacity(children.len() + 1);
+        new_children.push(Box::new(node!(PGM::FlowData, Box::new(fdata))));
+        new_children.extend(children);
+        node.updated(None, Some(new_children), None)
     }
 }
 
@@ -239,52 +235,27 @@ pub struct PassthroughCollector {
 
 impl Processor<PGM> for PassthroughCollector {
     fn on_node(&mut self, node: &Node<PGM>) -> Result<Return<PGM>> {
-        match &node.attrs {
-            PGM::Flow(_) | PGM::SubFlow(_, _) => {
-                if let Some(first_child) = node.children.first() {
-                    if let PGM::FlowData(fdata) = &first_child.attrs {
-                        self.flow_stack.push(fdata.clone());
-                    }
-                }
-            }
-            PGM::Group(_, _, kind, _) => {
-                if kind == &GroupType::Flow {
-                    if let Some(first_child) = node.children.first() {
-                        if let PGM::FlowData(fdata) = &first_child.attrs {
-                            self.flow_stack.push(fdata.clone());
-                        }
-                    }
-                }
-            }
-            _ => {}
+        let is_flow = match &node.attrs {
+            PGM::Flow(_) | PGM::SubFlow(_, _) => true,
+            PGM::Group(_, _, kind, _) => kind == &GroupType::Flow,
+            _ => false,
+        };
+        if !is_flow {
+            return Ok(Return::ProcessChildren);
         }
-        Ok(Return::ProcessChildren)
-    }
-
-    fn on_processed_node(&mut self, node: &Node<PGM>) -> Result<Return<PGM>> {
-        match &node.attrs {
-            PGM::Flow(_) | PGM::SubFlow(_, _) => {
-                let flow_data = self.finalize_flow_data();
-
-                let mut children = node.children.clone();
-                children.remove(0);
-                children.insert(0, Box::new(node!(PGM::FlowData, flow_data)));
-                Ok(Return::Replace(node.updated(None, Some(children), None)))
+        if let Some(first_child) = node.children.first() {
+            if let PGM::FlowData(fdata) = &first_child.attrs {
+                self.flow_stack.push((**fdata).clone());
             }
-            PGM::Group(_, _, kind, _) => {
-                if kind == &GroupType::Flow {
-                    let flow_data = self.finalize_flow_data();
-
-                    let mut children = node.children.clone();
-                    children.remove(0);
-                    children.insert(0, Box::new(node!(PGM::FlowData, flow_data)));
-                    Ok(Return::Replace(node.updated(None, Some(children), None)))
-                } else {
-                    Ok(Return::Unmodified)
-                }
-            }
-            _ => Ok(Return::Unmodified),
         }
+        // The flow's finalized data replaces its first child once its children have been
+        // processed, the new node is built here from the processed children without cloning
+        // them
+        let mut children = node.process_and_box_children(self)?;
+        let flow_data = self.finalize_flow_data();
+        children.remove(0);
+        children.insert(0, Box::new(node!(PGM::FlowData, Box::new(flow_data))));
+        Ok(Return::Replace(node.updated(None, Some(children), None)))
     }
 }
 
