@@ -266,9 +266,9 @@ impl<'a> GraphBuilder<'a> {
 
 fn parameter_details(scope: &str, prefix: &str, test: &Test) -> Vec<ParameterDetails> {
     let mut parameters = Vec::new();
-    for (name, kind) in &test.params {
+    for (name, kind) in &test.definition.params {
         let value = test.values.get(name);
-        let default = test.default_values.get(name);
+        let default = test.definition.default_values.get(name);
         let configured = match (value, default) {
             (Some(value), Some(default)) => value != default,
             (Some(_), None) => true,
@@ -285,8 +285,9 @@ fn parameter_details(scope: &str, prefix: &str, test: &Test) -> Vec<ParameterDet
             },
             default: default.map(parameter_value),
             configured,
-            aliases: aliases_for(name, &test.aliases),
+            aliases: aliases_for(name, &test.definition.aliases),
             constraints: test
+                .definition
                 .constraints
                 .get(name)
                 .map(|constraints| {
@@ -298,7 +299,7 @@ fn parameter_details(scope: &str, prefix: &str, test: &Test) -> Vec<ParameterDet
                 .unwrap_or_default(),
         });
     }
-    for (collection_name, collection) in &test.collection_defs {
+    for (collection_name, collection) in &test.definition.collection_defs {
         collect_collection_parameters(
             scope,
             &join_path(prefix, collection_name),
@@ -1100,9 +1101,11 @@ mod tests {
         method.template_name = Some("continuity".to_string());
         method.class_name = Some("dc_tml.Continuity".to_string());
         method
+            .definition_mut()
             .params
             .insert("forceCurrent".to_string(), ParamType::Current);
         method
+            .definition_mut()
             .default_values
             .insert("forceCurrent".to_string(), ParamValue::Current(0.0001));
         method
@@ -1191,7 +1194,7 @@ mod tests {
         let test = &model.tests[&1];
         assert_eq!(test.template_library.as_deref(), Some("dc_tml"));
         assert_eq!(test.template_name.as_deref(), Some("continuity"));
-        assert!(!test.params.is_empty());
+        assert!(!test.definition.params.is_empty());
         let ast = Node::new_with_children(
             PGM::Flow("main".to_string()),
             vec![Node::new(PGM::Test(1, FlowID::from_str("continuity")))],

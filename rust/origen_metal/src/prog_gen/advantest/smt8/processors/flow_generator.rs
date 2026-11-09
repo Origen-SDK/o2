@@ -630,7 +630,7 @@ impl FlowGenerator {
                     &mut f,
                     3,
                     &test.values,
-                    &test.default_values,
+                    &test.definition.default_values,
                     &test.collections,
                 )?;
                 writeln!(&mut f, "        }}")?;

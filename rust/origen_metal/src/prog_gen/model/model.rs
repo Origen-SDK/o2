@@ -528,7 +528,11 @@ impl Model {
 
         let item = if self.tests.contains_key(&parent_id) {
             let test = self.tests.get_mut(&parent_id).unwrap();
-            let schema = test.collection_defs.get(collection_name).cloned();
+            let schema = test
+                .definition
+                .collection_defs
+                .get(collection_name)
+                .cloned();
             let item = match schema {
                 Some(schema) => {
                     TestCollectionItem::from_collection(item_id, parent_id, instance_id, &schema)
