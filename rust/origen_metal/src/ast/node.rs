@@ -114,21 +114,40 @@ impl<T: Attrs> Node<T> {
     /// validator. A node's children are visited, in order, when on_node returns
     /// ProcessChildren, UnwrapWithProcessedChildren or InlineWithProcessedChildren, whatever it
     /// returns is otherwise ignored. on_end_of_block and on_processed_node are not called.
+    /// The traversal is iterative, so the depth of the AST is not limited by the stack.
     pub fn walk(&self, processor: &mut dyn Processor<T>) -> Result<()> {
-        match processor.on_node(self)? {
-            Return::ProcessChildren
-            | Return::UnwrapWithProcessedChildren
-            | Return::InlineWithProcessedChildren(_) => self.walk_children(processor),
-            _ => Ok(()),
+        if Self::walk_descends(processor.on_node(self)?) {
+            self.walk_children(processor)?;
         }
+        Ok(())
     }
 
     /// Visits the node's children with walk()
     pub fn walk_children(&self, processor: &mut dyn Processor<T>) -> Result<()> {
-        for child in &self.children {
-            child.walk(processor)?;
+        let mut stack = vec![self.children.iter()];
+        while let Some(children) = stack.last_mut() {
+            match children.next() {
+                Some(child) => {
+                    if Self::walk_descends(processor.on_node(child)?) {
+                        stack.push(child.children.iter());
+                    }
+                }
+                None => {
+                    stack.pop();
+                }
+            }
         }
         Ok(())
+    }
+
+    /// Whether walk() visits the children of a node for the given on_node return
+    fn walk_descends(r: Return<T>) -> bool {
+        matches!(
+            r,
+            Return::ProcessChildren
+                | Return::UnwrapWithProcessedChildren
+                | Return::InlineWithProcessedChildren(_)
+        )
     }
 
     /// Processes the given handler's return code for this node. When `first` is given, it is used as
@@ -707,6 +726,30 @@ mod tests {
         assert_eq!(walked.on_node, processed.on_node);
         assert!(!walked.on_node.contains(&"Leaf(4)".to_string()));
         assert!(walked.on_processed_node.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn walk_is_not_limited_by_the_stack() -> Result<()> {
+        let depth = 100_000;
+        let mut deepest = node!(T::Leaf, 0);
+        for _ in 0..depth {
+            deepest = node!(T::Group, "g".to_string() => deepest);
+        }
+        // A thread with a small stack, a recursive walk overflows it
+        let visited = std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(move || -> Result<usize> {
+                let mut p = Recorder::default();
+                deepest.walk(&mut p)?;
+                // Dropping the AST is recursive, keep it out of this thread
+                std::mem::forget(deepest);
+                Ok(p.on_node.len())
+            })
+            .unwrap()
+            .join()
+            .unwrap()?;
+        assert_eq!(visited, depth + 1);
         Ok(())
     }
 }

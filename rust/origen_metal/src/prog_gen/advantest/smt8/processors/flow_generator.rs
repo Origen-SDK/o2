@@ -13,15 +13,21 @@ use std::thread::JoinHandle;
 
 /// Writes the flow files on another thread while the flows are generated, creating their
 /// directories: file system operations, creating a directory in particular, can be slow
-/// compared to generating a file's contents
+/// compared to generating a file's contents. The queue of files is bounded, so a slow file
+/// system holds up the generation instead of the files accumulating in memory. When dropped
+/// without finish(), e.g. when the generation panics, it still waits for the queued files, so
+/// none is written after the generation has returned.
 struct FileWriter {
-    sender: Option<mpsc::Sender<(PathBuf, Vec<u8>)>>,
+    sender: Option<mpsc::SyncSender<(PathBuf, Vec<u8>)>>,
     thread: Option<JoinHandle<std::io::Result<()>>>,
 }
 
 impl FileWriter {
+    /// The number of files which can be waiting to be written
+    const QUEUE_LENGTH: usize = 64;
+
     fn new() -> Self {
-        let (sender, receiver) = mpsc::channel::<(PathBuf, Vec<u8>)>();
+        let (sender, receiver) = mpsc::sync_channel::<(PathBuf, Vec<u8>)>(Self::QUEUE_LENGTH);
         let thread = std::thread::spawn(move || -> std::io::Result<()> {
             let mut directories: HashSet<PathBuf> = HashSet::new();
             for (path, contents) in receiver {
@@ -61,6 +67,16 @@ impl FileWriter {
             }
         }
         Ok(())
+    }
+}
+
+impl Drop for FileWriter {
+    fn drop(&mut self) {
+        self.sender = None;
+        if let Some(thread) = self.thread.take() {
+            // Only reached without finish(), which returns the outcome
+            let _ = thread.join();
+        }
     }
 }
 
@@ -1247,6 +1263,68 @@ mod tests {
         assert!(!dir.path().join("LATER.flow").exists());
         // Finishing again is fine
         writer.finish()?;
+        Ok(())
+    }
+
+    /// Makes a FIFO, a write to it is held up until it is read
+    #[cfg(unix)]
+    fn fifo(path: &std::path::Path) {
+        assert!(std::process::Command::new("mkfifo")
+            .arg(path)
+            .status()
+            .unwrap()
+            .success());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_held_up_file_system_holds_up_the_generation() -> crate::Result<()> {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let dir = tempdir()?;
+        let gate = dir.path().join("GATE.flow");
+        fifo(&gate);
+        let queued = AtomicBool::new(false);
+        std::thread::scope(|scope| -> crate::Result<()> {
+            let generation = scope.spawn(|| -> crate::Result<()> {
+                let mut writer = FileWriter::new();
+                writer.write(gate.clone(), b"gate\n".to_vec());
+                for i in 0..FileWriter::QUEUE_LENGTH + 2 {
+                    writer.write(dir.path().join(format!("{}.flow", i)), vec![]);
+                }
+                queued.store(true, Ordering::SeqCst);
+                writer.finish()
+            });
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            let queued_while_held_up = queued.load(Ordering::SeqCst);
+            assert_eq!(fs::read_to_string(&gate)?, "gate\n");
+            generation.join().unwrap()?;
+            assert!(!queued_while_held_up);
+            assert!(queued.load(Ordering::SeqCst));
+            Ok(())
+        })
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_files_are_written_before_an_unfinished_writer_is_dropped() -> crate::Result<()> {
+        let dir = tempdir()?;
+        let gate = dir.path().join("GATE.flow");
+        fifo(&gate);
+        let late = dir.path().join("LATE.flow");
+        let reader = {
+            let gate = gate.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                fs::read(&gate).unwrap()
+            })
+        };
+        let writer = FileWriter::new();
+        writer.write(gate.clone(), b"gate\n".to_vec());
+        writer.write(late.clone(), b"late\n".to_vec());
+        // As when the generation panics
+        drop(writer);
+        assert!(late.exists());
+        assert_eq!(reader.join().unwrap(), b"gate\n");
         Ok(())
     }
 

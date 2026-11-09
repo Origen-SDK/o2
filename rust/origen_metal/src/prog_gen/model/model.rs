@@ -381,7 +381,7 @@ impl Model {
             None => Test::new(&name, id, tester.to_owned()),
         };
         if self.test_invocations.contains_key(&id) {
-            bail!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
+            bail!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.test_invocations[&id], &test)
         } else {
             self.test_invocations.insert(id, test);
             self.get_flow_mut(None).test_invocations.push(id);
