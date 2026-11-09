@@ -60,3 +60,5 @@ python/origen/origen/__bin__/bin/*
 !python/origen/origen/__bin__/bin/.keep
 python/origen_metal/__bin__/bin/*
 !python/origen_metal/__bin__/bin/.keep
+# Release note read by 'origen rc tag'
+/release_note.txt

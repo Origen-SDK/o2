@@ -48,32 +48,60 @@ To test local updates in an application, declare `python/origen_metal` as a
 
 ### Releasing Origen and Origen Metal
 
-`origen rc tag` is the release coordinator for both independently versioned
-products. Run it from the O2 repository root. It calculates versions, updates
-all Python and Rust manifests and lockfiles atomically, writes the canonical
-history entry, validates packages and documentation, commits and tags through
-the configured revision-control driver, and dispatches the exact-tag GitHub
-Actions publication workflow. The website is deployed only after every
-selected package has been published successfully.
+GitHub Actions tests, builds, and publishes releases, and deploys the website.
+Nothing is built or tested locally. Locally, you write the release note and run
+`origen rc tag`, which:
 
-Always preview first; this changes no files or external state:
+1. checks that the "Regression Tests" run for the `master` HEAD passed,
+   waiting for it if it is still running;
+2. bumps the versions in the Python and Rust manifests and lockfiles, and adds
+   the release note to the product's release history
+   (`python/origen/doc/history` or `python/origen/doc/metal/history`);
+3. commits that, tags it (e.g. `origen-metal-v1.8.0`), and pushes both;
+4. starts the release workflow, which publishes the tag to PyPI (and
+   crates.io for Origen Metal) and then deploys the website.
+
+Before you start, you need:
+
+- the `origen` CLI built from this repository (see above) and
+  [uv](https://docs.astral.sh/uv/) 0.12.5 or newer, which updates the lockfiles;
+- a clean checkout of `master` that is up to date with GitHub, and push access
+  to it with your normal Git setup;
+- a GitHub token that can run workflows in `Origen-SDK/o2`, in `github_pat`:
+  ```text
+  export github_pat=$(gh auth token)
+  ```
+  Add `--user <account>` to choose the GitHub CLI account that has access.
+
+Write the release note in `release_note.txt` in the repository root (Git
+ignores it). It is added to the history as Markdown, below a heading with the
+version, date, author and tag. Follow the style of the previous entries: a
+one-sentence summary, then one bullet per change crediting the author and pull
+request, e.g. `Contributed by Jane Doe in #123.`
+
+Then run, from the repository root:
 
 ```text
-origen rc tag --product origen-metal --type minor --dry-run
-origen rc tag --product origen --origen-type development \
-  --product origen-metal --metal-type minor --dry-run
+origen rc tag --product origen-metal --type minor
 ```
 
-For a local, reviewable preparation that may update files but never commits,
-tags, pushes, publishes, or deploys, use `--local`. Normal interactive releases
-can omit `--type`; the CLI prompts for development, patch, minor, major,
-production, or current. Do not manually bump manifests or directly dispatch
-`publish.yml`/`publish_metal.yml`; those workflows are exact-ref publication
-backends rather than release coordinators.
+Use `--product origen` for Origen, or `--product origen --origen-type <type>
+--product origen-metal --metal-type <type>` to release both. The types are
+`development`, `patch`, `minor`, `major`, `production`, and `current` (release
+the version already in the manifests). The command shows the release plan and
+asks for confirmation before changing anything. It prints the URL of the
+release workflow once it has started it, and `--wait` makes it wait for that
+workflow to finish.
 
-Canonical release notes live in `python/origen/doc/history` and
-`python/origen/doc/metal/history` and are rendered into the website. See the
+If it stops before committing, its file changes are undone, so fix the problem
+and run it again. If it stops after that, continue with the release ID it
+printed; finished steps are skipped:
+
+```text
+origen rc tag --resume origen-metal-v1.8.0
+```
+
+Do not bump versions by hand or run `publish.yml`/`publish_metal.yml`
+directly. See the
 [complete release guide](https://origen-sdk.org/o2/guides/developers/releasing_origen.html)
-for combined releases, non-interactive automation, credentials, recovery, and
-verification. `origen web build --release` remains available for a docs-only
-deployment outside a product release.
+for more detail.

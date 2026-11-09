@@ -114,15 +114,16 @@ recovery operation proves the release is identical.
 3. Require the configured regression workflow (`release.regression_workflow`)
    to have passed on the pushed release-branch HEAD, waiting for a run that has
    not finished. The tests are not repeated locally: the release commit only
-   changes versions, lockfiles, and histories on top of that commit. Package
-   validation and a strict full documentation build still run locally on the
-   prepared release.
+   changes versions, lockfiles, and histories on top of that commit. Nothing is
+   built locally either; the publication workflows build and validate every
+   package and the website from the exact tag.
 4. Update every Python and Rust manifest for the selected product. Update
    Origen's Metal dependency only when the selected release plan requires it.
-5. Prepend each selected product's history and rebuild documentation.
+5. Prepend each selected product's history.
 6. Present the final diff and request confirmation.
-7. Commit version and history files atomically through the configured RC
-   driver, then create and push product-qualified tags.
+7. Commit version and history files atomically with the `git` CLI, so the
+   maintainer's own Git setup is used, then create and push product-qualified
+   tags.
 8. Dispatch the configured publication workflow with the exact tag and expected
    version, monitor it, and verify registry publication.
 9. Deploy the already validated website only after all selected publications

@@ -7,7 +7,6 @@ use origen_metal::dialoguer::{Confirm, Input, Select};
 use origen_metal::utils::crates_io::is_crate_version_available;
 use origen_metal::utils::pypi::is_package_version_available;
 use origen_metal::utils::revision_control::supported::git;
-use origen_metal::utils::revision_control::RevisionControlAPI;
 use origen_metal::utils::version::{ReleaseType, Version, VersionWithTOML};
 use pep440_rs::{Version as Pep440Version, VersionSpecifiers};
 use serde::{Deserialize, Serialize};
@@ -33,6 +32,8 @@ const RELEASE_TYPES: [&str; 6] = [
 // commit: 240 polls of 30 seconds, i.e. 2 hours.
 const CI_POLL_INTERVAL: Duration = Duration::from_secs(30);
 const CI_POLLS: usize = 240;
+// The directory 'rc tag' was run from, kept when it re-enters itself from the core application
+const INVOKED_FROM_ENV: &str = "ORIGEN_RC_INVOKED_FROM";
 
 gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
@@ -124,7 +125,7 @@ trait ReleaseEffects {
 }
 
 struct ProductionEffects<'a> {
-    rc: &'a origen_metal::utils::revision_control::RevisionControl,
+    rc: &'a ReleaseGit,
     repo: &'a GithubRepository,
     release_branch: String,
     requests: Vec<PublishRequest>,
@@ -163,21 +164,17 @@ impl ReleaseEffects for ProductionEffects<'_> {
     }
 
     fn commit(&mut self) -> Result<()> {
-        let paths: Vec<&Path> = self.paths.iter().map(|p| p.as_path()).collect();
-        self.rc
-            .checkin(Some(paths), "Update versions and release histories", false)?;
-        Ok(())
+        self.rc.commit_and_push(
+            &self.paths,
+            "Update versions and release histories",
+            &self.release_branch,
+        )
     }
 
     fn tag(&mut self, request: &PublishRequest) -> Result<()> {
-        self.rc.tag(
+        self.rc.tag_and_push(
             &request.tag,
-            false,
-            Some(&format!(
-                "Release {} {}",
-                request.product.name(),
-                request.version
-            )),
+            &format!("Release {} {}", request.product.name(), request.version),
         )
     }
 
@@ -267,6 +264,161 @@ struct ReleaseState {
     #[serde(default)]
     workflow_url: Option<String>,
     requests: Vec<PublishRequest>,
+}
+
+/// The release's Git operations, run with the git CLI so that they work with
+/// whatever the maintainer's `git push` works with: SSH config host aliases,
+/// keys, agents, `insteadOf` rewrites, and credential helpers.
+struct ReleaseGit {
+    root: PathBuf,
+}
+
+impl ReleaseGit {
+    fn new(root: &Path) -> Self {
+        Self {
+            root: root.to_path_buf(),
+        }
+    }
+
+    fn run(&self, args: &[&str]) -> Result<String> {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(&self.root)
+            .output()
+            .map_err(|e| origen::Error::new(&format!("Could not run git: {}", e)))?;
+        if !output.status.success() {
+            bail!(
+                "'git {}' failed: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+
+    /// The origin URL as git resolves it, with an SSH host alias replaced by its real host name
+    fn remote_url(&self) -> Result<String> {
+        Ok(resolve_ssh_host_alias(
+            &self.run(&["remote", "get-url", "origin"])?,
+        ))
+    }
+
+    fn current_branch(&self) -> Result<String> {
+        self.run(&["symbolic-ref", "--short", "HEAD"])
+            .map_err(|_| origen::Error::new("Git workspace is not on a branch"))
+    }
+
+    fn is_modified(&self) -> Result<bool> {
+        Ok(!self
+            .run(&["status", "--porcelain", "--untracked-files=no"])?
+            .is_empty())
+    }
+
+    /// The local HEAD commit and the commit of the branch on origin
+    fn head_and_upstream(&self, branch: &str) -> Result<(String, String)> {
+        let head = self.run(&["rev-parse", "HEAD"])?;
+        let upstream = self
+            .run(&["ls-remote", "origin", &format!("refs/heads/{}", branch)])?
+            .split_whitespace()
+            .next()
+            .map(|s| s.to_string())
+            .ok_or_else(|| {
+                origen::Error::new(&format!("Branch '{}' does not exist on origin", branch))
+            })?;
+        Ok((head, upstream))
+    }
+
+    fn local_tag_commit(&self, tag: &str) -> Option<String> {
+        self.run(&[
+            "rev-parse",
+            "-q",
+            "--verify",
+            &format!("refs/tags/{}^{{commit}}", tag),
+        ])
+        .ok()
+    }
+
+    fn tag_exists(&self, tag: &str) -> Result<bool> {
+        Ok(self.local_tag_commit(tag).is_some()
+            || !self
+                .run(&[
+                    "ls-remote",
+                    "--tags",
+                    "origin",
+                    &format!("refs/tags/{}", tag),
+                ])?
+                .is_empty())
+    }
+
+    /// Commits the given files, unless a resumed release already committed them, and pushes the branch
+    fn commit_and_push(&self, paths: &[PathBuf], message: &str, branch: &str) -> Result<()> {
+        let paths: Vec<String> = paths
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
+        let mut add = vec!["add", "--"];
+        add.extend(paths.iter().map(|p| p.as_str()));
+        self.run(&add)?;
+        if self.run(&["diff", "--cached", "--quiet"]).is_err() {
+            self.run(&["commit", "-m", message])?;
+        }
+        self.run(&["push", "origin", &format!("HEAD:refs/heads/{}", branch)])?;
+        Ok(())
+    }
+
+    /// Creates an annotated tag at HEAD, unless a resumed release already made it, and pushes it
+    fn tag_and_push(&self, tag: &str, message: &str) -> Result<()> {
+        let head = self.run(&["rev-parse", "HEAD"])?;
+        match self.local_tag_commit(tag) {
+            Some(commit) if commit == head => {}
+            Some(_) => bail!("Tag '{}' already exists at a different commit", tag),
+            None => {
+                self.run(&["tag", "-a", tag, "-m", message])?;
+            }
+        }
+        self.run(&["push", "origin", &format!("refs/tags/{}", tag)])?;
+        Ok(())
+    }
+}
+
+/// Replaces the host of an SSH remote (`user@host:path` or `ssh://user@host/path`)
+/// with the HostName that `ssh -G` resolves it to, e.g. `git@github-work:org/repo`
+/// becomes `git@github.com:org/repo`. Other URLs are returned unchanged.
+fn resolve_ssh_host_alias(url: &str) -> String {
+    let (prefix, rest) = match url.strip_prefix("ssh://") {
+        Some(rest) => ("ssh://", rest),
+        None if !url.contains("://") => ("", url),
+        None => return url.to_string(),
+    };
+    let separator = if prefix.is_empty() { ':' } else { '/' };
+    let Some((user_host, path)) = rest.split_once(separator) else {
+        return url.to_string();
+    };
+    let (user, host) = match user_host.rsplit_once('@') {
+        Some((user, host)) => (Some(user), host),
+        None => (None, user_host),
+    };
+    let resolved = Command::new("ssh")
+        .args(["-G", host])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .find_map(|l| l.strip_prefix("hostname ").map(|h| h.trim().to_string()))
+        });
+    match resolved {
+        Some(real) if real != host => format!(
+            "{}{}{}{}{}",
+            prefix,
+            user.map(|u| format!("{}@", u)).unwrap_or_default(),
+            real,
+            separator,
+            path
+        ),
+        _ => url.to_string(),
+    }
 }
 
 impl ReleaseState {
@@ -359,23 +511,22 @@ fn ci_status(runs: &[WorkflowRun]) -> CiStatus {
 /// The tests are not repeated locally: the release commit only changes
 /// versions, lockfiles, and release histories on top of this commit.
 fn validate_release_ci(
-    rc: &origen_metal::utils::revision_control::RevisionControl,
+    rc: &ReleaseGit,
     repo: &GithubRepository,
     release_branch: &str,
     workflow: &str,
 ) -> Result<()> {
-    let latest = rc.confirm_latest_ref(release_branch)?;
-    if !latest.0 {
+    let (sha, upstream) = rc.head_and_upstream(release_branch)?;
+    if sha != upstream {
         bail!(
             "Local HEAD {} does not match upstream {}; CI results only exist for pushed commits",
-            latest.1[0],
-            latest.1[1]
+            sha,
+            upstream
         )
     }
-    let sha = &latest.1[0];
     displayln!("Checking the '{}' CI run of commit {}", workflow, sha);
     for poll in 0..=CI_POLLS {
-        let runs = get_workflow_runs_for_commit(&repo.owner, &repo.name, workflow, sha)?;
+        let runs = get_workflow_runs_for_commit(&repo.owner, &repo.name, workflow, &sha)?;
         match ci_status(&runs) {
             CiStatus::Passed { url } => {
                 displayln!("CI passed: {}", url);
@@ -504,6 +655,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         let status = Command::new(std::env::current_exe()?)
             .args(std::env::args().skip(1))
             .current_dir(core_app)
+            .env(INVOKED_FROM_ENV, std::env::current_dir()?)
             .status()?;
         std::process::exit(status.code().unwrap_or(1));
     }
@@ -547,7 +699,8 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         .get("regression_workflow")
         .cloned()
         .ok_or_else(|| origen::Error::new("release.regression_workflow is required"))?;
-    let rc = app.rc()?;
+    let root = origen::STATUS.origen_wksp_root.clone();
+    let rc = ReleaseGit::new(&root);
     let actual_remote = rc.remote_url()?;
     if normalize_repository(&actual_remote) != normalize_repository(&configured_remote) {
         bail!(
@@ -556,7 +709,6 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             configured_remote
         )
     }
-    let root = origen::STATUS.origen_wksp_root.clone();
     if let Some(release_id) = args.get_one::<String>("status") {
         let state_path = app
             .root
@@ -644,8 +796,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         displayln!("Release '{}' resumed successfully", release_id);
         return Ok(());
     }
-    let status = rc.status(None)?;
-    if status.is_modified() && !*args.get_one::<bool>("allow-local-changes").unwrap() {
+    if rc.is_modified()? && !*args.get_one::<bool>("allow-local-changes").unwrap() {
         bail!("Workspace has local changes; commit/stash them or use --allow-local-changes for a local simulation")
     }
 
@@ -653,7 +804,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     if products.len() > 1 && args.get_one::<String>("type").is_some() {
         bail!("--type is only valid for a single-product release; combined releases use --origen-type and --metal-type")
     }
-    let note = release_note(args, non_interactive, &app.root)?;
+    let note = release_note(args, non_interactive, &root)?;
     let author = args
         .get_one::<String>("author")
         .cloned()
@@ -914,16 +1065,6 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     }
     touched.extend(release_lock_paths(&root, &requests));
     touched.extend(release_uv_lock_paths(&root)?);
-    if requests.iter().any(|r| r.product == Product::Origen) {
-        touched.push(
-            root.join("python/origen/origen/__bin__/bin")
-                .join(if cfg!(windows) {
-                    "origen.exe"
-                } else {
-                    "origen"
-                }),
-        );
-    }
     run_phase(&mut release_state, &state_path, "prepared", || {
         let backups = backup_files(&touched)?;
         let result: Result<()> = (|| {
@@ -959,17 +1100,10 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             }
             update_release_locks(&root, &requests)?;
             refresh_uv_locks(&root)?;
-            validate_prepared_artifacts(&root, &requests)?;
-            validate_prepared_documentation(&app.root)?;
             Ok(())
         })();
         if let Err(error) = result {
             restore_files(&backups)?;
-            run_checked(
-                Path::new("uv"),
-                &["sync", "--all-groups", "--no-editable"],
-                &root.join("python/origen"),
-            )?;
             bail!(
                 "Release preparation failed and all file changes were rolled back: {}",
                 error
@@ -1002,20 +1136,16 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
 }
 
 fn validate_remote_preflight(
-    rc: &origen_metal::utils::revision_control::RevisionControl,
+    rc: &ReleaseGit,
     release_branch: &str,
     requests: &[PublishRequest],
 ) -> Result<()> {
     if rc.current_branch()? != release_branch {
         bail!("Releases must run from branch '{}'", release_branch)
     }
-    let latest = rc.confirm_latest_ref(release_branch)?;
-    if !latest.0 {
-        bail!(
-            "Local HEAD {} does not match upstream {}",
-            latest.1[0],
-            latest.1[1]
-        )
+    let (head, upstream) = rc.head_and_upstream(release_branch)?;
+    if head != upstream {
+        bail!("Local HEAD {} does not match upstream {}", head, upstream)
     }
     for request in requests {
         if rc.tag_exists(&request.tag)? {
@@ -1206,74 +1336,6 @@ fn update_release_locks(root: &Path, requests: &[PublishRequest]) -> Result<()> 
     Ok(())
 }
 
-fn validate_prepared_documentation(app_root: &Path) -> Result<()> {
-    let executable = std::env::current_exe()?;
-    run_checked(
-        &executable,
-        &["web", "build", "--clean", "--as-release"],
-        app_root,
-    )
-}
-
-fn validate_prepared_artifacts(root: &Path, requests: &[PublishRequest]) -> Result<()> {
-    if requests.iter().any(|r| r.product == Product::Origen) {
-        run_checked(
-            Path::new("cargo"),
-            &[
-                "build",
-                "--manifest-path",
-                "rust/origen/cli/Cargo.toml",
-                "--release",
-                "--bin",
-                "origen",
-            ],
-            root,
-        )?;
-        let executable = if cfg!(windows) {
-            "origen.exe"
-        } else {
-            "origen"
-        };
-        let built_cli = root.join("rust/origen/target/release").join(executable);
-        let packaged_cli = root
-            .join("python/origen/origen/__bin__/bin")
-            .join(executable);
-        fs::copy(&built_cli, &packaged_cli).map_err(|e| {
-            origen::Error::new(&format!(
-                "Could not stage release CLI from {} to {}: {}",
-                built_cli.display(),
-                packaged_cli.display(),
-                e
-            ))
-        })?;
-        run_checked(
-            Path::new("uv"),
-            &["build", "--wheel"],
-            &root.join("python/origen"),
-        )?;
-    }
-    if requests.iter().any(|r| r.product == Product::Metal) {
-        run_checked(
-            Path::new("uv"),
-            &["build", "--wheel"],
-            &root.join("python/origen_metal"),
-        )?;
-        run_checked(
-            Path::new("cargo"),
-            &["publish", "--dry-run", "--locked", "--allow-dirty"],
-            &root.join("rust/origen_metal"),
-        )?;
-    }
-    // Refresh the environment used by the documentation command so imported
-    // package metadata and native modules match the proposed release versions.
-    run_checked(
-        Path::new("uv"),
-        &["sync", "--all-groups", "--no-editable"],
-        &root.join("python/origen"),
-    )?;
-    Ok(())
-}
-
 fn selected_products(args: &clap::ArgMatches, non_interactive: bool) -> Result<Vec<Product>> {
     if let Some(values) = args.get_many::<String>("product") {
         let mut products = Vec::new();
@@ -1332,15 +1394,23 @@ fn selected_release_type(
     Ok(RELEASE_TYPES[selected].to_string())
 }
 
-fn release_note(args: &clap::ArgMatches, non_interactive: bool, app_root: &Path) -> Result<String> {
+/// Reads the release note from --note, --file (relative to the directory the
+/// command was run from), or release_note.txt in the repository root, or prompts for it
+fn release_note(args: &clap::ArgMatches, non_interactive: bool, root: &Path) -> Result<String> {
     let note = if let Some(note) = args.get_one::<String>("note") {
         note.to_string()
     } else {
         let path = args
             .get_one::<String>("file")
-            .map(PathBuf::from)
+            .map(|file| {
+                let file = PathBuf::from(file);
+                match std::env::var_os(INVOKED_FROM_ENV) {
+                    Some(dir) if file.is_relative() => PathBuf::from(dir).join(file),
+                    _ => file,
+                }
+            })
             .or_else(|| {
-                let default = app_root.join("release_note.txt");
+                let default = root.join("release_note.txt");
                 if default.is_file() {
                     Some(default)
                 } else {
@@ -1348,7 +1418,13 @@ fn release_note(args: &clap::ArgMatches, non_interactive: bool, app_root: &Path)
                 }
             });
         if let Some(path) = path {
-            fs::read_to_string(path)?
+            fs::read_to_string(&path).map_err(|e| {
+                origen::Error::new(&format!(
+                    "Could not read release note {}: {}",
+                    path.display(),
+                    e
+                ))
+            })?
         } else if non_interactive {
             bail!("A release note is required in non-interactive mode (--note or --file)")
         } else {
@@ -1637,6 +1713,77 @@ mod tests {
     #[test]
     fn ci_status_is_missing_without_a_run() {
         assert_eq!(ci_status(&[]), CiStatus::Missing);
+    }
+
+    fn git_in(dir: &Path, args: &[&str]) -> Result<String> {
+        ReleaseGit::new(dir).run(args)
+    }
+
+    /// A clone of a local bare repository, on branch 'release' with one commit pushed
+    fn release_checkout(root: &Path) -> Result<PathBuf> {
+        let remote = root.join("remote.git");
+        let local = root.join("local");
+        fs::create_dir_all(&local)?;
+        git_in(root, &["init", "-q", "--bare", remote.to_str().unwrap()])?;
+        git_in(&local, &["init", "-q", "-b", "release"])?;
+        git_in(&local, &["config", "user.name", "Release Tester"])?;
+        git_in(&local, &["config", "user.email", "release@example.com"])?;
+        git_in(
+            &local,
+            &["remote", "add", "origin", remote.to_str().unwrap()],
+        )?;
+        fs::write(local.join("version"), "1.0.0\n")?;
+        git_in(&local, &["add", "version"])?;
+        git_in(&local, &["commit", "-q", "-m", "Initial"])?;
+        git_in(&local, &["push", "-q", "origin", "release"])?;
+        Ok(local)
+    }
+
+    #[test]
+    fn release_git_commits_tags_and_pushes_idempotently() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let local = release_checkout(root.path())?;
+        let git = ReleaseGit::new(&local);
+        assert_eq!(git.current_branch()?, "release");
+        assert!(!git.is_modified()?);
+        let (head, upstream) = git.head_and_upstream("release")?;
+        assert_eq!(head, upstream);
+        assert!(!git.tag_exists("v1.1.0")?);
+
+        fs::write(local.join("version"), "1.1.0\n")?;
+        fs::write(local.join("unrelated"), "not released\n")?;
+        assert!(git.is_modified()?);
+        let paths = [local.join("version")];
+        git.commit_and_push(&paths, "Release 1.1.0", "release")?;
+        // A resumed release finds nothing left to commit and pushes again
+        git.commit_and_push(&paths, "Release 1.1.0", "release")?;
+        assert_eq!(git.run(&["log", "--format=%s", "-1"])?, "Release 1.1.0");
+        assert_eq!(git.run(&["rev-list", "--count", "HEAD"])?, "2");
+        assert_eq!(git.run(&["status", "--porcelain"])?, "?? unrelated");
+        let (head, upstream) = git.head_and_upstream("release")?;
+        assert_eq!(head, upstream);
+
+        git.tag_and_push("v1.1.0", "Release 1.1.0")?;
+        git.tag_and_push("v1.1.0", "Release 1.1.0")?;
+        assert!(git.tag_exists("v1.1.0")?);
+        git.run(&["tag", "-d", "v1.1.0"])?;
+        // Found on the remote after the local tag is gone
+        assert!(git.tag_exists("v1.1.0")?);
+
+        git.run(&["tag", "-a", "v1.2.0", "-m", "Older", "HEAD~1"])?;
+        assert!(git.tag_and_push("v1.2.0", "Release 1.2.0").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn only_ssh_remotes_have_their_host_resolved() {
+        for url in [
+            "https://github.com/Origen-SDK/o2.git",
+            "/path/to/remote.git",
+            "file:///path/to/remote.git",
+        ] {
+            assert_eq!(resolve_ssh_host_alias(url), url);
+        }
     }
 
     #[test]

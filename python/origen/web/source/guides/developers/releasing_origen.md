@@ -20,17 +20,18 @@ curl -LsSf https://astral.sh/uv/0.12.5/install.sh | sh
 uv --version
 ```
 
-Configure your Git identity and export a GitHub token for the short local
-commit, tag, and workflow-dispatch phase:
+Configure your Git identity and export a GitHub token that can run workflows in
+`Origen-SDK/o2`, used to check CI and start the release workflow:
 
 ```console
 git config user.name "Your Name"
 git config user.email "you@example.com"
-export github_pat=...
+export github_pat=$(gh auth token)
 ```
 
-Set `ORIGEN_GIT_SSH_KEY` when the checkout uses SSH and more than one GitHub
-identity exists locally. The release workflow itself uses the
+Commits, tags, and pushes are made with the `git` command, so they use your
+normal Git setup, including SSH host aliases and keys. The release workflow
+itself uses the
 `O2_RELEASE_APP_ID` and `O2_RELEASE_APP_PRIVATE_KEY` repository secrets to
 create a short-lived GitHub App token. The app must have Actions and Contents
 write access to both `Origen-SDK/o2` and
@@ -41,8 +42,9 @@ The command reads the source remote, release branch, and orchestrator workflow
 from `config/application.toml`, verifies each package's repository metadata,
 and uses O2's configured revision-control driver.
 
-Prepare a release note in `release_note.txt`, pass another file with `--file`,
-or enter the note when prompted. Empty notes are rejected.
+Prepare a release note in `release_note.txt` in the repository root (Git ignores
+it), pass another file with `--file`, or enter the note when prompted. Empty
+notes are rejected.
 
 ## Previewing a release
 
@@ -99,14 +101,14 @@ workflow, author, and provider, then asks for final confirmation. Locally it:
 2. requires the GitHub regression workflow to have passed on the pushed
    release-branch HEAD, waiting for it if the run is still in progress;
 3. updates Python/Rust manifests, lockfiles, and release histories atomically;
-4. validates wheels, the Metal crate, and strict full documentation;
-5. creates one release commit and product-qualified tags;
-6. pushes the commit and tags;
-7. dispatches the combined GitHub Actions release workflow; and
-8. records the workflow run ID and URL before returning.
+4. creates one release commit and product-qualified tags;
+5. pushes the commit and tags;
+6. dispatches the combined GitHub Actions release workflow; and
+7. records the workflow run ID and URL before returning.
 
-GitHub Actions then publishes and verifies Metal before publishing dependent
-Origen packages, creates GitHub Releases, and deploys the website. The local
+Nothing is built or tested locally. GitHub Actions then builds, publishes, and
+verifies Metal before publishing dependent Origen packages, creates GitHub
+Releases, and deploys the website. The local
 terminal does not wait by default. Add `--wait` to retain synchronous
 monitoring:
 
@@ -125,8 +127,8 @@ The website release pages include these files directly.
 
 ## Local preparation
 
-To update and validate versions and histories without committing, tagging,
-pushing, publishing, or deploying, use:
+To update versions and histories without committing, tagging, pushing,
+publishing, or deploying, use:
 
 ```console
 origen rc tag --product origen-metal --type patch --local
