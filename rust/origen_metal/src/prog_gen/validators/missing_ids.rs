@@ -15,7 +15,7 @@ pub fn run(node: &Node<PGM>) -> Result<()> {
         referenced_ids: HashMap::new(),
         referenced_early: HashMap::new(),
     };
-    let _ = node.process(&mut p)?;
+    node.walk(&mut p)?;
 
     let mut failed = false;
     let mut msg = "".to_string();
@@ -111,9 +111,5 @@ impl Processor<PGM> for MissingIDs {
             }
             _ => Return::ProcessChildren,
         })
-    }
-
-    fn on_processed_node(&mut self, _node: &Node<PGM>) -> crate::Result<Return<PGM>> {
-        Ok(Return::None)
     }
 }

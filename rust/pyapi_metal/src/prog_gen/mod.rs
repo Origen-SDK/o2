@@ -166,7 +166,12 @@ fn render_program_for(
     if flow_visualization.is_some() {
         origen_metal::PROG_GEN_CONFIG.set_flow_visualization_enabled(previous);
     }
-    Ok(result?.0)
+    let (files, model) = result?;
+    // Only the files are returned. Freeing a large program's model (every test, test invocation
+    // and limit) takes a noticeable time, so it is freed on another thread while the caller
+    // carries on with the files.
+    std::thread::spawn(move || drop(model));
+    Ok(files)
 }
 
 #[pyfunction]

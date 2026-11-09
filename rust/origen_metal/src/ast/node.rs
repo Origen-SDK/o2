@@ -106,25 +106,70 @@ impl<T: Attrs> Node<T> {
     /// Returning None means that the processor has decided that the node should be removed
     /// from the next stage AST.
     pub fn process(&self, processor: &mut dyn Processor<T>) -> Result<Option<Node<T>>> {
-        self.process_(processor, Handler::OnNode)
+        self.process_(processor, Handler::OnNode, None)
     }
 
+    /// Visits the node and its descendants with the processor's on_node handler, as process()
+    /// does but without building a new AST, for a processor which only reads the AST, e.g. a
+    /// validator. A node's children are visited, in order, when on_node returns
+    /// ProcessChildren, UnwrapWithProcessedChildren or InlineWithProcessedChildren, whatever it
+    /// returns is otherwise ignored. on_end_of_block and on_processed_node are not called.
+    /// The traversal is iterative, so the depth of the AST is not limited by the stack.
+    pub fn walk(&self, processor: &mut dyn Processor<T>) -> Result<()> {
+        if Self::walk_descends(processor.on_node(self)?) {
+            self.walk_children(processor)?;
+        }
+        Ok(())
+    }
+
+    /// Visits the node's children with walk()
+    pub fn walk_children(&self, processor: &mut dyn Processor<T>) -> Result<()> {
+        let mut stack = vec![self.children.iter()];
+        while let Some(children) = stack.last_mut() {
+            match children.next() {
+                Some(child) => {
+                    if Self::walk_descends(processor.on_node(child)?) {
+                        stack.push(child.children.iter());
+                    }
+                }
+                None => {
+                    stack.pop();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether walk() visits the children of a node for the given on_node return
+    fn walk_descends(r: Return<T>) -> bool {
+        matches!(
+            r,
+            Return::ProcessChildren
+                | Return::UnwrapWithProcessedChildren
+                | Return::InlineWithProcessedChildren(_)
+        )
+    }
+
+    /// Processes the given handler's return code for this node. When `first` is given, it is used as
+    /// the handler's return for this node instead of calling the handler again.
     fn process_(
         &self,
         processor: &mut dyn Processor<T>,
         handler: Handler,
+        mut first: Option<Return<T>>,
     ) -> Result<Option<Node<T>>> {
         let mut node = self;
         let mut open_nodes: Vec<(Node<T>, PostProcessAction)> = vec![];
         let mut to_be_processed: Vec<Vec<&Node<T>>> = vec![];
 
         loop {
-            let r = {
-                match handler {
+            let r = match first.take() {
+                Some(r) => r,
+                None => match handler {
                     Handler::OnNode => processor.on_node(node)?,
                     Handler::OnEndOfBlock => processor.on_end_of_block(node)?,
                     Handler::OnProcessedNode => processor.on_processed_node(node)?,
-                }
+                },
             };
 
             match r {
@@ -243,7 +288,7 @@ impl<T: Attrs> Node<T> {
                         //
                         // This is being kept around for legacy compatibility, the on_processed_node handler
                         // is the preferred way to do this now.
-                        if let Some(n) = self.process_(processor, Handler::OnEndOfBlock)? {
+                        if let Some(n) = self.process_(processor, Handler::OnEndOfBlock, None)? {
                             if matches!(n.info, Info::Inline) {
                                 for c in n.children {
                                     node.add_child(*c);
@@ -254,17 +299,22 @@ impl<T: Attrs> Node<T> {
                         }
 
                         // Call the on_processed_node handler, giving the processor a chance to work on this
-                        // node now that its children have been processed
-                        if let Some(n) = node.process_(processor, Handler::OnProcessedNode)? {
-                            node = n;
-                        } else {
-                            continue;
+                        // node now that its children have been processed. An unmodified node is kept as
+                        // it is, rather than cloned with all of its (already processed) descendants.
+                        match processor.on_processed_node(&node)? {
+                            Return::Unmodified => {}
+                            r => {
+                                match node.process_(processor, Handler::OnProcessedNode, Some(r))? {
+                                    Some(n) => node = n,
+                                    None => continue,
+                                }
+                            }
                         }
                     }
 
                     if open_nodes.is_empty() {
                         if matches!(node.info, Info::Inline) && node.children.len() == 1 {
-                            return Ok(Some(*node.children[0].clone()));
+                            return Ok(Some(*node.children.pop().unwrap()));
                         } else {
                             return Ok(Some(node));
                         }
@@ -454,7 +504,7 @@ impl<T: Attrs> Node<T> {
         }
         // Call the end of block handler, giving the processor a chance to do any
         // internal clean up or inject some more nodes at the end
-        if let Some(node) = self.process_(processor, Handler::OnEndOfBlock)? {
+        if let Some(node) = self.process_(processor, Handler::OnEndOfBlock, None)? {
             if matches!(node.info, Info::Inline) {
                 for c in node.children {
                     nodes.push(c);
@@ -482,7 +532,7 @@ impl<T: Attrs> Node<T> {
         }
         // Call the end of block handler, giving the processor a chance to do any
         // internal clean up or inject some more nodes at the end
-        if let Some(node) = self.process_(processor, Handler::OnEndOfBlock)? {
+        if let Some(node) = self.process_(processor, Handler::OnEndOfBlock, None)? {
             if matches!(node.info, Info::Inline) {
                 for c in node.children {
                     nodes.push(*c);
@@ -566,5 +616,140 @@ impl<T: Attrs> Node<T> {
                 None => self.meta.clone(),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::{Node, Processor, Return};
+    use crate::Result;
+
+    #[derive(Clone, PartialEq, Serialize, Debug)]
+    enum T {
+        Group(String),
+        Leaf(i64),
+    }
+
+    impl std::fmt::Display for T {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self)
+        }
+    }
+
+    fn tree() -> Node<T> {
+        node!(T::Group, "root".to_string() =>
+            node!(T::Leaf, 1),
+            node!(T::Group, "a".to_string() =>
+                node!(T::Leaf, 2),
+                node!(T::Group, "b".to_string() =>
+                    node!(T::Leaf, 3),
+                ),
+            ),
+            node!(T::Group, "skip".to_string() =>
+                node!(T::Leaf, 4),
+            ),
+            node!(T::Group, "drop".to_string() =>
+                node!(T::Leaf, 5),
+            ),
+        )
+    }
+
+    /// Records every handler call, doesn't descend into "skip" groups, drops "drop" groups once
+    /// processed and renames "b" groups once processed
+    #[derive(Default)]
+    struct Recorder {
+        on_node: Vec<String>,
+        on_processed_node: Vec<String>,
+    }
+
+    impl Processor<T> for Recorder {
+        fn on_node(&mut self, node: &Node<T>) -> Result<Return<T>> {
+            self.on_node.push(node.attrs.to_string());
+            Ok(match &node.attrs {
+                T::Group(name) if name == "skip" => Return::Unmodified,
+                _ => Return::ProcessChildren,
+            })
+        }
+
+        fn on_processed_node(&mut self, node: &Node<T>) -> Result<Return<T>> {
+            self.on_processed_node.push(node.attrs.to_string());
+            Ok(match &node.attrs {
+                T::Group(name) if name == "drop" => Return::None,
+                T::Group(name) if name == "b" => {
+                    Return::Replace(node.replace_attrs(T::Group("c".to_string())))
+                }
+                _ => Return::Unmodified,
+            })
+        }
+    }
+
+    #[test]
+    fn processed_nodes_are_handled_once_and_kept_replaced_or_removed() -> Result<()> {
+        let mut p = Recorder::default();
+        let output = tree().process(&mut p)?.unwrap();
+        let expected = node!(T::Group, "root".to_string() =>
+            node!(T::Leaf, 1),
+            node!(T::Group, "a".to_string() =>
+                node!(T::Leaf, 2),
+                node!(T::Group, "c".to_string() =>
+                    node!(T::Leaf, 3),
+                ),
+            ),
+            node!(T::Group, "skip".to_string() =>
+                node!(T::Leaf, 4),
+            ),
+        );
+        assert_eq!(output, expected);
+        assert_eq!(
+            p.on_processed_node,
+            vec![
+                "Leaf(1)",
+                "Leaf(2)",
+                "Leaf(3)",
+                "Group(\"b\")",
+                "Group(\"a\")",
+                "Group(\"skip\")",
+                "Leaf(5)",
+                "Group(\"drop\")",
+                "Group(\"root\")",
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn walk_visits_the_nodes_that_process_visits() -> Result<()> {
+        let mut processed = Recorder::default();
+        tree().process(&mut processed)?;
+        let mut walked = Recorder::default();
+        tree().walk(&mut walked)?;
+        assert_eq!(walked.on_node, processed.on_node);
+        assert!(!walked.on_node.contains(&"Leaf(4)".to_string()));
+        assert!(walked.on_processed_node.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn walk_is_not_limited_by_the_stack() -> Result<()> {
+        let depth = 100_000;
+        let mut deepest = node!(T::Leaf, 0);
+        for _ in 0..depth {
+            deepest = node!(T::Group, "g".to_string() => deepest);
+        }
+        // A thread with a small stack, a recursive walk overflows it
+        let visited = std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(move || -> Result<usize> {
+                let mut p = Recorder::default();
+                deepest.walk(&mut p)?;
+                // Dropping the AST is recursive, keep it out of this thread
+                std::mem::forget(deepest);
+                Ok(p.on_node.len())
+            })
+            .unwrap()
+            .join()
+            .unwrap()?;
+        assert_eq!(visited, depth + 1);
+        Ok(())
     }
 }

@@ -180,21 +180,46 @@ pub fn process_flow(
     //flow.to_file("unprocessed_ast.txt")?;
     let mut ast = flow.process(&mut |n| processors::target_tester::run(n, tester))?;
 
-    if validate {
-        log_debug!("Validating flow for tester {:?}", tester);
-        validators::duplicate_ids::run(&ast)?;
-        validators::missing_ids::run(&ast)?;
-        validators::jobs::run(&ast)?;
-        validators::flags::run(&ast)?;
-        log_debug!("Flow validation completed successfully");
-    }
-
     // This should be run at the very start after the AST has been validated, it removes all define test
-    // and attribute nodes
+    // and attribute nodes.
+    // The validators only read the flow, they check it on another thread while the model is
+    // extracted, which reads it too. A validation error is returned as before, ahead of any
+    // error from the extraction, or a panic in the extraction of an invalid flow.
     let mut m;
-    log_debug!("Extracting initial model from flow for tester {:?}", tester);
-    //ast.to_file("pre_initial_model_extract_ast.txt")?;
-    (ast, m) = processors::initial_model_extract::run(&ast, tester, model)?;
+    let extracted: crate::Result<(Node<PGM>, Model)> = if validate {
+        log_debug!("Validating flow for tester {:?}", tester);
+        std::thread::scope(|scope| -> crate::Result<(Node<PGM>, Model)> {
+            // Some validators recurse through nested conditions, give them the stack a main
+            // thread usually has
+            let validation = std::thread::Builder::new()
+                .name("flow validation".to_string())
+                .stack_size(8 * 1024 * 1024)
+                .spawn_scoped(scope, || -> crate::Result<()> {
+                    validators::duplicate_ids::run(&ast)?;
+                    validators::missing_ids::run(&ast)?;
+                    validators::jobs::run(&ast)?;
+                    validators::flags::run(&ast)
+                })?;
+            log_debug!("Extracting initial model from flow for tester {:?}", tester);
+            let extracted = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                processors::initial_model_extract::run(&ast, tester, model)
+            }));
+            match validation.join() {
+                Ok(validated) => validated?,
+                Err(panic) => std::panic::resume_unwind(panic),
+            }
+            log_debug!("Flow validation completed successfully");
+            match extracted {
+                Ok(extracted) => extracted,
+                Err(panic) => std::panic::resume_unwind(panic),
+            }
+        })
+    } else {
+        log_debug!("Extracting initial model from flow for tester {:?}", tester);
+        //ast.to_file("pre_initial_model_extract_ast.txt")?;
+        processors::initial_model_extract::run(&ast, tester, model)
+    };
+    (ast, m) = extracted?;
 
     //ast.to_file("unprocesed_ast.txt")?;
     log_debug!("Processing flow for tester {:?}", tester);
@@ -221,4 +246,48 @@ pub fn process_flow(
 
     // Do a final model extract for things which may have been optimized away if done earlier, e.g. flag variables
     Ok(processors::final_model_extract::run(&ast, m)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_validation_error_is_returned_ahead_of_an_extraction_error() {
+        // The flow assigns the same ID twice (a validation error) and makes two test
+        // invocations with the same internal ID (an extraction error)
+        let mut flow = AST::new();
+        flow.push_and_open(Node::new(PGM::Flow("main".to_string())));
+        for name in ["a", "b"] {
+            flow.push(Node::new(PGM::DefTestInv(
+                1,
+                name.to_string(),
+                SupportedTester::V93KSMT8,
+            )));
+            flow.push(Node::new(PGM::Test(1, FlowID::from_str("dup"))));
+        }
+        let error = process_flow(
+            &flow,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("was assigned more than once"), "{}", error);
+
+        let error = process_flow(
+            &flow,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            false,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("two test invocations have been generated with the same internal ID"),
+            "{}",
+            error
+        );
+    }
 }

@@ -12,7 +12,7 @@ pub fn run(node: &Node<PGM>) -> Result<()> {
     let mut p = DuplicateIDs {
         ids: HashMap::new(),
     };
-    let _ = node.process(&mut p)?;
+    node.walk(&mut p)?;
     Ok(())
 }
 
@@ -56,9 +56,5 @@ impl Processor<PGM> for DuplicateIDs {
             }
             _ => Return::ProcessChildren,
         })
-    }
-
-    fn on_processed_node(&mut self, _node: &Node<PGM>) -> crate::Result<Return<PGM>> {
-        Ok(Return::None)
     }
 }

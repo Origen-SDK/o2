@@ -4,7 +4,9 @@ use super::{Constraint, Limit, ParamType, ParamValue};
 use crate::prog_gen::supported_testers::SupportedTester;
 use crate::Result;
 use indexmap::IndexMap;
+use serde::ser::SerializeStruct;
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub const TEST_NUMBER_ALIASES: [&str; 6] = [
     "testnumber",
@@ -49,22 +51,20 @@ pub struct TestCollectionItem {
 /// direct tests which are to be rendered.
 /// Child tests can add additional prameters/aliases/defaults and/or inherit or override those from
 /// parent tests.
-#[derive(Debug, Clone, Serialize)]
+///
+/// The parameters, defaults, aliases, constraints and collection definitions are a
+/// `TestDefinition`, which the tests made from one template share (a program can have tens of
+/// thousands of them), see `definition_mut()`.
+#[derive(Debug, Clone)]
 pub struct Test {
     pub id: usize,
     pub name: String,
     pub tname: Option<String>, // Secondary test name, if applicable
     pub indirect: bool,
-    /// Defines the names of parameters and their types. Child class can override the type of a parameter
-    /// inherited from a parent by adding a parameter of the same name to their params map. Then can also
-    /// add additional parameters via the same mechanism. It is not possible to delete a parameter inherited
-    /// from a parent Test.
-    pub params: IndexMap<String, ParamType>,
+    /// The parameters, defaults, aliases, constraints and collection definitions, shared with the
+    /// other tests made from the same template
+    pub definition: Arc<TestDefinition>,
     pub values: IndexMap<String, ParamValue>,
-    pub default_values: IndexMap<String, ParamValue>,
-    pub aliases: IndexMap<String, String>,
-    pub constraints: IndexMap<String, Vec<Constraint>>,
-    pub collection_defs: IndexMap<String, TestCollection>,
     pub collections: IndexMap<String, Vec<usize>>,
     pub tester: SupportedTester,
     pub class_name: Option<String>,
@@ -83,6 +83,52 @@ pub struct Test {
     _private: (),
 }
 
+/// The part of a `Test` that comes from its template
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct TestDefinition {
+    /// Defines the names of parameters and their types. Child class can override the type of a parameter
+    /// inherited from a parent by adding a parameter of the same name to their params map. Then can also
+    /// add additional parameters via the same mechanism. It is not possible to delete a parameter inherited
+    /// from a parent Test.
+    pub params: IndexMap<String, ParamType>,
+    pub default_values: IndexMap<String, ParamValue>,
+    pub aliases: IndexMap<String, String>,
+    pub constraints: IndexMap<String, Vec<Constraint>>,
+    pub collection_defs: IndexMap<String, TestCollection>,
+}
+
+impl serde::Serialize for Test {
+    /// The fields of a test, in the order they had before the definition was shared
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        let mut s = serializer.serialize_struct("Test", 21)?;
+        s.serialize_field("id", &self.id)?;
+        s.serialize_field("name", &self.name)?;
+        s.serialize_field("tname", &self.tname)?;
+        s.serialize_field("indirect", &self.indirect)?;
+        s.serialize_field("params", &self.definition.params)?;
+        s.serialize_field("values", &self.values)?;
+        s.serialize_field("default_values", &self.definition.default_values)?;
+        s.serialize_field("aliases", &self.definition.aliases)?;
+        s.serialize_field("constraints", &self.definition.constraints)?;
+        s.serialize_field("collection_defs", &self.definition.collection_defs)?;
+        s.serialize_field("collections", &self.collections)?;
+        s.serialize_field("tester", &self.tester)?;
+        s.serialize_field("class_name", &self.class_name)?;
+        s.serialize_field("template_library", &self.template_library)?;
+        s.serialize_field("template_name", &self.template_name)?;
+        s.serialize_field("test_id", &self.test_id)?;
+        s.serialize_field("sub_tests", &self.sub_tests)?;
+        s.serialize_field("number", &self.number)?;
+        s.serialize_field("lo_limit", &self.lo_limit)?;
+        s.serialize_field("hi_limit", &self.hi_limit)?;
+        s.serialize_field("_private", &self._private)?;
+        s.end()
+    }
+}
+
 pub struct SortedParams<'a> {
     test: &'a Test,
     sorted_keys: Vec<&'a String>,
@@ -90,7 +136,7 @@ pub struct SortedParams<'a> {
 
 impl<'a> SortedParams<'a> {
     fn new(test: &'a Test) -> Self {
-        let mut keys: Vec<&String> = test.params.keys().collect();
+        let mut keys: Vec<&String> = test.definition.params.keys().collect();
         keys.sort();
         keys.reverse();
         SortedParams {
@@ -111,7 +157,7 @@ impl<'a> Iterator for SortedParams<'a> {
         if let Some(k) = self.sorted_keys.pop() {
             Some((
                 k,
-                self.test.params.get(k).unwrap(),
+                self.test.definition.params.get(k).unwrap(),
                 self.test.get(k).unwrap(),
             ))
         } else {
@@ -301,12 +347,8 @@ impl Test {
             name: name.to_string(),
             tname: None,
             indirect: false,
-            params: IndexMap::new(),
+            definition: Arc::new(TestDefinition::default()),
             values: IndexMap::new(),
-            default_values: IndexMap::new(),
-            aliases: IndexMap::new(),
-            constraints: IndexMap::new(),
-            collection_defs: IndexMap::new(),
             collections: IndexMap::new(),
             tester: tester,
             class_name: None,
@@ -323,9 +365,16 @@ impl Test {
         };
         let clean_name = clean(name);
         if clean_name != name {
-            t.aliases.insert(clean_name, name.to_owned());
+            t.definition_mut()
+                .aliases
+                .insert(clean_name, name.to_owned());
         }
         t
+    }
+
+    /// The test's definition, to change it: it is copied first if other tests share it
+    pub fn definition_mut(&mut self) -> &mut TestDefinition {
+        Arc::make_mut(&mut self.definition)
     }
 
     pub fn sorted_params(&self) -> SortedParams<'_> {
@@ -336,16 +385,17 @@ impl Test {
     pub fn import_test_template(&mut self, test_template: &TestTemplate) -> Result<()> {
         self.class_name = test_template.class_name.to_owned();
         if let Some(params) = &test_template.parameters {
+            let definition: &mut TestDefinition = Arc::make_mut(&mut self.definition);
             for (name, param) in params {
                 import_template_parameter(
                     name,
                     param,
                     &self.name,
-                    &mut self.params,
+                    &mut definition.params,
                     &mut self.values,
-                    &mut self.default_values,
-                    &mut self.aliases,
-                    &mut self.constraints,
+                    &mut definition.default_values,
+                    &mut definition.aliases,
+                    &mut definition.constraints,
                 )?;
             }
         }
@@ -353,7 +403,9 @@ impl Test {
             for (name, collection) in collections {
                 let mut c = TestCollection::new(name);
                 c.import_test_template(collection, &self.name)?;
-                self.collection_defs.insert(name.to_owned(), c);
+                self.definition_mut()
+                    .collection_defs
+                    .insert(name.to_owned(), c);
             }
         }
         if let Some(params) = &test_template.parameter_list {
@@ -368,10 +420,11 @@ impl Test {
                         )
                     }
                     Ok(t) => {
-                        self.params.insert(name.to_string(), t);
+                        let definition: &mut TestDefinition = self.definition_mut();
+                        definition.params.insert(name.to_string(), t);
                         let clean_name = clean(name);
                         if &clean_name != name {
-                            self.aliases.insert(clean_name, name.to_owned());
+                            definition.aliases.insert(clean_name, name.to_owned());
                         }
                     }
                 }
@@ -379,8 +432,10 @@ impl Test {
         }
         if let Some(aliases) = &test_template.aliases {
             for (new, old) in aliases {
-                if self.params.contains_key(old) {
-                    self.aliases.insert(clean(new), old.to_owned());
+                if self.definition.params.contains_key(old) {
+                    self.definition_mut()
+                        .aliases
+                        .insert(clean(new), old.to_owned());
                 } else {
                     bail!("Invalid alias: test template '{}' has no parameter '{}' (being aliased to '{}')", &self.name, old, new);
                 }
@@ -405,7 +460,8 @@ impl Test {
                         value,
                     )?);
                 }
-                self.constraints
+                self.definition_mut()
+                    .constraints
                     .insert(param_name, vec![Constraint::In(values)]);
             }
         }
@@ -431,7 +487,7 @@ impl Test {
         if let Some(value) = value {
             let value = coerce_param_value(kind, value)?;
             if value.is_type(kind) || kind == &ParamType::Any {
-                if let Some(constraints) = self.constraints.get(&param_name) {
+                if let Some(constraints) = self.definition.constraints.get(&param_name) {
                     for constraint in constraints {
                         if let Err(e) = constraint.is_satisfied(&value) {
                             bail!(
@@ -464,7 +520,7 @@ impl Test {
     /// parameter is not found
     pub fn get_type(&self, param_name_or_alias: &str) -> Result<&ParamType> {
         let param_name = self.to_param_name(param_name_or_alias)?;
-        Ok(&self.params[param_name])
+        Ok(&self.definition.params[param_name])
     }
 
     pub fn add_param(
@@ -475,17 +531,21 @@ impl Test {
         aliases: Option<Vec<&str>>,
         constraints: Option<Vec<Constraint>>,
     ) -> Result<()> {
-        self.params.insert(name.to_string(), kind);
+        self.definition_mut().params.insert(name.to_string(), kind);
         if let Some(x) = default_value {
             self.values.insert(name.to_string(), x);
         }
         if let Some(aliases) = aliases {
             for alias in aliases {
-                self.aliases.insert(clean(name), alias.to_string());
+                self.definition_mut()
+                    .aliases
+                    .insert(clean(name), alias.to_string());
             }
         }
         if let Some(x) = constraints {
-            self.constraints.insert(name.to_string(), x);
+            self.definition_mut()
+                .constraints
+                .insert(name.to_string(), x);
         }
         Ok(())
     }
@@ -494,7 +554,9 @@ impl Test {
     /// parameter is not found
     pub fn add_alias(&mut self, alias: &str, param_name: &str) -> Result<()> {
         if self.has_param(param_name) {
-            self.aliases.insert(clean(alias), param_name.to_string());
+            self.definition_mut()
+                .aliases
+                .insert(clean(alias), param_name.to_string());
             Ok(())
         } else {
             bail!(
@@ -507,29 +569,29 @@ impl Test {
 
     /// Returns true if the test has the given parameter name or alias
     pub fn has_param(&self, param_name: &str) -> bool {
-        self.params.contains_key(param_name) || {
+        self.definition.params.contains_key(param_name) || {
             let n = clean(param_name);
-            self.aliases.contains_key(&n)
+            self.definition.aliases.contains_key(&n)
         }
     }
 
     /// Resolves the given param or alias name to a param name
     pub fn to_param_name<'a>(&'a self, name: &'a str) -> Result<&'a str> {
-        if self.params.contains_key(name) {
+        if self.definition.params.contains_key(name) {
             Ok(name)
         } else {
             let n = clean(name);
-            if self.aliases.contains_key(&n) {
-                Ok(&self.aliases[&n])
+            if self.definition.aliases.contains_key(&n) {
+                Ok(&self.definition.aliases[&n])
             } else {
-                let available_attributes = self.params.keys().collect::<Vec<&String>>();
+                let available_attributes = self.definition.params.keys().collect::<Vec<&String>>();
                 let mut msg = format!(
                     "Test '{}' does not have an attribute named '{}'",
                     self.name, name
                 );
                 msg += "\nThe available attributes are:";
                 for attr in available_attributes {
-                    let attr_type: &ParamType = &self.params[attr];
+                    let attr_type: &ParamType = &self.definition.params[attr];
                     msg += &format!("\n  - {} ({})", attr, attr_type);
                 }
                 bail!(&msg);
@@ -865,6 +927,150 @@ mod tests {
     use super::*;
     use crate::prog_gen::supported_testers::SupportedTester;
 
+    fn model_with_two_continuity_tests() -> Model {
+        let mut model = Model::new(SupportedTester::V93KSMT7);
+        model.create_flow("main").unwrap();
+        model.select_flow("main").unwrap();
+        for (id, name) in [(1, "first"), (2, "second")] {
+            model
+                .add_test_from_template(
+                    id,
+                    name.to_string(),
+                    &SupportedTester::V93KSMT7,
+                    "continuity",
+                    Some("dc_tml"),
+                )
+                .unwrap();
+        }
+        model
+    }
+
+    #[test]
+    fn tests_of_a_template_share_its_definition_until_one_changes_it() {
+        let mut model = model_with_two_continuity_tests();
+        assert!(Arc::ptr_eq(
+            &model.tests[&1].definition,
+            &model.tests[&2].definition
+        ));
+        assert!(!model.tests[&1].definition.params.is_empty());
+
+        // Setting values leaves the definition shared
+        let name: String = model.tests[&1]
+            .definition
+            .params
+            .keys()
+            .next()
+            .unwrap()
+            .clone();
+        model
+            .tests
+            .get_mut(&1)
+            .unwrap()
+            .set(&name, None, false)
+            .unwrap();
+        assert!(Arc::ptr_eq(
+            &model.tests[&1].definition,
+            &model.tests[&2].definition
+        ));
+
+        // Changing one test's definition copies it, the other test and the template keep theirs
+        let params = model.tests[&2].definition.params.len();
+        model
+            .tests
+            .get_mut(&1)
+            .unwrap()
+            .add_param(
+                "extraParam",
+                ParamType::Int,
+                None,
+                Some(vec!["extra"]),
+                None,
+            )
+            .unwrap();
+        assert!(!Arc::ptr_eq(
+            &model.tests[&1].definition,
+            &model.tests[&2].definition
+        ));
+        assert!(model.tests[&1].has_param("extraParam"));
+        assert!(!model.tests[&2].has_param("extraParam"));
+        assert_eq!(model.tests[&2].definition.params.len(), params);
+        model
+            .add_test_from_template(
+                3,
+                "third".to_string(),
+                &SupportedTester::V93KSMT7,
+                "continuity",
+                Some("dc_tml"),
+            )
+            .unwrap();
+        assert!(!model.tests[&3].has_param("extraParam"));
+        assert!(Arc::ptr_eq(
+            &model.tests[&2].definition,
+            &model.tests[&3].definition
+        ));
+    }
+
+    #[test]
+    fn tests_serialize_their_fields_as_before() {
+        let model = model_with_two_continuity_tests();
+        let json = serde_json::to_value(&model.tests[&1]).unwrap();
+        let keys: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect();
+        let mut expected = vec![
+            "id",
+            "name",
+            "tname",
+            "indirect",
+            "params",
+            "values",
+            "default_values",
+            "aliases",
+            "constraints",
+            "collection_defs",
+            "collections",
+            "tester",
+            "class_name",
+            "template_library",
+            "template_name",
+            "test_id",
+            "sub_tests",
+            "number",
+            "lo_limit",
+            "hi_limit",
+            "_private",
+        ];
+        // serde_json's map is sorted unless its preserve_order feature is enabled
+        let mut sorted_keys = keys.clone();
+        sorted_keys.sort();
+        if keys == sorted_keys {
+            expected.sort();
+        }
+        assert_eq!(keys, expected);
+        let text = serde_json::to_string(&model.tests[&1]).unwrap();
+        let positions: Vec<usize> = [
+            "\"id\"",
+            "\"params\"",
+            "\"values\"",
+            "\"default_values\"",
+            "\"collection_defs\"",
+            "\"_private\"",
+        ]
+        .iter()
+        .map(|key| text.find(key).unwrap())
+        .collect();
+        let mut sorted_positions = positions.clone();
+        sorted_positions.sort();
+        assert_eq!(positions, sorted_positions);
+        assert_eq!(
+            json["params"],
+            serde_json::to_value(&model.tests[&1].definition.params).unwrap()
+        );
+    }
+
     #[test]
     fn imports_recursive_collection_defs_and_stringified_values() {
         let template: TestTemplate = serde_json::from_str(
@@ -907,7 +1113,7 @@ mod tests {
             test.values.get("enableSoftset"),
             Some(&ParamValue::Bool(true))
         );
-        let tsen = test.collection_defs.get("tsen").unwrap();
+        let tsen = test.definition.collection_defs.get("tsen").unwrap();
         assert_eq!(
             tsen.default_values.get("zDataDeltaLimit"),
             Some(&ParamValue::Float(0.0))
@@ -1006,17 +1212,29 @@ mod tests {
         test.import_test_template(&template).unwrap();
 
         assert_eq!(
-            test.params.get("registerSetup.pinList"),
+            test.definition.params.get("registerSetup.pinList"),
             Some(&ParamType::String)
         );
-        assert_eq!(test.params.get("trigger.delay"), Some(&ParamType::String));
-        assert_eq!(test.params.get("search.specVar"), Some(&ParamType::String));
         assert_eq!(
-            test.params.get("search.focusedPins"),
+            test.definition.params.get("trigger.delay"),
             Some(&ParamType::String)
         );
-        assert_eq!(test.params.get("mode.select"), Some(&ParamType::String));
-        assert_eq!(test.params.get("bitNumbers"), Some(&ParamType::Int));
+        assert_eq!(
+            test.definition.params.get("search.specVar"),
+            Some(&ParamType::String)
+        );
+        assert_eq!(
+            test.definition.params.get("search.focusedPins"),
+            Some(&ParamType::String)
+        );
+        assert_eq!(
+            test.definition.params.get("mode.select"),
+            Some(&ParamType::String)
+        );
+        assert_eq!(
+            test.definition.params.get("bitNumbers"),
+            Some(&ParamType::Int)
+        );
 
         assert_eq!(
             test.values.get("registerSetup.pinList"),
@@ -1054,7 +1272,10 @@ mod tests {
         .unwrap();
         let mut test = Test::new("example", 1, SupportedTester::V93KSMT8);
         test.import_test_template(&template).unwrap();
-        assert_eq!(test.params.get("decodingType"), Some(&ParamType::Class));
+        assert_eq!(
+            test.definition.params.get("decodingType"),
+            Some(&ParamType::Class)
+        );
         assert_eq!(
             test.values.get("decodingType"),
             Some(&ParamValue::Class("SMU14".to_string()))

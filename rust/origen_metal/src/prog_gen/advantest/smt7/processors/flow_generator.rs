@@ -275,7 +275,7 @@ impl Processor<PGM> for FlowGenerator {
                             if let Some(v) = value {
                                 if !self.options.render_default_tmparams {
                                     // Skip this if the value is the same as the default value for this parameter, to reduce clutter in the output file
-                                    let default_value = test.default_values.get(name);
+                                    let default_value = test.definition.default_values.get(name);
                                     if let Some(default_value) = default_value {
                                         if default_value == v {
                                             continue;

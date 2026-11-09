@@ -8,6 +8,77 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::thread::JoinHandle;
+
+/// Writes the flow files on another thread while the flows are generated, creating their
+/// directories: file system operations, creating a directory in particular, can be slow
+/// compared to generating a file's contents. The queue of files is bounded, so a slow file
+/// system holds up the generation instead of the files accumulating in memory. When dropped
+/// without finish(), e.g. when the generation panics, it still waits for the queued files, so
+/// none is written after the generation has returned.
+struct FileWriter {
+    sender: Option<mpsc::SyncSender<(PathBuf, Vec<u8>)>>,
+    thread: Option<JoinHandle<std::io::Result<()>>>,
+}
+
+impl FileWriter {
+    /// The number of files which can be waiting to be written
+    const QUEUE_LENGTH: usize = 64;
+
+    fn new() -> Self {
+        let (sender, receiver) = mpsc::sync_channel::<(PathBuf, Vec<u8>)>(Self::QUEUE_LENGTH);
+        let thread = std::thread::spawn(move || -> std::io::Result<()> {
+            let mut directories: HashSet<PathBuf> = HashSet::new();
+            for (path, contents) in receiver {
+                if let Some(directory) = path.parent() {
+                    if !directories.contains(directory) {
+                        if !directory.exists() {
+                            std::fs::create_dir_all(directory)?;
+                        }
+                        directories.insert(directory.to_owned());
+                    }
+                }
+                std::fs::write(&path, &contents)?;
+            }
+            Ok(())
+        });
+        FileWriter {
+            sender: Some(sender),
+            thread: Some(thread),
+        }
+    }
+
+    /// Write a file, creating its directory if needed. Any error is returned by `finish()`.
+    fn write(&self, path: PathBuf, contents: Vec<u8>) {
+        if let Some(sender) = &self.sender {
+            // The thread only stops receiving after an error, which finish() returns
+            let _ = sender.send((path, contents));
+        }
+    }
+
+    /// Wait for every file to be written, returning the first error
+    fn finish(&mut self) -> Result<()> {
+        self.sender = None;
+        if let Some(thread) = self.thread.take() {
+            match thread.join() {
+                Ok(written) => written?,
+                Err(panic) => std::panic::resume_unwind(panic),
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Drop for FileWriter {
+    fn drop(&mut self) {
+        self.sender = None;
+        if let Some(thread) = self.thread.take() {
+            // Only reached without finish(), which returns the outcome
+            let _ = thread.join();
+        }
+    }
+}
 
 /// Does the final writing of the flow AST to a SMT7 flow file
 struct FlowGenerator {
@@ -28,6 +99,7 @@ struct FlowGenerator {
     limits_file: Option<BufWriter<std::fs::File>>,
     namespaces: Vec<String>,
     options: SMT8Config,
+    writer: FileWriter,
 }
 
 /// Contains the data for a .flow file
@@ -103,6 +175,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         limits_file: None,
         namespaces: vec![],
         options: crate::PROG_GEN_CONFIG.smt8_options(),
+        writer: FileWriter::new(),
     };
 
     let mut i = 0;
@@ -117,7 +190,11 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         p.test_suites
             .insert(t.get("name")?.unwrap().to_string(), t.id);
     }
-    ast.process(&mut p)?;
+    let generated = ast.process(&mut p);
+    // The files are complete once all of them have been written
+    let written = p.writer.finish();
+    generated?;
+    written?;
     if let Some(limits_file) = p.limits_file.as_mut() {
         limits_file.flush()?;
     }
@@ -478,13 +555,13 @@ impl FlowGenerator {
             }
         }
         let flow_path = match self.flow_stack.last() {
-            Some(f) => {
-                let d = f.path.parent().unwrap().join(f.name.to_lowercase());
-                if !d.exists() {
-                    std::fs::create_dir_all(&d)?;
-                }
-                d.join(format!("{}.flow", name))
-            }
+            // The directory is created when the file is written, see FileWriter
+            Some(f) => f
+                .path
+                .parent()
+                .unwrap()
+                .join(f.name.to_lowercase())
+                .join(format!("{}.flow", name)),
             None => self.output_dir.join(format!("{}.flow", name)),
         };
         self.flow_stack.push(FlowFile {
@@ -505,8 +582,8 @@ impl FlowGenerator {
                 None => "".to_string(),
             }
         };
-        let file = std::fs::File::create(&flow_file.path)?;
-        let mut f = BufWriter::new(file);
+        // Written by self.writer once complete
+        let mut f: Vec<u8> = Vec::new();
         self.generated_files.push(flow_file.path.clone());
 
         writeln!(&mut f, "flow {} {{", flow_file.name)?;
@@ -569,7 +646,7 @@ impl FlowGenerator {
                     &mut f,
                     3,
                     &test.values,
-                    &test.default_values,
+                    &test.definition.default_values,
                     &test.collections,
                 )?;
                 writeln!(&mut f, "        }}")?;
@@ -617,7 +694,7 @@ impl FlowGenerator {
         }
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "}}")?;
-        f.flush()?;
+        self.writer.write(flow_file.path.clone(), f);
         Ok(flow_file)
     }
 }
@@ -660,7 +737,7 @@ impl Processor<PGM> for FlowGenerator {
                 self.name = name.to_owned();
                 self.model.select_flow(name)?;
                 let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                    fdata.clone()
+                    (**fdata).clone()
                 } else {
                     FlowData::default()
                 };
@@ -692,7 +769,7 @@ impl Processor<PGM> for FlowGenerator {
             PGM::SubFlow(name, _fid) => {
                 log_debug!("Rendering sub-flow '{}'", name);
                 let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                    fdata.clone()
+                    (**fdata).clone()
                 } else {
                     FlowData::default()
                 };
@@ -728,7 +805,7 @@ impl Processor<PGM> for FlowGenerator {
                 if kind == &GroupType::Flow {
                     log_debug!("Rendering group '{}'", name);
                     let flow_data = if let PGM::FlowData(fdata) = &node.children[0].attrs {
-                        fdata.clone()
+                        (**fdata).clone()
                     } else {
                         FlowData::default()
                     };
@@ -1149,13 +1226,107 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, FlowGenerator};
+    use super::{run, FileWriter, FlowGenerator};
     use crate::prog_gen::{
         process_flow, FlowCondition, FlowID, GroupType, Model, ParamValue, SupportedTester, PGM,
     };
     use std::cmp::Ordering;
     use std::fs;
     use tempfile::tempdir;
+
+    #[test]
+    fn files_are_written_with_their_directories() -> crate::Result<()> {
+        let dir = tempdir()?;
+        let mut writer = FileWriter::new();
+        let first = dir.path().join("a").join("b").join("FIRST.flow");
+        let second = dir.path().join("a").join("SECOND.flow");
+        writer.write(first.clone(), b"first\n".to_vec());
+        writer.write(second.clone(), b"second\n".to_vec());
+        // The last write of a file wins, as when written in order
+        writer.write(second.clone(), b"second again\n".to_vec());
+        writer.finish()?;
+        assert_eq!(fs::read_to_string(&first)?, "first\n");
+        assert_eq!(fs::read_to_string(&second)?, "second again\n");
+        Ok(())
+    }
+
+    #[test]
+    fn file_write_errors_are_returned_when_finished() -> crate::Result<()> {
+        let dir = tempdir()?;
+        let blocking_file = dir.path().join("not_a_directory");
+        fs::write(&blocking_file, "")?;
+        let mut writer = FileWriter::new();
+        writer.write(blocking_file.join("FLOW.flow"), b"flow\n".to_vec());
+        // Writes after an error are not made
+        writer.write(dir.path().join("LATER.flow"), b"later\n".to_vec());
+        assert!(writer.finish().is_err());
+        assert!(!dir.path().join("LATER.flow").exists());
+        // Finishing again is fine
+        writer.finish()?;
+        Ok(())
+    }
+
+    /// Makes a FIFO, a write to it is held up until it is read
+    #[cfg(unix)]
+    fn fifo(path: &std::path::Path) {
+        assert!(std::process::Command::new("mkfifo")
+            .arg(path)
+            .status()
+            .unwrap()
+            .success());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_held_up_file_system_holds_up_the_generation() -> crate::Result<()> {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let dir = tempdir()?;
+        let gate = dir.path().join("GATE.flow");
+        fifo(&gate);
+        let queued = AtomicBool::new(false);
+        std::thread::scope(|scope| -> crate::Result<()> {
+            let generation = scope.spawn(|| -> crate::Result<()> {
+                let mut writer = FileWriter::new();
+                writer.write(gate.clone(), b"gate\n".to_vec());
+                for i in 0..FileWriter::QUEUE_LENGTH + 2 {
+                    writer.write(dir.path().join(format!("{}.flow", i)), vec![]);
+                }
+                queued.store(true, Ordering::SeqCst);
+                writer.finish()
+            });
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            let queued_while_held_up = queued.load(Ordering::SeqCst);
+            assert_eq!(fs::read_to_string(&gate)?, "gate\n");
+            generation.join().unwrap()?;
+            assert!(!queued_while_held_up);
+            assert!(queued.load(Ordering::SeqCst));
+            Ok(())
+        })
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_files_are_written_before_an_unfinished_writer_is_dropped() -> crate::Result<()> {
+        let dir = tempdir()?;
+        let gate = dir.path().join("GATE.flow");
+        fifo(&gate);
+        let late = dir.path().join("LATE.flow");
+        let reader = {
+            let gate = gate.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                fs::read(&gate).unwrap()
+            })
+        };
+        let writer = FileWriter::new();
+        writer.write(gate.clone(), b"gate\n".to_vec());
+        writer.write(late.clone(), b"late\n".to_vec());
+        // As when the generation panics
+        drop(writer);
+        assert!(late.exists());
+        assert_eq!(reader.join().unwrap(), b"gate\n");
+        Ok(())
+    }
 
     /// Renders the given flow AST for SMT8 and returns the content of the named flow file
     fn render_flow_file(flow: crate::ast::Node<PGM>, file_name: &str) -> crate::Result<String> {
