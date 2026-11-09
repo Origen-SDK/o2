@@ -64,6 +64,10 @@ impl WorkflowRuns {
         }
         Ok(self.workflow_runs.pop().unwrap())
     }
+
+    pub fn into_runs(self) -> Vec<WorkflowRun> {
+        self.workflow_runs
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -227,6 +231,21 @@ pub fn get_workflow_run_by_id(owner: &str, repo: &str, run_id: u64) -> Result<Wo
             owner, repo, run_id
         ),
     )?)?)
+}
+
+/// Returns the runs of the given workflow for the exact commit, newest first.
+pub fn get_workflow_runs_for_commit(
+    owner: &str,
+    repo: &str,
+    workflow: &str,
+    head_sha: &str,
+) -> Result<Vec<WorkflowRun>> {
+    let uri = format!(
+        "https://api.github.com/repos/{}/{}/actions/workflows/{}/runs?head_sha={}&per_page=100",
+        owner, repo, workflow, head_sha
+    );
+    let body = send_get_request(|| new_crab(Some(GithubAuth::PersonalAccessToken)), &uri)?;
+    Ok(serde_json::from_str::<WorkflowRuns>(&body)?.into_runs())
 }
 
 pub fn dispatch_workflow<H>(

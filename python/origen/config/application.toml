@@ -19,6 +19,8 @@ provider = 'github_actions'
 orchestrator_workflow = 'release.yml'
 origen_workflow = 'publish.yml'
 origen_metal_workflow = 'publish_metal.yml'
+# A release requires this workflow to have passed on the release-branch HEAD
+regression_workflow = 'regression_test.yml'
 
 [publisher]
 system = "core.application.Publisher"

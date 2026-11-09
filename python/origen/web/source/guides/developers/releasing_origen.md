@@ -96,7 +96,8 @@ The command displays the versions, tags, dependency update, configured source,
 workflow, author, and provider, then asks for final confirmation. Locally it:
 
 1. validates the workspace, branch, upstream, registry versions, and tags;
-2. runs Rust and Python tests;
+2. requires the GitHub regression workflow to have passed on the pushed
+   release-branch HEAD, waiting for it if the run is still in progress;
 3. updates Python/Rust manifests, lockfiles, and release histories atomically;
 4. validates wheels, the Metal crate, and strict full documentation;
 5. creates one release commit and product-qualified tags;

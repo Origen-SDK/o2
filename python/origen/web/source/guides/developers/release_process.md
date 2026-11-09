@@ -111,8 +111,12 @@ recovery operation proves the release is identical.
    author, source repository, and publication provider.
 2. Verify the release branch, clean workspace, upstream alignment,
    credentials, unused registry versions, and unused tags.
-3. Run formatting, unit/regression tests, package validation, and a strict full
-   documentation build.
+3. Require the configured regression workflow (`release.regression_workflow`)
+   to have passed on the pushed release-branch HEAD, waiting for a run that has
+   not finished. The tests are not repeated locally: the release commit only
+   changes versions, lockfiles, and histories on top of that commit. Package
+   validation and a strict full documentation build still run locally on the
+   prepared release.
 4. Update every Python and Rust manifest for the selected product. Update
    Origen's Metal dependency only when the selected release plan requires it.
 5. Prepend each selected product's history and rebuild documentation.

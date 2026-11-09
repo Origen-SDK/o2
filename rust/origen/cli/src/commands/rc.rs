@@ -1,5 +1,7 @@
 use super::_prelude::*;
-use origen::utility::github::{dispatch_workflow, get_latest_workflow_dispatch, WorkflowRun};
+use origen::utility::github::{
+    dispatch_workflow, get_latest_workflow_dispatch, get_workflow_runs_for_commit, WorkflowRun,
+};
 use origen::utility::release_scribe::{ReleaseProduct, ReleaseScribe};
 use origen_metal::dialoguer::{Confirm, Input, Select};
 use origen_metal::utils::crates_io::is_crate_version_available;
@@ -27,6 +29,10 @@ const RELEASE_TYPES: [&str; 6] = [
     "production",
     "current",
 ];
+// How long the release waits for an unfinished regression run of the release
+// commit: 240 polls of 30 seconds, i.e. 2 hours.
+const CI_POLL_INTERVAL: Duration = Duration::from_secs(30);
+const CI_POLLS: usize = 240;
 
 gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
@@ -321,6 +327,84 @@ where
     Ok(())
 }
 
+/// The outcome of the regression workflow for a commit, decided by its newest run
+#[derive(Debug, PartialEq)]
+enum CiStatus {
+    Missing,
+    Pending { url: String, status: String },
+    Passed { url: String },
+    Failed { url: String, conclusion: String },
+}
+
+fn ci_status(runs: &[WorkflowRun]) -> CiStatus {
+    // A rerun keeps its run, so the newest run is the current verdict on the commit
+    match runs.iter().max_by(|a, b| a.created_at.cmp(&b.created_at)) {
+        None => CiStatus::Missing,
+        Some(run) if !run.completed() => CiStatus::Pending {
+            url: run.html_url.clone(),
+            status: run.status.clone(),
+        },
+        Some(run) if run.conclusion.as_deref() == Some("success") => CiStatus::Passed {
+            url: run.html_url.clone(),
+        },
+        Some(run) => CiStatus::Failed {
+            url: run.html_url.clone(),
+            conclusion: run.conclusion.clone().unwrap_or_else(|| "none".to_string()),
+        },
+    }
+}
+
+/// Requires the regression workflow to have passed on the pushed release-branch
+/// HEAD that the release is made from, waiting for a run that has not finished.
+/// The tests are not repeated locally: the release commit only changes
+/// versions, lockfiles, and release histories on top of this commit.
+fn validate_release_ci(
+    rc: &origen_metal::utils::revision_control::RevisionControl,
+    repo: &GithubRepository,
+    release_branch: &str,
+    workflow: &str,
+) -> Result<()> {
+    let latest = rc.confirm_latest_ref(release_branch)?;
+    if !latest.0 {
+        bail!(
+            "Local HEAD {} does not match upstream {}; CI results only exist for pushed commits",
+            latest.1[0],
+            latest.1[1]
+        )
+    }
+    let sha = &latest.1[0];
+    displayln!("Checking the '{}' CI run of commit {}", workflow, sha);
+    for poll in 0..=CI_POLLS {
+        let runs = get_workflow_runs_for_commit(&repo.owner, &repo.name, workflow, sha)?;
+        match ci_status(&runs) {
+            CiStatus::Passed { url } => {
+                displayln!("CI passed: {}", url);
+                return Ok(());
+            }
+            CiStatus::Failed { url, conclusion } => {
+                bail!("CI did not pass for commit {} ({}): {}", sha, conclusion, url)
+            }
+            CiStatus::Missing => bail!(
+                "No '{}' run exists for commit {}; start one with 'gh workflow run {} --ref {}' and retry",
+                workflow,
+                sha,
+                workflow,
+                release_branch
+            ),
+            CiStatus::Pending { url, status } => {
+                if poll == CI_POLLS {
+                    bail!("Timed out waiting for CI run {} ({})", url, status)
+                }
+                if poll == 0 {
+                    displayln!("Waiting for CI run to finish ({}): {}", status, url);
+                }
+                thread::sleep(CI_POLL_INTERVAL);
+            }
+        }
+    }
+    unreachable!()
+}
+
 fn execute_remote_phases<E: ReleaseEffects>(
     effects: &mut E,
     requests: &[PublishRequest],
@@ -459,6 +543,10 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         .get("orchestrator_workflow")
         .cloned()
         .ok_or_else(|| origen::Error::new("release.orchestrator_workflow is required"))?;
+    let regression_workflow = release_config
+        .get("regression_workflow")
+        .cloned()
+        .ok_or_else(|| origen::Error::new("release.regression_workflow is required"))?;
     let rc = app.rc()?;
     let actual_remote = rc.remote_url()?;
     if normalize_repository(&actual_remote) != normalize_repository(&configured_remote) {
@@ -497,10 +585,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             )
         }
         let mut state = ReleaseState::load(&state_path)?;
-        if state.release_id != *release_id
-            || !state.is_complete("workspace_validated")
-            || !state.is_complete("prepared")
-        {
+        if state.release_id != *release_id || !state.is_complete("prepared") {
             bail!(
                 "Release state '{}' is not a completed preparation",
                 release_id
@@ -539,6 +624,11 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         }
         let paths = release_paths(&root, &state.requests)?;
         let requests = state.requests.clone();
+        // A release prepared with --local has not checked CI yet
+        let state_branch = state.release_branch.clone();
+        run_phase(&mut state, &state_path, "ci_validated", || {
+            validate_release_ci(&rc, &repository, &state_branch, &regression_workflow)
+        })?;
         let mut effects = ProductionEffects {
             rc: &rc,
             repo: &repository,
@@ -798,14 +888,13 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         )
     }
     validate_uv_version()?;
-    run_phase(
-        &mut release_state,
-        &state_path,
-        "workspace_validated",
-        || validate_release_workspace(&root),
-    )?;
-
     if !local {
+        let repo = github_repository.as_ref().ok_or_else(|| {
+            origen::Error::new("GitHub Actions provider requires a GitHub repository")
+        })?;
+        run_phase(&mut release_state, &state_path, "ci_validated", || {
+            validate_release_ci(&rc, repo, &release_branch, &regression_workflow)
+        })?;
         run_phase(&mut release_state, &state_path, "remote_validated", || {
             validate_remote_preflight(&rc, &release_branch, &requests)
         })?;
@@ -953,29 +1042,6 @@ fn validate_remote_preflight(
 
 fn run_checked(program: &Path, args: &[&str], cwd: &Path) -> Result<()> {
     let status = Command::new(program).args(args).current_dir(cwd).status()?;
-    if !status.success() {
-        bail!(
-            "Command failed in {}: {} {}",
-            cwd.display(),
-            program.display(),
-            args.join(" ")
-        )
-    }
-    Ok(())
-}
-
-fn run_checked_with_env(
-    program: &Path,
-    args: &[&str],
-    cwd: &Path,
-    envs: &[(&str, String)],
-) -> Result<()> {
-    let mut command = Command::new(program);
-    command.args(args).current_dir(cwd);
-    for (name, value) in envs {
-        command.env(name, value);
-    }
-    let status = command.status()?;
     if !status.success() {
         bail!(
             "Command failed in {}: {} {}",
@@ -1136,64 +1202,6 @@ fn update_release_locks(root: &Path, requests: &[PublishRequest]) -> Result<()> 
         if changed {
             fs::write(&path, format!("{}\n", rendered.join("\n")))?;
         }
-    }
-    Ok(())
-}
-
-fn validate_release_workspace(root: &Path) -> Result<()> {
-    run_checked(
-        Path::new("cargo"),
-        &["test", "-p", "cli", "--locked"],
-        &root.join("rust/origen"),
-    )?;
-    run_checked(
-        Path::new("cargo"),
-        &["test", "-p", "origen", "--lib", "--locked"],
-        &root.join("rust/origen"),
-    )?;
-    run_checked(
-        Path::new("cargo"),
-        &["test", "-p", "origen_metal", "--locked"],
-        &root.join("rust/origen"),
-    )?;
-    let executable = std::env::current_exe()?;
-    let origen_root = root.join("python/origen");
-    run_checked(
-        &executable,
-        &["develop_origen", "build", "--metal"],
-        &origen_root,
-    )?;
-    run_checked(&executable, &["develop_origen", "build"], &origen_root)?;
-    let debug_cli = root.join("rust/origen/target/debug");
-    let python_path = [
-        root.join("rust/pyapi/target"),
-        root.join("python/origen_metal"),
-        root.join("python/origen"),
-    ]
-    .iter()
-    .map(|p| p.to_string_lossy().to_string())
-    .collect::<Vec<String>>()
-    .join(if cfg!(windows) { ";" } else { ":" });
-    let path = format!(
-        "{}{}{}",
-        debug_cli.display(),
-        if cfg!(windows) { ";" } else { ":" },
-        std::env::var("PATH").unwrap_or_default()
-    );
-    let envs = [("PATH", path), ("PYTHONPATH", python_path)];
-    for test_app in ["test_apps/python_app", "test_apps/python_no_app"] {
-        let cwd = root.join(test_app);
-        run_checked(
-            Path::new("uv"),
-            &["sync", "--all-groups", "--no-editable"],
-            &cwd,
-        )?;
-        run_checked_with_env(
-            Path::new("uv"),
-            &["run", "--no-sync", "--no-editable", "pytest", "-q"],
-            &cwd,
-            &envs,
-        )?;
     }
     Ok(())
 }
@@ -1612,6 +1620,66 @@ mod tests {
         );
         assert!(GithubRepository::from_remote("https://example.com/O2/o2.git").is_err());
         Ok(())
+    }
+
+    fn ci_run(created_at: &str, status: &str, conclusion: Option<&str>) -> WorkflowRun {
+        let mut run = workflow_run();
+        run.created_at = created_at.to_string();
+        run.status = status.to_string();
+        run.conclusion = conclusion.map(|c| c.to_string());
+        run.html_url = format!(
+            "https://github.com/Origen-SDK/o2/actions/runs/{}",
+            created_at
+        );
+        run
+    }
+
+    #[test]
+    fn ci_status_is_missing_without_a_run() {
+        assert_eq!(ci_status(&[]), CiStatus::Missing);
+    }
+
+    #[test]
+    fn ci_status_follows_the_newest_run() {
+        let failed_then_passed = [
+            ci_run("2026-11-09T10:00:00Z", "completed", Some("failure")),
+            ci_run("2026-11-09T11:00:00Z", "completed", Some("success")),
+        ];
+        assert_eq!(
+            ci_status(&failed_then_passed),
+            CiStatus::Passed {
+                url: "https://github.com/Origen-SDK/o2/actions/runs/2026-11-09T11:00:00Z"
+                    .to_string()
+            }
+        );
+        let passed_then_cancelled = [
+            ci_run("2026-11-09T11:00:00Z", "completed", Some("cancelled")),
+            ci_run("2026-11-09T10:00:00Z", "completed", Some("success")),
+        ];
+        assert_eq!(
+            ci_status(&passed_then_cancelled),
+            CiStatus::Failed {
+                url: "https://github.com/Origen-SDK/o2/actions/runs/2026-11-09T11:00:00Z"
+                    .to_string(),
+                conclusion: "cancelled".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn ci_status_is_pending_until_the_newest_run_completes() {
+        let runs = [
+            ci_run("2026-11-09T10:00:00Z", "completed", Some("success")),
+            ci_run("2026-11-09T11:00:00Z", "in_progress", None),
+        ];
+        assert_eq!(
+            ci_status(&runs),
+            CiStatus::Pending {
+                url: "https://github.com/Origen-SDK/o2/actions/runs/2026-11-09T11:00:00Z"
+                    .to_string(),
+                status: "in_progress".to_string()
+            }
+        );
     }
 
     #[test]
