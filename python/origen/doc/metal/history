@@ -1,3 +1,18 @@
+(release-origen-metal-1-8-0)=
+# Origen Metal 1.8.0
+
+- **Released:** 2026-11-09
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.8.0`
+
+This release makes program rendering much faster for large programs, with unchanged generated output.
+
+- Faster program rendering: in a reference application, the render of a 13346-test SMT8 program drops from about 10 s to 1.75 s. Processed AST nodes are no longer cloned, flow validation runs alongside model extraction, SMT8 flow files are written on a separate thread during generation, and tests made from the same template share its definition. Generated output is unchanged. Contributed by Stephen McGinty in #249.
+- Rust API change: the `params`, `default_values`, `aliases`, `constraints` and `collection_defs` fields of `Test` moved to `test.definition`; use `test.definition_mut()` to change them. The serialized test JSON is unchanged. Contributed by Stephen McGinty in #249.
+- A flow file write error is now returned after SMT8 flow generation finishes, instead of at the failing write. Contributed by Stephen McGinty in #249.
+
+---
+
 (release-origen-metal-1-7-0)=
 # Origen Metal 1.7.0
 
