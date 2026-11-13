@@ -1,3 +1,18 @@
+(release-origen-metal-1-9-0)=
+# Origen Metal 1.9.0
+
+- **Released:** 2026-11-13
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.9.0`
+
+This release adds a way to declare SMT8 flow output variables that a test method sets natively.
+
+- New `declare_output_variable(name)` flow API (Rust: `flow_api::declare_output_variable`) declares a flow variable as an output of the flow without assigning it, keeping the case of its name. The variable is output from the declaring flow and every enclosing flow, so values set by a test method, such as SetFlowParameters, reach the rest of the program. Contributed by Stephen McGinty in #250.
+- The condition optimizers treat declared output variables as volatile: conditions on them are not merged across tests or flows that may change them. Volatile flags now also apply to expression conditions and to every operand of a multi-flag condition. Contributed by Stephen McGinty in #250.
+- The flag validator allows nested `if_flag`/`unless_flag` conditions on a declared output variable. Contributed by Stephen McGinty in #250.
+
+---
+
 (release-origen-metal-1-8-0)=
 # Origen Metal 1.8.0
 
