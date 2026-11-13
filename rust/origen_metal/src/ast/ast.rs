@@ -56,6 +56,12 @@ impl<T: Attrs> AST<T> {
         self.nodes.len()
     }
 
+    /// Returns the attributes of the currently open nodes, the innermost (most recently
+    /// opened) first and the top-level node last
+    pub fn open_attrs(&self) -> Vec<&T> {
+        self.nodes.iter().rev().map(|n| &n.attrs).collect()
+    }
+
     /// Close the currently open node
     pub fn close(&mut self, ref_id: usize) -> Result<()> {
         if self.nodes.len() != ref_id {

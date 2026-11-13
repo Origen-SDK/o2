@@ -140,6 +140,12 @@ pub enum PGM {
     /// expression string.
     SetVariable(String, String),
 
+    /// Declares a flow variable, its name's case kept, as an output of the enclosing flow
+    /// without assigning it, e.g. a variable which a test method sets natively. For V93K SMT8
+    /// it is an output of the declaring flow and of every enclosing flow, like a flag set by
+    /// the user. It renders nothing for other testers.
+    OutputVariable(String),
+
     /// Flow input/output parameter declaration: (name, type_name, default_value).
     /// Distinct from Variable (local variable). Represents a named, typed parameter
     /// of a SubFlow — analogous to a function argument. Used in formats with named

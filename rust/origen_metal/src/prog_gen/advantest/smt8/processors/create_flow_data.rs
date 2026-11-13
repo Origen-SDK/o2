@@ -169,6 +169,15 @@ impl Processor<PGM> for Collector {
                 }
                 current_flow.modified_flags.insert(flag);
             }
+            PGM::OutputVariable(name) => {
+                // Declared like a flag set by the user, an output of this flow and of every
+                // enclosing flow, but keeping the case of its name
+                self.flows
+                    .last_mut()
+                    .unwrap()
+                    .modified_flags
+                    .insert(name.to_string());
+            }
             PGM::SetVariable(name, value) => {
                 self.reference_variable(name);
                 for v in expression_variables(value) {

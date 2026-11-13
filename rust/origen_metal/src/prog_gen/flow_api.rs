@@ -297,6 +297,54 @@ pub fn set_variable(name: String, value: String, meta: Option<Meta>) -> Result<(
     FLOW.push(n)
 }
 
+/// Declare a flow variable, keeping the case of its name, as an output of the current flow
+/// without assigning it, e.g. a variable which a test method sets natively.
+/// For V93K SMT8 this renders `out <name> = -1;` in the current flow and in every enclosing
+/// flow, with each parent copying the value up from its child (`<name> = CHILD.<name>;`).
+/// A declaration applies to the whole flow and so it must be made at flow level, an error is
+/// returned when it is within a condition or a loop.
+pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
+    if !is_identifier(&name) {
+        bail!(
+            "declare_output_variable('{}'): the name of a flow variable must be an identifier \
+             (letters, digits and underscores, not starting with a digit)",
+            name
+        );
+    }
+    FLOW.with_selected_flow(|flow| {
+        for attrs in flow.open_attrs() {
+            match attrs {
+                PGM::Flow(_) | PGM::SubFlow(_, _) => break,
+                PGM::Group(_, _, kind, _) if kind == &GroupType::Flow => break,
+                PGM::Condition(_)
+                | PGM::Loop(_, _, _)
+                | PGM::OnFailed(_)
+                | PGM::OnPassed(_)
+                | PGM::Else
+                | PGM::Whenever
+                | PGM::WheneverAny
+                | PGM::WheneverAll => bail!(
+                    "declare_output_variable('{}') must be called at flow level, not inside a condition or loop",
+                    name
+                ),
+                _ => {}
+            }
+        }
+        Ok(())
+    })?;
+    let n = node!(PGM::OutputVariable, name; meta);
+    FLOW.push(n)
+}
+
+fn is_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// Start a loop which repeats its contents `count` times, the returned reference should be
 /// retained and passed to end_block.
 /// The iteration number is available within the loop as the given variable, counting from 1 up to
