@@ -1705,6 +1705,96 @@ mod tests {
         Ok(())
     }
 
+    /// A flow with a parent flow containing a sub-flow which sets FLAG and a sub-flow which
+    /// reads it, in the given order
+    fn setter_and_reader(setter_first: bool) -> crate::ast::Node<PGM> {
+        let t = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let setter = node!(PGM::Group, "setter".to_string(), None, GroupType::Flow, Some(FlowID::from_str("setter")) =>
+            t("check"),
+            node!(PGM::SetFlag, "flag".to_string(), true, false)
+        );
+        let reader = node!(PGM::Group, "reader".to_string(), None, GroupType::Flow, Some(FlowID::from_str("reader")) =>
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["flag".to_string()]) =>
+                t("gated")
+            )
+        );
+        let (first, second) = if setter_first {
+            (setter, reader)
+        } else {
+            (reader, setter)
+        };
+        node!(PGM::Flow, "top".to_string() =>
+            node!(PGM::Group, "parent".to_string(), None, GroupType::Flow, Some(FlowID::from_str("parent")) =>
+                first,
+                second
+            )
+        )
+    }
+
+    #[test]
+    fn a_flag_set_by_an_earlier_sub_flow_is_not_an_input_of_the_enclosing_flows(
+    ) -> crate::Result<()> {
+        let flow = setter_and_reader(true);
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(parent.contains("    out FLAG = -1;"), "{}", parent);
+        assert!(!parent.contains("in FLAG"), "{}", parent);
+        assert!(
+            parent.contains(
+                "FLAG = SETTER.FLAG;\n        READER.FLAG = FLAG;\n        READER.execute();"
+            ),
+            "{}",
+            parent
+        );
+        let top = render_flow_file(flow.clone(), "TOP.flow")?;
+        assert!(top.contains("    out FLAG = -1;"), "{}", top);
+        assert!(!top.contains("in FLAG"), "{}", top);
+        let reader = render_flow_file(flow, "READER.flow")?;
+        assert!(reader.contains("    in FLAG = -1;"), "{}", reader);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_read_before_a_sub_flow_sets_it_is_an_input_of_the_enclosing_flows(
+    ) -> crate::Result<()> {
+        let flow = setter_and_reader(false);
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(parent.contains("    in FLAG = -1;"), "{}", parent);
+        assert!(parent.contains("READER.FLAG = FLAG;"), "{}", parent);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    in FLAG = -1;"), "{}", top);
+        assert!(top.contains("PARENT.FLAG = FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_set_by_a_flow_is_not_its_input_when_its_sub_flow_reads_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            node!(PGM::SetFlag, "flag".to_string(), true, false),
+            node!(PGM::Group, "reader".to_string(), None, GroupType::Flow, Some(FlowID::from_str("reader")) =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["flag".to_string()]) =>
+                    node!(PGM::TestStr, "gated".to_string(), FlowID::from_str("gated"), None, None, None)
+                )
+            )
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("in FLAG"), "{}", top);
+        assert!(
+            top.contains("FLAG = 1;\n        READER.FLAG = FLAG;"),
+            "{}",
+            top
+        );
+        Ok(())
+    }
+
     #[test]
     fn declared_input_variables_keep_their_case_and_are_passed_down() -> crate::Result<()> {
         let t = |name: &str| {

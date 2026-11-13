@@ -319,13 +319,17 @@ impl PassthroughCollector {
                 continue;
             }
             flow_data.input_flags.insert(fl.to_string());
-            // Need to get it from upstream, work backwards up the stack until we find a flow that sets it,
-            // otherwise we need to pass it all the way through
+            // Need to get it from upstream, work backwards up the stack until we find a flow that
+            // holds it, i.e. sets it or has been passed it by an earlier sub-flow, that flow passes
+            // its own variable down. Otherwise it is passed all the way through.
             for f in self.flow_stack.iter_mut().rev() {
-                f.input_flags.insert(fl.to_string());
-                if f.modified_flags.contains(fl) {
+                if f.modified_flags.contains(fl)
+                    || f.output_flags.contains(fl)
+                    || f.downstream_flags.contains(fl)
+                {
                     break;
                 }
+                f.input_flags.insert(fl.to_string());
             }
         }
         // Make sure that any modified flags that are referenced later by an upstream flow are output
