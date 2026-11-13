@@ -76,8 +76,40 @@ def test_loop_applies_flow_options_around_the_loop():
             pass
 
     ast = _flow_ast(build)
-    assert 'Condition(IfEnable(["retry"]))\n        Loop(Some(3), Some("attempt"), false)\n            SetFlag("looped", true, false)' in ast
-    assert 'Loop(Some(9), Some("index"), true)' in ast
+    assert 'Condition(IfEnable(["retry"]))\n        Loop(Some(Fixed(3)), Some("attempt"), false, 1)\n            SetFlag("looped", true, false)' in ast
+    assert 'Loop(Some(Fixed(9)), Some("index"), true, 1)' in ast
+
+
+def test_loops_take_a_start_and_a_count_held_in_a_flow_variable():
+    def build(interface):
+        with interface.loop(6, "attempt", start=0):
+            pass
+        with interface.loop("retryCount", "attempt", True):
+            pass
+
+    ast = _flow_ast(build)
+    assert 'Loop(Some(Fixed(6)), Some("attempt"), false, 0)' in ast
+    assert 'Loop(Some(Variable("retryCount")), Some("attempt"), true, 1)' in ast
+
+
+@pytest.mark.parametrize("count,error,match", [
+    (-1, ValueError, "must be an integer from 0"),
+    (2**32, ValueError, "must be an integer from 0"),
+    ("1st", ValueError, "must be the name of a flow variable"),
+    ("a b", ValueError, "must be the name of a flow variable"),
+    (True, TypeError, "not 'bool'"),
+    (3.0, TypeError, "not 'float'"),
+    (None, TypeError, "not 'NoneType'"),
+])
+def test_loop_count_must_be_an_int_or_a_variable_name(count, error, match):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("flow", None, None, None)
+    with pytest.raises(error, match=match):
+        interface.loop(count, if_flag="enabled")
+    # No condition was left open by the invalid loop
+    om.prog_gen.end_flow(refs)
+    assert "Loop" not in om.prog_gen.ast_str()
+    assert "IfFlag" not in om.prog_gen.ast_str()
 
 
 def test_bypassed_group_is_inside_its_conditions():

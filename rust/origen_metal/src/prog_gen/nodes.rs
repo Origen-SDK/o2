@@ -178,13 +178,14 @@ pub enum PGM {
     /// it through unchanged.
     Call(String, Vec<String>),
 
-    /// A bounded iteration loop: (iteration_count, counter_variable_name, descending).
+    /// A bounded iteration loop: (iteration_count, counter_variable_name, descending, start).
     /// `iteration_count` is None for condition-driven or infinite loops.
     /// `counter_variable_name` is None if the loop counter is not exposed as a variable.
-    /// `descending` counts the loop variable down from `iteration_count` to 1 instead of up.
+    /// The loop variable counts up from `start` through `iteration_count` values, or down to
+    /// `start` when `descending` is true, e.g. 1..3 or 3..1 for a count of 3 from 1.
     /// Child nodes form the loop body. Fills the gap left by the payload-less Whenever* placeholders
     /// for formats with explicit loop constructs (e.g. SMT7 loops).
-    Loop(Option<u32>, Option<String>, bool),
+    Loop(Option<LoopCount>, Option<String>, bool, i64),
 
     /// A structured result report entry: (category, message).
     /// Distinct from Log (runtime stdout) and Comment (source annotation).
@@ -202,6 +203,24 @@ pub enum PGM {
     /// Used for formats where callbacks are first-class flow steps. Processors that don't
     /// handle this should pass it through unchanged.
     Callback(String, Vec<String>),
+}
+
+/// The number of iterations of a `PGM::Loop`
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum LoopCount {
+    /// A count fixed at generation time
+    Fixed(u32),
+    /// A count held in the named flow variable, read when the loop starts
+    Variable(String),
+}
+
+impl std::fmt::Display for LoopCount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoopCount::Fixed(count) => write!(f, "{}", count),
+            LoopCount::Variable(name) => write!(f, "{}", name),
+        }
+    }
 }
 
 impl std::fmt::Display for PGM {

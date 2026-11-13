@@ -1,6 +1,6 @@
 use super::ParamValue;
 use super::{
-    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType,
+    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, LoopCount, PatternGroupType,
     ResourcesType, UniquenessOption,
 };
 use crate::ast::Meta;
@@ -317,7 +317,7 @@ pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
                 PGM::Flow(_) | PGM::SubFlow(_, _) => break,
                 PGM::Group(_, _, kind, _) if kind == &GroupType::Flow => break,
                 PGM::Condition(_)
-                | PGM::Loop(_, _, _)
+                | PGM::Loop(..)
                 | PGM::OnFailed(_)
                 | PGM::OnPassed(_)
                 | PGM::Else
@@ -336,7 +336,9 @@ pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
     FLOW.push(n)
 }
 
-fn is_identifier(name: &str) -> bool {
+/// Returns true if the given name can be used as a flow variable name: letters, digits and
+/// underscores, not starting with a digit
+pub fn is_identifier(name: &str) -> bool {
     let mut chars = name.chars();
     match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
@@ -347,15 +349,27 @@ fn is_identifier(name: &str) -> bool {
 
 /// Start a loop which repeats its contents `count` times, the returned reference should be
 /// retained and passed to end_block.
-/// The iteration number is available within the loop as the given variable, counting from 1 up to
-/// `count`, or from `count` down to 1 when `descending` is true.
+/// The count is either fixed or the name of a flow variable which holds it when the loop starts.
+/// The iteration number is available within the loop as the given variable, counting up from
+/// `start` through `count` values, or down to `start` when `descending` is true, e.g. 1 to 3,
+/// or 0 to 2 when `start` is 0, for a count of 3.
 pub fn start_loop(
-    count: Option<u32>,
+    count: Option<LoopCount>,
     variable: Option<String>,
     descending: bool,
+    start: i64,
     meta: Option<Meta>,
 ) -> Result<usize> {
-    let n = node!(PGM::Loop, count, variable, descending; meta);
+    if let Some(LoopCount::Variable(name)) = &count {
+        if !is_identifier(name) {
+            bail!(
+                "loop count '{}': a loop count must be a number or the name of a flow variable \
+                 (letters, digits and underscores, not starting with a digit)",
+                name
+            );
+        }
+    }
+    let n = node!(PGM::Loop, count, variable, descending, start; meta);
     FLOW.push_and_open(n)
 }
 

@@ -1,7 +1,7 @@
 use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 use crate::prog_gen::config::SMT8Config;
-use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamValue, PGM};
+use crate::prog_gen::{BinType, FlowCondition, GroupType, LoopCount, Model, ParamValue, PGM};
 use crate::Result;
 use indexmap::IndexMap;
 use std::cmp::Ordering;
@@ -1138,18 +1138,38 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 _ => Return::ProcessChildren,
             },
-            PGM::Loop(count, variable, descending) => {
-                let count = match count {
-                    Some(c) => *c,
-                    None => bail!("V93K SMT8 flow generation only supports loops with a fixed iteration count"),
+            PGM::Loop(count, variable, descending, start) => {
+                // The first and last values of the loop variable, joined like this to match
+                // hand-written SMT8, e.g. 1..3 and 1 .. count
+                let (first, last, sep) = match count {
+                    Some(LoopCount::Fixed(c)) => {
+                        (start.to_string(), (start + *c as i64 - 1).to_string(), "..")
+                    }
+                    Some(LoopCount::Variable(name)) => {
+                        let last = match start - 1 {
+                            0 => name.to_string(),
+                            offset if offset > 0 => format!("{} + {}", name, offset),
+                            offset => format!("{} - {}", name, -offset),
+                        };
+                        (start.to_string(), last, " .. ")
+                    }
+                    None => bail!(
+                        "V93K SMT8 flow generation only supports loops with an iteration count"
+                    ),
                 };
                 let variable = variable.clone().unwrap_or_else(|| "index".to_string());
                 {
                     let current_flow = self.flow_stack.last_mut().unwrap();
                     if *descending {
-                        current_flow.execute_line(format!("for ({} : {}..1) {{", variable, count));
+                        current_flow.execute_line(format!(
+                            "for ({} : {}{}{}) {{",
+                            variable, last, sep, first
+                        ));
                     } else {
-                        current_flow.execute_line(format!("for ({} : 1..{}) {{", variable, count));
+                        current_flow.execute_line(format!(
+                            "for ({} : {}{}{}) {{",
+                            variable, first, sep, last
+                        ));
                     }
                     current_flow.indent += 1;
                 }
@@ -1230,7 +1250,8 @@ impl Processor<PGM> for FlowGenerator {
 mod tests {
     use super::{run, FileWriter, FlowGenerator};
     use crate::prog_gen::{
-        process_flow, FlowCondition, FlowID, GroupType, Model, ParamValue, SupportedTester, PGM,
+        process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
+        SupportedTester, PGM,
     };
     use std::cmp::Ordering;
     use std::fs;
@@ -1352,10 +1373,10 @@ mod tests {
     #[test]
     fn loops_are_rendered_ascending_and_descending() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "loops".to_string() =>
-            node!(PGM::Loop, Some(3), Some("attempt".to_string()), false =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("attempt".to_string()), false, 1 =>
                 node!(PGM::TestStr, "looped".to_string(), FlowID::from_str("looped"), None, None, None)
             ),
-            node!(PGM::Loop, Some(9), None, true =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(9)), None, true, 1 =>
                 node!(PGM::TestStr, "countdown".to_string(), FlowID::from_str("countdown"), None, None, None)
             )
         );
@@ -1367,6 +1388,128 @@ mod tests {
         assert!(!flow.contains("in attempt"));
         assert!(!flow.contains("in index"));
         Ok(())
+    }
+
+    #[test]
+    fn loops_can_start_at_any_index() -> crate::Result<()> {
+        let looped = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let flow = node!(PGM::Flow, "starts".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(6)), Some("i".to_string()), false, 0 =>
+                looped("from_0")
+            ),
+            node!(PGM::Loop, Some(LoopCount::Fixed(6)), Some("j".to_string()), true, 0 =>
+                looped("down_to_0")
+            ),
+            node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("k".to_string()), false, 5 =>
+                looped("from_5")
+            )
+        );
+        let flow = render_flow_file(flow, "STARTS.flow")?;
+        assert!(flow.contains("for (i : 0..5) {"), "{}", flow);
+        assert!(flow.contains("for (j : 5..0) {"), "{}", flow);
+        assert!(flow.contains("for (k : 5..6) {"), "{}", flow);
+        Ok(())
+    }
+
+    #[test]
+    fn loops_can_repeat_to_a_count_held_in_a_flow_variable() -> crate::Result<()> {
+        let looped = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let count = |name: &str| Some(LoopCount::Variable(name.to_string()));
+        let flow = node!(PGM::Flow, "counted".to_string() =>
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), false, 1 =>
+                looped("up")
+            ),
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), true, 1 =>
+                looped("down")
+            ),
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), false, 0 =>
+                looped("from_0")
+            ),
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), false, 3 =>
+                looped("from_3")
+            ),
+            // A nested loop may count to the variable of the loop around it
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("outer".to_string()), false, 1 =>
+                node!(PGM::Loop, count("outer"), Some("inner".to_string()), false, 1 =>
+                    looped("nested")
+                )
+            )
+        );
+        let flow = render_flow_file(flow, "COUNTED.flow")?;
+        assert!(
+            flow.contains("for (attempt : 1 .. retryCount) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (attempt : retryCount .. 1) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (attempt : 0 .. retryCount - 1) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (attempt : 3 .. retryCount + 2) {"),
+            "{}",
+            flow
+        );
+        assert!(flow.contains("for (inner : 1 .. outer) {"), "{}", flow);
+        // The count is an input of the flow, keeping its case, the loop variables are not
+        assert!(flow.contains("    in retryCount = -1;"), "{}", flow);
+        assert!(!flow.contains("in outer"), "{}", flow);
+        assert!(!flow.contains("RETRYCOUNT"), "{}", flow);
+        Ok(())
+    }
+
+    #[test]
+    fn a_loop_count_declared_as_an_output_is_not_an_input() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "counted".to_string() =>
+            node!(PGM::SubFlow, "sub".to_string(), None =>
+                node!(PGM::TestStr, "set_count".to_string(), FlowID::from_str("set_count"), None, None, None),
+                node!(PGM::Loop, Some(LoopCount::Variable("retryCount".to_string())), Some("attempt".to_string()), false, 1 =>
+                    node!(PGM::TestStr, "step".to_string(), FlowID::from_str("step"), None, None, None)
+                ),
+                node!(PGM::OutputVariable, "retryCount".to_string())
+            )
+        );
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    out retryCount = -1;"), "{}", sub);
+        assert!(!sub.contains("in retryCount"), "{}", sub);
+        assert!(sub.contains("for (attempt : 1 .. retryCount) {"), "{}", sub);
+        let top = render_flow_file(flow, "COUNTED.flow")?;
+        assert!(!top.contains("in retryCount"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_loop_without_a_count_is_an_error() {
+        let flow = node!(PGM::Flow, "unbounded".to_string() =>
+            node!(PGM::Loop, None, None, false, 1 =>
+                node!(PGM::TestStr, "t".to_string(), FlowID::from_str("t"), None, None, None)
+            )
+        );
+        assert!(render_flow_file(flow, "UNBOUNDED.flow").is_err());
     }
 
     #[test]
@@ -1466,7 +1609,7 @@ mod tests {
         let flow = node!(PGM::Flow, "variables".to_string() =>
             node!(PGM::SetVariable, "per_tile_passed".to_string(), "0".to_string()),
             node!(PGM::Group, "inner".to_string(), None, GroupType::Flow, Some(FlowID::from_str("inner")) =>
-                node!(PGM::Loop, Some(9), Some("per_tile_index".to_string()), true =>
+                node!(PGM::Loop, Some(LoopCount::Fixed(9)), Some("per_tile_index".to_string()), true, 1 =>
                     node!(PGM::Condition, FlowCondition::IfExpr("per_tile_passed == 0 && per_tile_index > 1".to_string()) =>
                         node!(PGM::SetVariable, "per_tile_passed".to_string(), "1".to_string())
                     )

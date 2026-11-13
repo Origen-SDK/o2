@@ -6,6 +6,7 @@ use crate::ast::*;
 use crate::prog_gen::expressions::expression_variables;
 use crate::prog_gen::FlowCondition;
 use crate::prog_gen::GroupType;
+use crate::prog_gen::LoopCount;
 use crate::prog_gen::PGM;
 use crate::Result;
 
@@ -185,7 +186,12 @@ impl Processor<PGM> for Collector {
                     self.reference_variable(&v);
                 }
             }
-            PGM::Loop(_, variable, _) => {
+            PGM::Loop(count, variable, _, _) => {
+                // A count held in a flow variable is read when the loop starts, before its own
+                // counter is in scope
+                if let Some(LoopCount::Variable(name)) = count {
+                    self.reference_variable(name);
+                }
                 let variable = variable.clone().unwrap_or_else(|| "index".to_string());
                 self.loop_variables.push(variable);
                 let n = node.process_and_update_children(self)?;
