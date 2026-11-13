@@ -1185,7 +1185,7 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             // Only declares the variable, see create_flow_data
-            PGM::OutputVariable(_) => Return::None,
+            PGM::OutputVariable(_) | PGM::InputVariable(_) => Return::None,
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -1702,6 +1702,70 @@ mod tests {
             "{}",
             reader
         );
+        Ok(())
+    }
+
+    #[test]
+    fn declared_input_variables_keep_their_case_and_are_passed_down() -> crate::Result<()> {
+        let t = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let flow = node!(PGM::Flow, "inputs".to_string() =>
+            // Declared by a flow which only passes it down, and by the sub-flow which receives it
+            node!(PGM::Group, "outer".to_string(), None, GroupType::Flow, Some(FlowID::from_str("outer")) =>
+                node!(PGM::InputVariable, "tileMask".to_string()),
+                node!(PGM::Group, "sub".to_string(), None, GroupType::Flow, Some(FlowID::from_str("sub")) =>
+                    node!(PGM::InputVariable, "tileMask".to_string()),
+                    t("in_sub")
+                ),
+                node!(PGM::Group, "other".to_string(), None, GroupType::Flow, Some(FlowID::from_str("other")) =>
+                    t("in_other")
+                )
+            ),
+            // Declared only by a flow nested in a flow which doesn't declare it
+            node!(PGM::Group, "middle".to_string(), None, GroupType::Flow, Some(FlowID::from_str("middle")) =>
+                node!(PGM::Group, "deep".to_string(), None, GroupType::Flow, Some(FlowID::from_str("deep")) =>
+                    node!(PGM::InputVariable, "DEPTH".to_string()),
+                    t("in_deep")
+                )
+            )
+        );
+
+        let top = render_flow_file(flow.clone(), "INPUTS.flow")?;
+        assert!(top.contains("    in tileMask = -1;"), "{}", top);
+        assert!(top.contains("    in DEPTH = -1;"), "{}", top);
+        assert!(
+            top.contains("OUTER.tileMask = tileMask;\n        OUTER.execute();"),
+            "{}",
+            top
+        );
+        assert!(top.contains("MIDDLE.DEPTH = DEPTH;"), "{}", top);
+        assert!(!top.contains("out "), "{}", top);
+
+        let outer = render_flow_file(flow.clone(), "OUTER.flow")?;
+        assert!(outer.contains("    in tileMask = -1;"), "{}", outer);
+        assert!(outer.contains("SUB.tileMask = tileMask;"), "{}", outer);
+        // Not passed to a sub-flow which neither reads nor declares it
+        assert!(!outer.contains("OTHER.tileMask"), "{}", outer);
+        assert!(!outer.contains("TILEMASK"), "{}", outer);
+
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    in tileMask = -1;"), "{}", sub);
+        let other = render_flow_file(flow.clone(), "OTHER.flow")?;
+        assert!(!other.contains("tileMask"), "{}", other);
+
+        let middle = render_flow_file(flow.clone(), "MIDDLE.flow")?;
+        assert!(middle.contains("    in DEPTH = -1;"), "{}", middle);
+        assert!(middle.contains("DEEP.DEPTH = DEPTH;"), "{}", middle);
+        let deep = render_flow_file(flow, "DEEP.flow")?;
+        assert!(deep.contains("    in DEPTH = -1;"), "{}", deep);
         Ok(())
     }
 

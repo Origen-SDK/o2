@@ -180,6 +180,11 @@ impl Processor<PGM> for Collector {
                 current_flow.modified_flags.insert(name.to_string());
                 current_flow.declared_outputs.insert(name.to_string());
             }
+            PGM::InputVariable(name) => {
+                // Declared like a variable read by an expression, an input of this flow and of
+                // every enclosing flow, keeping the case of its name
+                self.reference_variable(name);
+            }
             PGM::SetVariable(name, value) => {
                 self.reference_variable(name);
                 for v in expression_variables(value) {

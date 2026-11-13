@@ -304,10 +304,32 @@ pub fn set_variable(name: String, value: String, meta: Option<Meta>) -> Result<(
 /// A declaration applies to the whole flow and so it must be made at flow level, an error is
 /// returned when it is within a condition or a loop.
 pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
+    ensure_flow_level_declaration("declare_output_variable", &name)?;
+    let n = node!(PGM::OutputVariable, name; meta);
+    FLOW.push(n)
+}
+
+/// Declare a flow variable, keeping the case of its name, as an input of the current flow
+/// without reading it, e.g. a value which the flow only passes down to its sub-flows.
+/// For V93K SMT8 this renders `in <name> = -1;` in the current flow and in every enclosing
+/// flow, with each parent passing its value down (`CHILD.<name> = <name>;`). A sub-flow
+/// receives it only if it reads or declares it too.
+/// A declaration applies to the whole flow and so it must be made at flow level, an error is
+/// returned when it is within a condition or a loop.
+pub fn declare_input_variable(name: String, meta: Option<Meta>) -> Result<()> {
+    ensure_flow_level_declaration("declare_input_variable", &name)?;
+    let n = node!(PGM::InputVariable, name; meta);
+    FLOW.push(n)
+}
+
+/// Returns an error if the given name is not an identifier, or if the current position is not at
+/// flow level, e.g. it is within a condition or a loop
+fn ensure_flow_level_declaration(api: &str, name: &str) -> Result<()> {
     if !is_identifier(&name) {
         bail!(
-            "declare_output_variable('{}'): the name of a flow variable must be an identifier \
+            "{}('{}'): the name of a flow variable must be an identifier \
              (letters, digits and underscores, not starting with a digit)",
+            api,
             name
         );
     }
@@ -324,16 +346,15 @@ pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
                 | PGM::Whenever
                 | PGM::WheneverAny
                 | PGM::WheneverAll => bail!(
-                    "declare_output_variable('{}') must be called at flow level, not inside a condition or loop",
+                    "{}('{}') must be called at flow level, not inside a condition or loop",
+                    api,
                     name
                 ),
                 _ => {}
             }
         }
         Ok(())
-    })?;
-    let n = node!(PGM::OutputVariable, name; meta);
-    FLOW.push(n)
+    })
 }
 
 /// Returns true if the given name can be used as a flow variable name: letters, digits and

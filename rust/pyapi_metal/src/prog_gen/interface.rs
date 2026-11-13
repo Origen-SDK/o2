@@ -237,6 +237,15 @@ impl PyInterface {
         Ok(())
     }
 
+    /// Declare the given flow variable, keeping the case of its name, as an input of the
+    /// current flow without reading it, e.g. a value which the flow only passes down to its
+    /// sub-flows. A sub-flow receives it only if it reads or declares it too.
+    /// Must be called at flow level, not within a condition or loop.
+    fn declare_input_variable(&mut self, name: String) -> PyResult<()> {
+        flow_api::declare_input_variable(name, src_caller_meta())?;
+        Ok(())
+    }
+
     fn resources(&mut self) -> PyResult<Resources> {
         let r = Resources::new();
         Ok(r)

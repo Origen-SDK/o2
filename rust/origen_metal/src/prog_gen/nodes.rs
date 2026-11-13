@@ -146,6 +146,12 @@ pub enum PGM {
     /// the user. It renders nothing for other testers.
     OutputVariable(String),
 
+    /// Declares a flow variable, its name's case kept, as an input of the enclosing flow without
+    /// reading it, e.g. a value which is only passed down to sub-flows. For V93K SMT8 it is an
+    /// input of the declaring flow and of every enclosing flow, like a variable read by an
+    /// expression. It renders nothing for other testers.
+    InputVariable(String),
+
     /// Flow input/output parameter declaration: (name, type_name, default_value).
     /// Distinct from Variable (local variable). Represents a named, typed parameter
     /// of a SubFlow — analogous to a function argument. Used in formats with named

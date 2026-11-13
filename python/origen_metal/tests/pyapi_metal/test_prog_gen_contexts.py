@@ -136,8 +136,20 @@ def test_output_variables_are_declared_with_their_case():
     assert 'OutputVariable("BITMAP")' in ast
 
 
+def test_input_variables_are_declared_with_their_case():
+    def build(interface):
+        interface.declare_input_variable("tileMask")
+        with interface.group("grp", if_flag="enabled"):
+            interface.declare_input_variable("DEPTH")
+
+    ast = _flow_ast(build)
+    assert 'InputVariable("tileMask")' in ast
+    assert 'InputVariable("DEPTH")' in ast
+
+
+@pytest.mark.parametrize("api", ["declare_output_variable", "declare_input_variable"])
 @pytest.mark.parametrize("context_name", ["condition", "loop", "group_condition"])
-def test_output_variables_cannot_be_declared_in_a_condition_or_loop(context_name):
+def test_variables_cannot_be_declared_in_a_condition_or_loop(api, context_name):
     interface = om.interface.PyInterface()
     refs = om.prog_gen.start_new_flow("flow", None, None, None)
     if context_name == "condition":
@@ -149,17 +161,18 @@ def test_output_variables_cannot_be_declared_in_a_condition_or_loop(context_name
     with context:
         if context_name == "group_condition":
             # The group is the flow which declares it, its condition applies to its call
-            interface.declare_output_variable("in_group")
+            getattr(interface, api)("in_group")
         else:
-            with pytest.raises(RuntimeError, match="must be called at flow level"):
-                interface.declare_output_variable("x")
+            with pytest.raises(RuntimeError, match=api + r"\('x'\) must be called at flow level"):
+                getattr(interface, api)("x")
     om.prog_gen.end_flow(refs)
 
 
+@pytest.mark.parametrize("api", ["declare_output_variable", "declare_input_variable"])
 @pytest.mark.parametrize("name", ["", "1st", "a b", "x.y"])
-def test_output_variable_names_must_be_identifiers(name):
+def test_variable_names_must_be_identifiers(api, name):
     interface = om.interface.PyInterface()
     refs = om.prog_gen.start_new_flow("flow", None, None, None)
     with pytest.raises(RuntimeError, match="must be an identifier"):
-        interface.declare_output_variable(name)
+        getattr(interface, api)(name)
     om.prog_gen.end_flow(refs)
