@@ -93,8 +93,9 @@ def test_loops_take_a_start_and_a_count_held_in_a_flow_variable():
 
 
 @pytest.mark.parametrize("count,error,match", [
-    (-1, ValueError, "must be an integer from 0"),
-    (2**32, ValueError, "must be an integer from 0"),
+    (0, ValueError, "must be an integer from 1"),
+    (-1, ValueError, "must be an integer from 1"),
+    (2**32, ValueError, "must be an integer from 1"),
     ("1st", ValueError, "must be the name of a flow variable"),
     ("a b", ValueError, "must be the name of a flow variable"),
     (True, TypeError, "not 'bool'"),

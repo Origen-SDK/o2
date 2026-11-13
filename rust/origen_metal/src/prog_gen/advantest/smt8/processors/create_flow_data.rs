@@ -48,12 +48,23 @@ pub struct FlowData {
     /// The number of flows within this flow, including itself, which read each flag (or a
     /// variable with the same name)
     pub flag_readers: HashMap<String, usize>,
+    /// The counter variables of the loops in the parent flow which enclose the call of this
+    /// flow, the parent passes their values down
+    pub call_site_loop_variables: HashSet<String>,
 }
 
 impl FlowData {
     /// Returns the number of flows within this flow, including itself, which read the given flag
     fn readers_of(&self, flag: &str) -> usize {
         self.flag_readers.get(flag).copied().unwrap_or(0)
+    }
+
+    /// Returns true if this flow holds a value for the given flag or variable which it can pass
+    /// down: it sets it, or an earlier sub-flow has passed it up to this flow
+    fn holds(&self, name: &str) -> bool {
+        self.modified_flags.contains(name)
+            || self.output_flags.contains(name)
+            || self.downstream_flags.contains(name)
     }
 
     pub fn sorted_output_flags(&self) -> Vec<String> {
@@ -110,11 +121,24 @@ impl FlowData {
 pub struct Collector {
     flows: Vec<FlowData>,
     processing_subflow: bool,
-    /// Counter variables of the loops which enclose the current node
+    /// Counter variables of the loops which enclose the current node within the current flow
     loop_variables: Vec<String>,
+    /// The loop counter variables of the enclosing flows, saved while a sub-flow is processed
+    saved_loop_variables: Vec<Vec<String>>,
 }
 
 impl Collector {
+    /// Starts collecting the data of a new flow, a loop counter of its parent flow is not in
+    /// scope within it, it is an input passed down by the parent
+    fn open_flow(&mut self) {
+        let call_site_loop_variables = std::mem::take(&mut self.loop_variables);
+        self.flows.push(FlowData {
+            call_site_loop_variables: call_site_loop_variables.iter().cloned().collect(),
+            ..Default::default()
+        });
+        self.saved_loop_variables.push(call_site_loop_variables);
+    }
+
     fn reference_variable(&mut self, name: &str) {
         if self.loop_variables.iter().any(|v| v == name) {
             return;
@@ -131,9 +155,7 @@ impl Processor<PGM> for Collector {
     fn on_node(&mut self, node: &Node<PGM>) -> Result<Return<PGM>> {
         match &node.attrs {
             PGM::Flow(_) | PGM::SubFlow(_, _) => {
-                self.flows.push(FlowData {
-                    ..Default::default()
-                });
+                self.open_flow();
                 let orig = self.processing_subflow;
                 self.processing_subflow = true;
                 let children = node.process_and_box_children(self)?;
@@ -145,9 +167,7 @@ impl Processor<PGM> for Collector {
             }
             PGM::Group(_, _, kind, _) => {
                 if kind == &GroupType::Flow {
-                    self.flows.push(FlowData {
-                        ..Default::default()
-                    });
+                    self.open_flow();
                 }
                 let orig = self.processing_subflow;
                 self.processing_subflow = true;
@@ -259,6 +279,7 @@ impl Collector {
     /// the flow's data
     fn with_flow_data(&mut self, node: &Node<PGM>, children: Vec<Box<Node<PGM>>>) -> Node<PGM> {
         let mut fdata = self.flows.pop().unwrap();
+        self.loop_variables = self.saved_loop_variables.pop().unwrap();
         // Count this flow as a reader of the flags it reads, its sub-flows have already been
         // counted, and add its counts to those of its parent
         let read: HashSet<&String> = fdata
@@ -337,9 +358,15 @@ impl PassthroughCollector {
                 continue;
             }
             flow_data.input_variables.insert(v.to_string());
-            // Ensure every flow in the stack passes through referenced variables
-            for f in &mut self.flow_stack {
+            // Pass it in from upstream, as far as a flow which holds it, or which calls the flows
+            // which read it from within a loop counting with it, otherwise all the way through
+            let mut from_caller_loop = flow_data.call_site_loop_variables.contains(v);
+            for f in self.flow_stack.iter_mut().rev() {
+                if from_caller_loop || f.holds(v) {
+                    break;
+                }
                 f.input_variables.insert(v.to_string());
+                from_caller_loop = f.call_site_loop_variables.contains(v);
             }
         }
         // Make sure that all referenced flags that originate from an upstream flow are input
@@ -355,10 +382,7 @@ impl PassthroughCollector {
             // holds it, i.e. sets it or has been passed it by an earlier sub-flow, that flow passes
             // its own variable down. Otherwise it is passed all the way through.
             for f in self.flow_stack.iter_mut().rev() {
-                if f.modified_flags.contains(fl)
-                    || f.output_flags.contains(fl)
-                    || f.downstream_flags.contains(fl)
-                {
+                if f.holds(fl) {
                     break;
                 }
                 f.input_flags.insert(fl.to_string());

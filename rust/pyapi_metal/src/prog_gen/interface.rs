@@ -195,7 +195,9 @@ impl PyInterface {
     }
 
     /// Repeats the flow content generated within the returned context manager count times.
-    /// The count is a number, or the name of a flow variable which holds it when the loop starts.
+    /// The count is a number from 1, or the name of a flow variable which holds it when the loop
+    /// starts. Like a hand-written V93K SMT8 for loop, a loop to a variable is not guarded, the
+    /// variable must be at least 1 when the loop starts.
     /// The iteration number, counting up from start through count values (or down to start when
     /// descending), is available within the loop as the given flow variable.
     /// Flow options, e.g. if_enable, are applied to the whole loop.
@@ -525,9 +527,9 @@ fn loop_count(count: &PyAny) -> PyResult<LoopCount> {
     // A bool is also an int in Python
     if count.downcast::<PyLong>().is_ok() && count.downcast::<PyBool>().is_err() {
         return match count.extract::<u32>() {
-            Ok(n) => Ok(LoopCount::Fixed(n)),
-            Err(_) => Err(PyValueError::new_err(format!(
-                "loop count {} must be an integer from 0 to {}, or the name of a flow variable",
+            Ok(n) if n > 0 => Ok(LoopCount::Fixed(n)),
+            _ => Err(PyValueError::new_err(format!(
+                "loop count {} must be an integer from 1 to {}, or the name of a flow variable",
                 count,
                 u32::MAX
             ))),

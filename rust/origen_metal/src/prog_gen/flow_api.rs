@@ -386,6 +386,9 @@ pub fn is_identifier(name: &str) -> bool {
 /// Start a loop which repeats its contents `count` times, the returned reference should be
 /// retained and passed to end_block.
 /// The count is either fixed or the name of a flow variable which holds it when the loop starts.
+/// A fixed count must be at least 1, and so must a count held in a variable when the loop
+/// starts: like a hand-written V93K SMT8 `for` loop, the range is not guarded and a lower count
+/// counts down instead.
 /// The iteration number is available within the loop as the given variable, counting up from
 /// `start` through `count` values, or down to `start` when `descending` is true, e.g. 1 to 3,
 /// or 0 to 2 when `start` is 0, for a count of 3.
@@ -396,6 +399,9 @@ pub fn start_loop(
     start: i64,
     meta: Option<Meta>,
 ) -> Result<usize> {
+    if let Some(LoopCount::Fixed(0)) = &count {
+        bail!("loop count 0: a loop must repeat at least once");
+    }
     if let Some(LoopCount::Variable(name)) = &count {
         if !is_identifier(name) {
             bail!(
