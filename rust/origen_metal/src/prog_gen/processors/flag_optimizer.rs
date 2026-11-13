@@ -106,7 +106,7 @@ impl Processor<PGM> for FlagOptimizer {
             PGM::Flow(_)
             | PGM::SubFlow(_, _)
             | PGM::Else
-            | PGM::Loop(_, _, _)
+            | PGM::Loop(..)
             | PGM::Whenever
             | PGM::WheneverAny
             | PGM::WheneverAll => {
@@ -334,7 +334,7 @@ fn is_gated_by_set(flag: &str, node: &Box<Node<PGM>>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, PGM};
+    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, LoopCount, PGM};
     use crate::Result;
 
     #[test]
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     fn it_applies_the_optimization_within_loops() -> Result<()> {
         let input = node!(PGM::Flow, "f1".to_string() =>
-            node!(PGM::Loop, Some(3), Some("index".to_string()), false =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("index".to_string()), false, 1 =>
                 node!(PGM::Test, 1, FlowID::from_int(1) =>
                     node!(PGM::OnFailed, FlowID::from_int(1) =>
                         node!(PGM::Continue),
@@ -448,7 +448,7 @@ mod tests {
         );
 
         let output = node!(PGM::Flow, "f1".to_string() =>
-            node!(PGM::Loop, Some(3), Some("index".to_string()), false =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("index".to_string()), false, 1 =>
                 node!(PGM::Test, 1, FlowID::from_int(1) =>
                     node!(PGM::OnFailed, FlowID::from_int(1) =>
                         node!(PGM::Continue),

@@ -25,6 +25,7 @@ pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
     Ok(ast)
 }
 
+#[derive(PartialEq)]
 enum TestResult {
     Passed,
     Failed,
@@ -33,6 +34,17 @@ enum TestResult {
 
 pub struct ExtractTestResults {
     results: HashMap<FlowID, Vec<TestResult>>,
+}
+
+impl ExtractTestResults {
+    /// Records that a test result of the given ID is referenced, each kind of result once, so
+    /// that its flag is set once however many conditions reference it
+    fn add(&mut self, id: &FlowID, result: TestResult) {
+        let results = self.results.entry(id.to_owned()).or_insert_with(Vec::new);
+        if !results.contains(&result) {
+            results.push(result);
+        }
+    }
 }
 
 /// Extracts the IDs of all tests which have dependents on whether they passed, failed or ran
@@ -46,10 +58,7 @@ impl Processor<PGM> for ExtractTestResults {
                 | FlowCondition::IfAnySitesFailed(ids)
                 | FlowCondition::IfAllSitesFailed(ids) => {
                     for id in ids {
-                        if !self.results.contains_key(id) {
-                            self.results.insert(id.to_owned(), vec![]);
-                        }
-                        self.results.get_mut(id).unwrap().push(TestResult::Failed);
+                        self.add(id, TestResult::Failed);
                     }
                     Return::ProcessChildren
                 }
@@ -59,19 +68,13 @@ impl Processor<PGM> for ExtractTestResults {
                 | FlowCondition::IfAnySitesPassed(ids)
                 | FlowCondition::IfAllSitesPassed(ids) => {
                     for id in ids {
-                        if !self.results.contains_key(id) {
-                            self.results.insert(id.to_owned(), vec![]);
-                        }
-                        self.results.get_mut(id).unwrap().push(TestResult::Passed);
+                        self.add(id, TestResult::Passed);
                     }
                     Return::ProcessChildren
                 }
                 FlowCondition::IfRan(ids) | FlowCondition::UnlessRan(ids) => {
                     for id in ids {
-                        if !self.results.contains_key(id) {
-                            self.results.insert(id.to_owned(), vec![]);
-                        }
-                        self.results.get_mut(id).unwrap().push(TestResult::Ran);
+                        self.add(id, TestResult::Ran);
                     }
                     Return::ProcessChildren
                 }
@@ -93,7 +96,14 @@ fn process_test_results(
 ) -> Result<Return<PGM>> {
     // If this test/group/sub-flow has a dependent
     if processor.test_results.contains_key(fid) {
-        for r in &processor.test_results[fid] {
+        // A ran flag is applied last, it returns early for a test and so must not prevent the
+        // passed and failed flags being applied
+        let results = &processor.test_results[fid];
+        let ordered = results
+            .iter()
+            .filter(|r| **r != TestResult::Ran)
+            .chain(results.iter().filter(|r| **r == TestResult::Ran));
+        for r in ordered {
             match r {
                 TestResult::Passed => {
                     node.ensure_node_present(PGM::OnPassed(fid.clone()));
@@ -101,12 +111,11 @@ fn process_test_results(
                     for n in &mut node.children {
                         match n.attrs {
                             PGM::OnPassed(_) => {
-                                n.children.push(Box::new(node!(
-                                    PGM::SetFlag,
+                                n.ensure_node_present(PGM::SetFlag(
                                     format!("{}_PASSED", fid.to_str()),
                                     true,
-                                    true
-                                )));
+                                    true,
+                                ));
                             }
                             PGM::OnFailed(_) => {
                                 let contains_delayed =
@@ -124,12 +133,11 @@ fn process_test_results(
                     for n in &mut node.children {
                         match n.attrs {
                             PGM::OnFailed(_) => {
-                                n.children.push(Box::new(node!(
-                                    PGM::SetFlag,
+                                n.ensure_node_present(PGM::SetFlag(
                                     format!("{}_FAILED", fid.to_str()),
                                     true,
-                                    true
-                                )));
+                                    true,
+                                ));
                                 let contains_delayed =
                                     n.children.iter().any(|n| matches!(n.attrs, PGM::Delayed));
                                 if !contains_delayed {
@@ -638,6 +646,132 @@ mod tests {
             ),
             node!(PGM::Condition, FlowCondition::IfAnySitesFlag(vec!["t2_FAILED".to_string()]) =>
                     node!(PGM::Test, 5, FlowID::from_int(5)),
+            ),
+        );
+
+        assert_eq!(expected, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_result_referenced_by_several_conditions_sets_its_flag_once() -> Result<()> {
+        // t2's failure is tested within the branch that runs it and again by a later condition
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
+                ),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
+                node!(PGM::Test, 4, FlowID::from_int(4)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfPassed(vec![FlowID::from_int(4)]) =>
+                node!(PGM::Test, 5, FlowID::from_int(5)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfAnyPassed(vec![FlowID::from_int(4)]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
+            ),
+        );
+
+        let expected = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1) =>
+                node!(PGM::OnFailed, FlowID::from_int(1) =>
+                    node!(PGM::SetFlag, "t1_FAILED".to_string(), true, true),
+                    node!(PGM::Continue),
+                ),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2) =>
+                    node!(PGM::OnFailed, FlowID::from_int(2) =>
+                        node!(PGM::SetFlag, "t2_FAILED".to_string(), true, true),
+                        node!(PGM::Continue),
+                    ),
+                ),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["t2_FAILED".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
+                ),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["t2_FAILED".to_string()]) =>
+                node!(PGM::Test, 4, FlowID::from_int(4) =>
+                    node!(PGM::OnPassed, FlowID::from_int(4) =>
+                        node!(PGM::SetFlag, "t4_PASSED".to_string(), true, true),
+                    ),
+                    node!(PGM::OnFailed, FlowID::from_int(4) =>
+                        node!(PGM::Continue),
+                    ),
+                ),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["t4_PASSED".to_string()]) =>
+                node!(PGM::Test, 5, FlowID::from_int(5)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["t4_PASSED".to_string()]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
+            ),
+        );
+
+        assert_eq!(expected, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_group_referenced_by_several_ran_conditions_sets_its_flag_once() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfRan(vec![FlowID::from_str("g1")]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessRan(vec![FlowID::from_str("g1")]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+            ),
+        );
+
+        let expected = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::SetFlag, "g1_RAN".to_string(), true, true),
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["g1_RAN".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["g1_RAN".to_string()]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+            ),
+        );
+
+        assert_eq!(expected, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_ran_condition_does_not_prevent_a_later_failed_flag() -> Result<()> {
+        // The ran condition is before the failed condition
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Condition, FlowCondition::IfRan(vec![FlowID::from_int(1)]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+            ),
+        );
+
+        let expected = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1) =>
+                node!(PGM::OnFailed, FlowID::from_int(1) =>
+                    node!(PGM::SetFlag, "t1_FAILED".to_string(), true, true),
+                    node!(PGM::Continue),
+                ),
+            ),
+            node!(PGM::SetFlag, "t1_RAN".to_string(), true, true),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_RAN".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
             ),
         );
 

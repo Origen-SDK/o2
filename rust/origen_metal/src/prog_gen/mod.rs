@@ -40,7 +40,7 @@ pub use model::VariableOperation;
 pub use model::VariableType;
 pub use model::{IGXLResource, IGXLResourceKind};
 pub use model::{TestTemplate, TestTemplateCollection, TestTemplateParameter};
-pub use nodes::PGM;
+pub use nodes::{LoopCount, PGM};
 pub use supported_testers::SupportedTester;
 
 use crate::ast::AST;

@@ -1,6 +1,6 @@
 use super::ParamValue;
 use super::{
-    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType,
+    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, LoopCount, PatternGroupType,
     ResourcesType, UniquenessOption,
 };
 use crate::ast::Meta;
@@ -304,10 +304,47 @@ pub fn set_variable(name: String, value: String, meta: Option<Meta>) -> Result<(
 /// A declaration applies to the whole flow and so it must be made at flow level, an error is
 /// returned when it is within a condition or a loop.
 pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
+    ensure_flow_level_declaration("declare_output_variable", &name)?;
+    let n = node!(PGM::OutputVariable, name; meta);
+    FLOW.push(n)
+}
+
+/// Declare a flow variable, keeping the case of its name, as an input of the current flow
+/// without reading it, e.g. a value which the flow only passes down to its sub-flows.
+/// For V93K SMT8 this renders `in <name> = -1;` in the current flow and in every enclosing
+/// flow, with each parent passing its value down (`CHILD.<name> = <name>;`). A sub-flow
+/// receives it only if it reads or declares it too.
+/// A declaration applies to the whole flow and so it must be made at flow level, an error is
+/// returned when it is within a condition or a loop.
+pub fn declare_input_variable(name: String, meta: Option<Meta>) -> Result<()> {
+    ensure_flow_level_declaration("declare_input_variable", &name)?;
+    let n = node!(PGM::InputVariable, name; meta);
+    FLOW.push(n)
+}
+
+/// Declare that the given flag, when set by the user in the current flow or in any of its
+/// sub-flows, is local to the flows which read it.
+/// By default a flag set by the user is passed out to every enclosing flow. For V93K SMT8 a
+/// local flag is still declared `out <FLAG> = -1;` in the flow which sets it, but it is passed
+/// out only as far as the highest enclosing flow in which another flow reads it, or not at
+/// all when no other flow reads it. A flag which is also declared as an output variable is
+/// not local.
+/// A declaration applies to the whole flow and so it must be made at flow level, an error is
+/// returned when it is within a condition or a loop.
+pub fn declare_local_flag(name: String, meta: Option<Meta>) -> Result<()> {
+    ensure_flow_level_declaration("declare_local_flag", &name)?;
+    let n = node!(PGM::LocalFlag, name; meta);
+    FLOW.push(n)
+}
+
+/// Returns an error if the given name is not an identifier, or if the current position is not at
+/// flow level, e.g. it is within a condition or a loop
+fn ensure_flow_level_declaration(api: &str, name: &str) -> Result<()> {
     if !is_identifier(&name) {
         bail!(
-            "declare_output_variable('{}'): the name of a flow variable must be an identifier \
+            "{}('{}'): the name of a flow variable must be an identifier \
              (letters, digits and underscores, not starting with a digit)",
+            api,
             name
         );
     }
@@ -317,26 +354,27 @@ pub fn declare_output_variable(name: String, meta: Option<Meta>) -> Result<()> {
                 PGM::Flow(_) | PGM::SubFlow(_, _) => break,
                 PGM::Group(_, _, kind, _) if kind == &GroupType::Flow => break,
                 PGM::Condition(_)
-                | PGM::Loop(_, _, _)
+                | PGM::Loop(..)
                 | PGM::OnFailed(_)
                 | PGM::OnPassed(_)
                 | PGM::Else
                 | PGM::Whenever
                 | PGM::WheneverAny
                 | PGM::WheneverAll => bail!(
-                    "declare_output_variable('{}') must be called at flow level, not inside a condition or loop",
+                    "{}('{}') must be called at flow level, not inside a condition or loop",
+                    api,
                     name
                 ),
                 _ => {}
             }
         }
         Ok(())
-    })?;
-    let n = node!(PGM::OutputVariable, name; meta);
-    FLOW.push(n)
+    })
 }
 
-fn is_identifier(name: &str) -> bool {
+/// Returns true if the given name can be used as a flow variable name: letters, digits and
+/// underscores, not starting with a digit
+pub fn is_identifier(name: &str) -> bool {
     let mut chars = name.chars();
     match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
@@ -347,15 +385,33 @@ fn is_identifier(name: &str) -> bool {
 
 /// Start a loop which repeats its contents `count` times, the returned reference should be
 /// retained and passed to end_block.
-/// The iteration number is available within the loop as the given variable, counting from 1 up to
-/// `count`, or from `count` down to 1 when `descending` is true.
+/// The count is either fixed or the name of a flow variable which holds it when the loop starts.
+/// A fixed count must be at least 1, and so must a count held in a variable when the loop
+/// starts: like a hand-written V93K SMT8 `for` loop, the range is not guarded and a lower count
+/// counts down instead.
+/// The iteration number is available within the loop as the given variable, counting up from
+/// `start` through `count` values, or down to `start` when `descending` is true, e.g. 1 to 3,
+/// or 0 to 2 when `start` is 0, for a count of 3.
 pub fn start_loop(
-    count: Option<u32>,
+    count: Option<LoopCount>,
     variable: Option<String>,
     descending: bool,
+    start: i64,
     meta: Option<Meta>,
 ) -> Result<usize> {
-    let n = node!(PGM::Loop, count, variable, descending; meta);
+    if let Some(LoopCount::Fixed(0)) = &count {
+        bail!("loop count 0: a loop must repeat at least once");
+    }
+    if let Some(LoopCount::Variable(name)) = &count {
+        if !is_identifier(name) {
+            bail!(
+                "loop count '{}': a loop count must be a number or the name of a flow variable \
+                 (letters, digits and underscores, not starting with a digit)",
+                name
+            );
+        }
+    }
+    let n = node!(PGM::Loop, count, variable, descending, start; meta);
     FLOW.push_and_open(n)
 }
 

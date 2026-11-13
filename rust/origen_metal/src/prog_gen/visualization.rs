@@ -188,7 +188,7 @@ impl<'a> GraphBuilder<'a> {
         if has_fallthrough(&node.attrs) {
             exits.push(id.clone());
         }
-        if matches!(node.attrs, PGM::Loop(_, _, _)) {
+        if matches!(node.attrs, PGM::Loop(..)) {
             for exit in &exits {
                 if exit != &id {
                     self.push_edge(exit, &id, "loop", Some("repeat"));
@@ -414,7 +414,9 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
         | PGM::IGXLResourcesFilename(_, _)
         | PGM::Variable(_, _, _)
         | PGM::Parameter(_, _, _)
-        | PGM::OutputVariable(_) => return None,
+        | PGM::OutputVariable(_)
+        | PGM::InputVariable(_)
+        | PGM::LocalFlag(_) => return None,
         PGM::Flow(name) => ("flow", name.clone(), None),
         PGM::SubFlow(name, _) => ("subflow", format!("Subflow: {}", name), None),
         PGM::Test(id, flow_id) => {
@@ -494,17 +496,23 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
             format!("Call {}({})", name, args.join(", ")),
             None,
         ),
-        PGM::Loop(count, variable, descending) => (
+        PGM::Loop(count, variable, descending, start) => (
             "condition",
             format!(
-                "Loop {}{}{}",
+                "Loop {}{}{}{}",
                 count
+                    .as_ref()
                     .map(|count| count.to_string())
                     .unwrap_or_else(|| "until complete".to_string()),
                 variable
                     .as_ref()
                     .map(|variable| format!(" as {}", variable))
                     .unwrap_or_default(),
+                if *start == 1 {
+                    "".to_string()
+                } else {
+                    format!(" from {}", start)
+                },
                 if *descending { " (descending)" } else { "" }
             ),
             None,
@@ -564,7 +572,7 @@ fn block_edge_label(attrs: &PGM) -> Option<&'static str> {
         PGM::OnPassed(_) => Some("pass"),
         PGM::OnFailed(_) => Some("fail"),
         PGM::OnError(_) => Some("error"),
-        PGM::Loop(_, _, _) => Some("body"),
+        PGM::Loop(..) => Some("body"),
         _ => None,
     }
 }
@@ -574,7 +582,7 @@ fn block_edge_kind(attrs: &PGM) -> &'static str {
         PGM::OnPassed(_) => "pass",
         PGM::OnFailed(_) => "fail",
         PGM::OnError(_) => "error",
-        PGM::Loop(_, _, _) => "loop",
+        PGM::Loop(..) => "loop",
         _ => "branch",
     }
 }
@@ -588,7 +596,7 @@ fn has_fallthrough(attrs: &PGM) -> bool {
             | PGM::OnPassed(_)
             | PGM::OnFailed(_)
             | PGM::OnError(_)
-            | PGM::Loop(_, _, _)
+            | PGM::Loop(..)
     )
 }
 
