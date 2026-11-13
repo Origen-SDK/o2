@@ -147,7 +147,21 @@ def test_input_variables_are_declared_with_their_case():
     assert 'InputVariable("DEPTH")' in ast
 
 
-@pytest.mark.parametrize("api", ["declare_output_variable", "declare_input_variable"])
+def test_local_flags_are_declared():
+    def build(interface):
+        interface.declare_local_flag("retry_passed")
+        with interface.group("grp", if_flag="enabled"):
+            interface.declare_local_flag("DONE")
+
+    ast = _flow_ast(build)
+    assert 'LocalFlag("retry_passed")' in ast
+    assert 'LocalFlag("DONE")' in ast
+
+
+DECLARATIONS = ["declare_output_variable", "declare_input_variable", "declare_local_flag"]
+
+
+@pytest.mark.parametrize("api", DECLARATIONS)
 @pytest.mark.parametrize("context_name", ["condition", "loop", "group_condition"])
 def test_variables_cannot_be_declared_in_a_condition_or_loop(api, context_name):
     interface = om.interface.PyInterface()
@@ -168,7 +182,7 @@ def test_variables_cannot_be_declared_in_a_condition_or_loop(api, context_name):
     om.prog_gen.end_flow(refs)
 
 
-@pytest.mark.parametrize("api", ["declare_output_variable", "declare_input_variable"])
+@pytest.mark.parametrize("api", DECLARATIONS)
 @pytest.mark.parametrize("name", ["", "1st", "a b", "x.y"])
 def test_variable_names_must_be_identifiers(api, name):
     interface = om.interface.PyInterface()

@@ -152,6 +152,12 @@ pub enum PGM {
     /// expression. It renders nothing for other testers.
     InputVariable(String),
 
+    /// Declares that a flag set by the user (with SetFlag) in the enclosing flow or in any of its
+    /// sub-flows is local: for V93K SMT8 it is an output of the flow which sets it, but it is
+    /// passed out only as far as the highest enclosing flow in which another flow reads it,
+    /// rather than to every enclosing flow. It renders nothing for other testers.
+    LocalFlag(String),
+
     /// Flow input/output parameter declaration: (name, type_name, default_value).
     /// Distinct from Variable (local variable). Represents a named, typed parameter
     /// of a SubFlow — analogous to a function argument. Used in formats with named

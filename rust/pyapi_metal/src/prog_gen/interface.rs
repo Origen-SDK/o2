@@ -246,6 +246,15 @@ impl PyInterface {
         Ok(())
     }
 
+    /// Declare that the given flag, when set in the current flow or in any of its sub-flows,
+    /// is local to the flows which read it: it is passed out of the flow which sets it only as
+    /// far as the highest enclosing flow in which another flow reads it, rather than to every
+    /// enclosing flow. Must be called at flow level, not within a condition or loop.
+    fn declare_local_flag(&mut self, name: String) -> PyResult<()> {
+        flow_api::declare_local_flag(name, src_caller_meta())?;
+        Ok(())
+    }
+
     fn resources(&mut self) -> PyResult<Resources> {
         let r = Resources::new();
         Ok(r)

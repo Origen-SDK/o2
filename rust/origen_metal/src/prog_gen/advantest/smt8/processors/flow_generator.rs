@@ -795,6 +795,7 @@ impl Processor<PGM> for FlowGenerator {
                 for v in flow.flow_data.sorted_output_flags() {
                     if current_flow.flow_data.output_flags.contains(&v)
                         || current_flow.flow_data.referenced_flags.contains(&v)
+                        || current_flow.flow_data.downstream_flags.contains(&v)
                     {
                         current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                     }
@@ -828,6 +829,7 @@ impl Processor<PGM> for FlowGenerator {
                     for v in flow.flow_data.sorted_output_flags() {
                         if current_flow.flow_data.output_flags.contains(&v)
                             || current_flow.flow_data.referenced_flags.contains(&v)
+                            || current_flow.flow_data.downstream_flags.contains(&v)
                         {
                             current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                         }
@@ -1185,7 +1187,7 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             // Only declares the variable, see create_flow_data
-            PGM::OutputVariable(_) | PGM::InputVariable(_) => Return::None,
+            PGM::OutputVariable(_) | PGM::InputVariable(_) | PGM::LocalFlag(_) => Return::None,
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -1772,6 +1774,146 @@ mod tests {
         let top = render_flow_file(flow, "TOP.flow")?;
         assert!(top.contains("    in FLAG = -1;"), "{}", top);
         assert!(top.contains("PARENT.FLAG = FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    fn flow_group(name: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut group = node!(
+            PGM::Group,
+            name.to_string(),
+            None,
+            GroupType::Flow,
+            Some(FlowID::from_str(name))
+        );
+        for child in children {
+            group.add_child(child);
+        }
+        group
+    }
+
+    fn test_str(name: &str) -> crate::ast::Node<PGM> {
+        node!(
+            PGM::TestStr,
+            name.to_string(),
+            FlowID::from_str(name),
+            None,
+            None,
+            None
+        )
+    }
+
+    fn unless_flag(flag: &str, test: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::Condition, FlowCondition::UnlessFlag(vec![flag.to_string()]) =>
+            test_str(test)
+        )
+    }
+
+    fn set_flag(flag: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::SetFlag, flag.to_string(), true, false)
+    }
+
+    fn local_flag(flag: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::LocalFlag, flag.to_string())
+    }
+
+    #[test]
+    fn a_local_flag_which_no_other_flow_reads_stays_in_the_flow_which_sets_it() -> crate::Result<()>
+    {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("sub", vec![
+                local_flag("flag"),
+                test_str("check"),
+                set_flag("flag"),
+                unless_flag("flag", "on_fail"),
+                // Read by a sub-flow of the flow which sets it, it is passed down
+                flow_group("nested", vec![test_str("first"), unless_flag("flag", "nested_test")]),
+            ])
+        );
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    out FLAG = -1;"), "{}", sub);
+        assert!(sub.contains("NESTED.FLAG = FLAG;"), "{}", sub);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("FLAG"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_flag_is_passed_out_as_far_as_the_highest_flow_with_another_reader(
+    ) -> crate::Result<()> {
+        // Declared by the parent, for the sub-flow which sets it
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("parent", vec![
+                local_flag("FLAG"),
+                flow_group("mid", vec![
+                    flow_group("setter", vec![test_str("check"), set_flag("flag")]),
+                ]),
+                flow_group("reader", vec![unless_flag("flag", "gated")]),
+            ])
+        );
+        let mid = render_flow_file(flow.clone(), "MID.flow")?;
+        assert!(mid.contains("    out FLAG = -1;"), "{}", mid);
+        assert!(mid.contains("FLAG = SETTER.FLAG;"), "{}", mid);
+        // The parent holds it, initializing it, copying it up from the setter's flow and passing
+        // it down to the reader, but it isn't an output or an input of the parent
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(!parent.contains("out FLAG"), "{}", parent);
+        assert!(!parent.contains("in FLAG"), "{}", parent);
+        assert!(parent.contains("        FLAG = -1;"), "{}", parent);
+        assert!(
+            parent.contains(
+                "FLAG = MID.FLAG;\n        READER.FLAG = FLAG;\n        READER.execute();"
+            ),
+            "{}",
+            parent
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("FLAG"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_flag_read_by_an_enclosing_flow_is_passed_out_to_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("mid", vec![
+                flow_group("setter", vec![local_flag("flag"), set_flag("flag")]),
+            ]),
+            unless_flag("flag", "gated")
+        );
+        let mid = render_flow_file(flow.clone(), "MID.flow")?;
+        assert!(mid.contains("    out FLAG = -1;"), "{}", mid);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("out FLAG"), "{}", top);
+        assert!(!top.contains("in FLAG"), "{}", top);
+        assert!(top.contains("FLAG = MID.FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_declared_local_and_as_an_output_is_output() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("sub", vec![
+                local_flag("flag"),
+                node!(PGM::OutputVariable, "FLAG".to_string()),
+                set_flag("flag"),
+            ])
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    out FLAG = -1;"), "{}", top);
+        assert!(top.contains("FLAG = SUB.FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_which_is_not_declared_local_is_passed_out_to_every_enclosing_flow(
+    ) -> crate::Result<()> {
+        // Declared local by a flow which doesn't enclose the flow which sets it
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("other", vec![local_flag("flag")]),
+            flow_group("sub", vec![set_flag("flag"), unless_flag("flag", "gated")])
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    out FLAG = -1;"), "{}", top);
+        assert!(top.contains("FLAG = SUB.FLAG;"), "{}", top);
         Ok(())
     }
 
