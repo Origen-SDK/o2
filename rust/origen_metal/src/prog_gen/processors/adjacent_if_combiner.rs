@@ -34,14 +34,16 @@ use crate::Result;
 /// https://github.com/Origen-SDK/origen_testers/issues/43
 ///
 pub struct AdjacentIfCombiner {
-    /// Flags and variables which tests may change, the volatile flags and the declared
-    /// output variables
+    /// Flags which tests may change
     volatiles: Vec<String>,
+    /// Variables declared as outputs, which tests may change natively
+    outputs: Vec<String>,
 }
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
     let mut p = AdjacentIfCombiner {
-        volatiles: super::declared_output_variables(node),
+        volatiles: vec![],
+        outputs: super::declared_output_variables(node),
     };
     let ast = node.process(&mut p)?.unwrap();
 
@@ -144,21 +146,26 @@ impl AdjacentIfCombiner {
                 | FlowCondition::UnlessFlag(fl)
                 | FlowCondition::IfEnable(fl)
                 | FlowCondition::UnlessEnable(fl) => {
-                    let flag = &fl[0];
-                    if !self.volatiles.contains(flag) || !ContainsATest::run(node1) {
-                        return !ChangesFlag::run(node1, flag);
+                    let volatile = fl.iter().any(|flag| {
+                        self.volatiles.contains(flag)
+                            || super::flag_reads_output(flag, &self.outputs)
+                    });
+                    if !volatile || !ContainsATest::run(node1) {
+                        return fl.iter().all(|flag| !ChangesFlag::run(node1, flag, true));
                     }
                 }
                 FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
                     let variables = expression_variables(expression);
-                    if variables.iter().any(|v| self.volatiles.contains(v))
+                    if variables
+                        .iter()
+                        .any(|v| self.volatiles.contains(v) || self.outputs.contains(v))
                         && ContainsATest::run(node1)
                     {
                         return false;
                     }
                     return variables
                         .iter()
-                        .all(|variable| !ChangesFlag::run(node1, variable));
+                        .all(|variable| !ChangesFlag::run(node1, variable, false));
                 }
                 _ => {}
             },
@@ -172,14 +179,17 @@ impl AdjacentIfCombiner {
 /// output variable, which a test method in the declaring flow may change
 struct ChangesFlag<'a> {
     flag: &'a str,
+    /// The name is a flag or enable, rendered upper case, rather than an expression variable
+    is_flag: bool,
     flag_found: bool,
 }
 
 impl<'a> ChangesFlag<'a> {
-    fn run(node: &Node<PGM>, flag: &'a str) -> bool {
+    fn run(node: &Node<PGM>, flag: &'a str, is_flag: bool) -> bool {
         let mut p = ChangesFlag {
             flag_found: false,
             flag: flag,
+            is_flag,
         };
         let _ = node.process(&mut p);
         p.flag_found
@@ -192,9 +202,17 @@ impl<'a> Processor<PGM> for ChangesFlag<'a> {
             PGM::SetFlag(flag, _, _)
             | PGM::Enable(flag)
             | PGM::Disable(flag)
-            | PGM::SetVariable(flag, _)
-            | PGM::OutputVariable(flag) => {
+            | PGM::SetVariable(flag, _) => {
                 if flag == self.flag {
+                    self.flag_found = true;
+                }
+                Return::None
+            }
+            PGM::OutputVariable(name) => {
+                let names = [name.to_string()];
+                if (self.is_flag && super::flag_reads_output(self.flag, &names))
+                    || name == self.flag
+                {
                     self.flag_found = true;
                 }
                 Return::None
@@ -457,6 +475,18 @@ mod tests {
             (
                 FlowCondition::IfFlag(vec!["DEBUG".to_string()]),
                 FlowCondition::UnlessFlag(vec!["DEBUG".to_string()]),
+                "DEBUG",
+            ),
+            // Flags are rendered upper case, this reads the declared DEBUG
+            (
+                FlowCondition::IfFlag(vec!["debug".to_string()]),
+                FlowCondition::UnlessFlag(vec!["debug".to_string()]),
+                "DEBUG",
+            ),
+            // Any operand of a flag condition
+            (
+                FlowCondition::IfFlag(vec!["STATIC".to_string(), "DEBUG".to_string()]),
+                FlowCondition::UnlessFlag(vec!["STATIC".to_string(), "DEBUG".to_string()]),
                 "DEBUG",
             ),
         ] {

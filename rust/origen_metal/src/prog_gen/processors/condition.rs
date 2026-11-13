@@ -35,16 +35,19 @@ use crate::Result;
 ///                        PGMTest(4, FlowID("t4"))
 ///
 pub struct Condition {
-    /// Flags and variables which tests may change, conditions on these are not combined.
-    /// These are the volatile flags and the declared output variables.
+    /// Flags which tests may change, conditions on these are not combined
     volatiles: Vec<String>,
+    /// Variables declared as outputs, which tests may change natively, conditions on these
+    /// are not combined either
+    outputs: Vec<String>,
     /// The conditions to remove from nested nodes, only their attributes are compared
     conditions_to_remove: Vec<PGM>,
 }
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
     let mut p = Condition {
-        volatiles: super::declared_output_variables(node),
+        volatiles: vec![],
+        outputs: super::declared_output_variables(node),
         conditions_to_remove: vec![],
     };
     let ast = node.process(&mut p)?.unwrap();
@@ -85,7 +88,7 @@ impl Processor<PGM> for Condition {
             PGM::Condition(cond) => {
                 let volatile = match cond {
                     FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
-                        self.volatiles.contains(&flags[0])
+                        self.is_volatile_flag(flags)
                     }
                     FlowCondition::IfExpr(_) | FlowCondition::UnlessExpr(_) => {
                         self.is_volatile_expression(cond)
@@ -118,13 +121,20 @@ impl Processor<PGM> for Condition {
 }
 
 impl Condition {
+    /// Returns true if any of the given flags is volatile or reads a declared output
+    fn is_volatile_flag(&self, flags: &[String]) -> bool {
+        flags.iter().any(|flag| {
+            self.volatiles.contains(flag) || super::flag_reads_output(flag, &self.outputs)
+        })
+    }
+
     /// Returns true if the given condition is an expression which reads a volatile variable
     fn is_volatile_expression(&self, cond: &FlowCondition) -> bool {
         match cond {
             FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
                 expression_variables(expression)
                     .iter()
-                    .any(|v| self.volatiles.contains(v))
+                    .any(|v| self.volatiles.contains(v) || self.outputs.contains(v))
             }
             _ => false,
         }
@@ -196,8 +206,7 @@ impl Condition {
                 | FlowCondition::UnlessEnable(flags)
                 | FlowCondition::IfFlag(flags)
                 | FlowCondition::UnlessFlag(flags) => {
-                    let flag = &flags[0];
-                    if !self.volatiles.contains(flag) {
+                    if !self.is_volatile_flag(flags) {
                         results.push(node.updated(None, Some(vec![]), None));
                         // If potentially another condition is a direct child
                         if node.children.len() == 1 {
@@ -245,8 +254,7 @@ impl Condition {
                 | FlowCondition::UnlessEnable(flags)
                 | FlowCondition::IfFlag(flags)
                 | FlowCondition::UnlessFlag(flags) => {
-                    let flag = &flags[0];
-                    if !self.volatiles.contains(flag) {
+                    if !self.is_volatile_flag(flags) {
                         results.push(&node.attrs);
                         // If potentially another condition is a direct child
                         if node.children.len() == 1 {
@@ -794,6 +802,13 @@ mod tests {
         for (cond, name) in [
             (FlowCondition::IfExpr("mode == 6".to_string()), "mode"),
             (FlowCondition::IfFlag(vec!["DEBUG".to_string()]), "DEBUG"),
+            // Flags are rendered upper case, this reads the declared DEBUG
+            (FlowCondition::IfFlag(vec!["debug".to_string()]), "DEBUG"),
+            // Any operand of a flag condition
+            (
+                FlowCondition::IfFlag(vec!["STATIC".to_string(), "DEBUG".to_string()]),
+                "DEBUG",
+            ),
         ] {
             let input = node!(PGM::Flow, "f1".to_string() =>
                 node!(PGM::Condition, cond.clone() =>

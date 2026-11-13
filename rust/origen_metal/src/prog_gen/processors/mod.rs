@@ -31,3 +31,12 @@ pub fn declared_output_variables(node: &Node<PGM>) -> Vec<String> {
     }
     names
 }
+
+/// Returns true if a flag condition on `flag` reads one of the given declared output
+/// variables. Flag names are rendered upper case, so `if_flag("debug")` reads a declared
+/// `DEBUG`, while a declared `failCaptureModeVarStd` is only read by that exact name.
+pub fn flag_reads_output(flag: &str, outputs: &[String]) -> bool {
+    outputs
+        .iter()
+        .any(|o| o == flag || *o == flag.to_uppercase())
+}
