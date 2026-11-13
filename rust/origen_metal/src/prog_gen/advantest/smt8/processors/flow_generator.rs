@@ -1556,6 +1556,28 @@ mod tests {
     }
 
     #[test]
+    fn declared_output_variables_are_output_when_a_generated_flag_has_their_name(
+    ) -> crate::Result<()> {
+        // T1_RAN is also the flag that Origen generates for an if_ran("t1") condition
+        let flow = node!(PGM::Flow, "outer".to_string() =>
+            node!(PGM::SubFlow, "sub".to_string(), None =>
+                node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None),
+                node!(PGM::SetFlag, "T1_RAN".to_string(), true, true),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["T1_RAN".to_string()]) =>
+                    node!(PGM::TestStr, "t2".to_string(), FlowID::from_str("t2"), None, None, None)
+                ),
+                node!(PGM::OutputVariable, "T1_RAN".to_string())
+            )
+        );
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    out T1_RAN = -1;"), "{}", sub);
+        let outer = render_flow_file(flow, "OUTER.flow")?;
+        assert!(outer.contains("    out T1_RAN = -1;"), "{}", outer);
+        assert!(outer.contains("T1_RAN = SUB.T1_RAN;"), "{}", outer);
+        Ok(())
+    }
+
+    #[test]
     fn bypassed_groups_are_called_with_bypass() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "bypassing".to_string() =>
             node!(PGM::BypassSubFlows =>
