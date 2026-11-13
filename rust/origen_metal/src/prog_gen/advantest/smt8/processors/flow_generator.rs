@@ -1370,6 +1370,33 @@ mod tests {
     }
 
     #[test]
+    fn a_failure_tested_by_several_conditions_is_flagged_once() -> crate::Result<()> {
+        let t = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let failed = |name: &str| FlowCondition::IfFailed(vec![FlowID::from_str(name)]);
+        let flow = node!(PGM::Flow, "flagged".to_string() =>
+            t("t_first"),
+            node!(PGM::Condition, failed("t_first") =>
+                t("t_second"),
+                node!(PGM::Condition, failed("t_second") => t("t_second_check"))
+            ),
+            node!(PGM::Condition, failed("t_second") => t("t_after_second"))
+        );
+        let flow = render_flow_file(flow, "FLAGGED.flow")?;
+        assert_eq!(flow.matches("T_SECOND_FAILED = 1;").count(), 1, "{}", flow);
+        assert_eq!(flow.matches("T_FIRST_FAILED = 1;").count(), 1, "{}", flow);
+        Ok(())
+    }
+
+    #[test]
     fn expression_conditions_are_rendered_and_their_variables_input() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "expressions".to_string() =>
             node!(PGM::Condition, FlowCondition::IfExpr("mode == 6".to_string()) =>
