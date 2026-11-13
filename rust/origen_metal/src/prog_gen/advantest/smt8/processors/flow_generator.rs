@@ -1998,6 +1998,40 @@ mod tests {
     }
 
     #[test]
+    fn a_flag_passed_up_to_a_flow_which_reads_it_with_an_expression_is_not_its_input(
+    ) -> crate::Result<()> {
+        let reads = || {
+            node!(PGM::Condition, FlowCondition::IfExpr("FLAG == 1".to_string()) =>
+                test_str("gated")
+            )
+        };
+        // The holder of a local flag reads it, and a flag passed up to every enclosing flow is
+        // read by one of them
+        for local in [true, false] {
+            let mut parent = vec![flow_group(
+                "setter",
+                vec![test_str("check"), set_flag("flag")],
+            )];
+            if local {
+                parent.insert(0, local_flag("FLAG"));
+            }
+            parent.push(reads());
+            let flow = node!(PGM::Flow, "top".to_string() => flow_group("parent", parent));
+            let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+            assert!(!parent.contains("in FLAG"), "{}", parent);
+            assert!(
+                parent.contains("FLAG = SETTER.FLAG;\n        if (FLAG == 1) {"),
+                "{}",
+                parent
+            );
+            let top = render_flow_file(flow, "TOP.flow")?;
+            assert!(!top.contains("in FLAG"), "{}", top);
+            assert_eq!(top.contains("out FLAG"), !local, "{}", top);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn a_flag_declared_local_and_as_an_output_is_output() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "top".to_string() =>
             flow_group("sub", vec![

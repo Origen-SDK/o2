@@ -353,8 +353,9 @@ impl PassthroughCollector {
             }
         }
         for v in &flow_data.referenced_variables {
-            // A flag set by this flow is declared as a flag, not as an input variable
-            if flow_data.modified_flags.contains(v) {
+            // A flag this flow sets, or which a sub-flow has passed up to it, is declared as a
+            // flag, not as an input variable
+            if flow_data.holds(v) {
                 continue;
             }
             flow_data.input_variables.insert(v.to_string());
