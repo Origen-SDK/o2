@@ -34,11 +34,17 @@ use crate::Result;
 /// https://github.com/Origen-SDK/origen_testers/issues/43
 ///
 pub struct AdjacentIfCombiner {
+    /// Flags which tests may change
     volatiles: Vec<String>,
+    /// Variables declared as outputs, which tests may change natively
+    outputs: Vec<String>,
 }
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
-    let mut p = AdjacentIfCombiner { volatiles: vec![] };
+    let mut p = AdjacentIfCombiner {
+        volatiles: vec![],
+        outputs: super::declared_output_variables(node),
+    };
     let ast = node.process(&mut p)?.unwrap();
 
     Ok(ast)
@@ -140,15 +146,26 @@ impl AdjacentIfCombiner {
                 | FlowCondition::UnlessFlag(fl)
                 | FlowCondition::IfEnable(fl)
                 | FlowCondition::UnlessEnable(fl) => {
-                    let flag = &fl[0];
-                    if !self.volatiles.contains(flag) || !ContainsATest::run(node1) {
-                        return !ChangesFlag::run(node1, flag);
+                    let volatile = fl.iter().any(|flag| {
+                        self.volatiles.contains(flag)
+                            || super::flag_reads_output(flag, &self.outputs)
+                    });
+                    if !volatile || !ContainsATest::run(node1) {
+                        return fl.iter().all(|flag| !ChangesFlag::run(node1, flag, true));
                     }
                 }
                 FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
-                    return expression_variables(expression)
+                    let variables = expression_variables(expression);
+                    if variables
                         .iter()
-                        .all(|variable| !ChangesFlag::run(node1, variable));
+                        .any(|v| self.volatiles.contains(v) || self.outputs.contains(v))
+                        && ContainsATest::run(node1)
+                    {
+                        return false;
+                    }
+                    return variables
+                        .iter()
+                        .all(|variable| !ChangesFlag::run(node1, variable, false));
                 }
                 _ => {}
             },
@@ -158,17 +175,21 @@ impl AdjacentIfCombiner {
     }
 }
 
-/// Finds whether a node changes the given flag, enable or flow variable
+/// Finds whether a node changes the given flag, enable or flow variable, including a declared
+/// output variable, which a test method in the declaring flow may change
 struct ChangesFlag<'a> {
     flag: &'a str,
+    /// The name is a flag or enable, rendered upper case, rather than an expression variable
+    is_flag: bool,
     flag_found: bool,
 }
 
 impl<'a> ChangesFlag<'a> {
-    fn run(node: &Node<PGM>, flag: &'a str) -> bool {
+    fn run(node: &Node<PGM>, flag: &'a str, is_flag: bool) -> bool {
         let mut p = ChangesFlag {
             flag_found: false,
             flag: flag,
+            is_flag,
         };
         let _ = node.process(&mut p);
         p.flag_found
@@ -183,6 +204,15 @@ impl<'a> Processor<PGM> for ChangesFlag<'a> {
             | PGM::Disable(flag)
             | PGM::SetVariable(flag, _) => {
                 if flag == self.flag {
+                    self.flag_found = true;
+                }
+                Return::None
+            }
+            PGM::OutputVariable(name) => {
+                let names = [name.to_string()];
+                if (self.is_flag && super::flag_reads_output(self.flag, &names))
+                    || name == self.flag
+                {
                     self.flag_found = true;
                 }
                 Return::None
@@ -213,7 +243,7 @@ impl ContainsATest {
 impl Processor<PGM> for ContainsATest {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            PGM::Test(_, _) => {
+            PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
                 self.test_found = true;
                 Return::None
             }
@@ -231,7 +261,7 @@ impl Processor<PGM> for ContainsATest {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{BinType, FlowCondition, FlowID, PGM};
+    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, PGM};
     use crate::Result;
 
     #[test]
@@ -396,6 +426,102 @@ mod tests {
         );
 
         assert_eq!(input, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn should_not_combine_if_the_first_node_calls_a_flow_that_outputs_a_variable_of_the_condition(
+    ) -> Result<()> {
+        // A test method in the called flow may change the declared variable
+        for (if_cond, unless_cond, name) in [
+            (
+                FlowCondition::IfExpr("mode == 6".to_string()),
+                FlowCondition::UnlessExpr("mode == 6".to_string()),
+                "mode",
+            ),
+            (
+                FlowCondition::IfFlag(vec!["DEBUG".to_string()]),
+                FlowCondition::UnlessFlag(vec!["DEBUG".to_string()]),
+                "DEBUG",
+            ),
+        ] {
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, if_cond =>
+                    node!(PGM::Group, "setter".to_string(), None, GroupType::Flow, None =>
+                        node!(PGM::Test, 1, FlowID::from_int(1)),
+                        node!(PGM::OutputVariable, name.to_string()),
+                    ),
+                ),
+                node!(PGM::Condition, unless_cond =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            );
+
+            assert_eq!(input, run(&input)?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn should_not_combine_if_the_first_node_runs_a_test_and_the_condition_reads_a_declared_output(
+    ) -> Result<()> {
+        // Declared at flow level, outside both conditions, a test may change it natively
+        for (if_cond, unless_cond, name) in [
+            (
+                FlowCondition::IfExpr("mode == 6".to_string()),
+                FlowCondition::UnlessExpr("mode == 6".to_string()),
+                "mode",
+            ),
+            (
+                FlowCondition::IfFlag(vec!["DEBUG".to_string()]),
+                FlowCondition::UnlessFlag(vec!["DEBUG".to_string()]),
+                "DEBUG",
+            ),
+            // Flags are rendered upper case, this reads the declared DEBUG
+            (
+                FlowCondition::IfFlag(vec!["debug".to_string()]),
+                FlowCondition::UnlessFlag(vec!["debug".to_string()]),
+                "DEBUG",
+            ),
+            // Any operand of a flag condition
+            (
+                FlowCondition::IfFlag(vec!["STATIC".to_string(), "DEBUG".to_string()]),
+                FlowCondition::UnlessFlag(vec!["STATIC".to_string(), "DEBUG".to_string()]),
+                "DEBUG",
+            ),
+        ] {
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::OutputVariable, name.to_string()),
+                node!(PGM::Condition, if_cond.clone() =>
+                    node!(PGM::TestStr, "setter".to_string(), FlowID::from_int(1), None, None, None),
+                ),
+                node!(PGM::Condition, unless_cond.clone() =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            );
+            assert_eq!(input, run(&input)?);
+
+            // Without a test in the first branch nothing can change it, so they are combined
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::OutputVariable, name.to_string()),
+                node!(PGM::Condition, if_cond.clone() =>
+                    node!(PGM::Bin, 3, None, BinType::Bad),
+                ),
+                node!(PGM::Condition, unless_cond =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            );
+            let output = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::OutputVariable, name.to_string()),
+                node!(PGM::Condition, if_cond =>
+                    node!(PGM::Bin, 3, None, BinType::Bad),
+                    node!(PGM::Else =>
+                        node!(PGM::Test, 2, FlowID::from_int(2)),
+                    ),
+                ),
+            );
+            assert_eq!(output, run(&input)?);
+        }
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
 use crate::ast::{Node, Processor, Return};
+use crate::prog_gen::expressions::expression_variables;
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
 
@@ -34,7 +35,11 @@ use crate::Result;
 ///                        PGMTest(4, FlowID("t4"))
 ///
 pub struct Condition {
+    /// Flags which tests may change, conditions on these are not combined
     volatiles: Vec<String>,
+    /// Variables declared as outputs, which tests may change natively, conditions on these
+    /// are not combined either
+    outputs: Vec<String>,
     /// The conditions to remove from nested nodes, only their attributes are compared
     conditions_to_remove: Vec<PGM>,
 }
@@ -42,6 +47,7 @@ pub struct Condition {
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
     let mut p = Condition {
         volatiles: vec![],
+        outputs: super::declared_output_variables(node),
         conditions_to_remove: vec![],
     };
     let ast = node.process(&mut p)?.unwrap();
@@ -82,7 +88,10 @@ impl Processor<PGM> for Condition {
             PGM::Condition(cond) => {
                 let volatile = match cond {
                     FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
-                        self.volatiles.contains(&flags[0])
+                        self.is_volatile_flag(flags)
+                    }
+                    FlowCondition::IfExpr(_) | FlowCondition::UnlessExpr(_) => {
+                        self.is_volatile_expression(cond)
                     }
                     _ => false,
                 };
@@ -112,6 +121,25 @@ impl Processor<PGM> for Condition {
 }
 
 impl Condition {
+    /// Returns true if any of the given flags is volatile or reads a declared output
+    fn is_volatile_flag(&self, flags: &[String]) -> bool {
+        flags.iter().any(|flag| {
+            self.volatiles.contains(flag) || super::flag_reads_output(flag, &self.outputs)
+        })
+    }
+
+    /// Returns true if the given condition is an expression which reads a volatile variable
+    fn is_volatile_expression(&self, cond: &FlowCondition) -> bool {
+        match cond {
+            FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
+                expression_variables(expression)
+                    .iter()
+                    .any(|v| self.volatiles.contains(v) || self.outputs.contains(v))
+            }
+            _ => false,
+        }
+    }
+
     fn optimize(&mut self, nodes: Vec<Box<Node<PGM>>>) -> Result<Vec<Box<Node<PGM>>>> {
         let mut results: Vec<Box<Node<PGM>>> = vec![];
         let mut node1: Option<Box<Node<PGM>>> = None;
@@ -178,8 +206,7 @@ impl Condition {
                 | FlowCondition::UnlessEnable(flags)
                 | FlowCondition::IfFlag(flags)
                 | FlowCondition::UnlessFlag(flags) => {
-                    let flag = &flags[0];
-                    if !self.volatiles.contains(flag) {
+                    if !self.is_volatile_flag(flags) {
                         results.push(node.updated(None, Some(vec![]), None));
                         // If potentially another condition is a direct child
                         if node.children.len() == 1 {
@@ -188,6 +215,8 @@ impl Condition {
                         }
                     }
                 }
+                FlowCondition::IfExpr(_) | FlowCondition::UnlessExpr(_)
+                    if self.is_volatile_expression(cond) => {}
                 _ => {
                     results.push(node.updated(None, Some(vec![]), None));
                     // If potentially another condition is a direct child
@@ -225,8 +254,7 @@ impl Condition {
                 | FlowCondition::UnlessEnable(flags)
                 | FlowCondition::IfFlag(flags)
                 | FlowCondition::UnlessFlag(flags) => {
-                    let flag = &flags[0];
-                    if !self.volatiles.contains(flag) {
+                    if !self.is_volatile_flag(flags) {
                         results.push(&node.attrs);
                         // If potentially another condition is a direct child
                         if node.children.len() == 1 {
@@ -234,6 +262,8 @@ impl Condition {
                         }
                     }
                 }
+                FlowCondition::IfExpr(_) | FlowCondition::UnlessExpr(_)
+                    if self.is_volatile_expression(cond) => {}
                 _ => {
                     results.push(&node.attrs);
                     // If potentially another condition is a direct child
@@ -762,6 +792,58 @@ mod tests {
 
         assert_eq!(output, run(&input)?);
 
+        Ok(())
+    }
+
+    #[test]
+    fn conditions_on_declared_output_variables_are_not_combined() -> Result<()> {
+        // A test method may change a declared output, so the second condition must be
+        // evaluated again, wherever the variable is declared
+        for (cond, name) in [
+            (FlowCondition::IfExpr("mode == 6".to_string()), "mode"),
+            (FlowCondition::IfFlag(vec!["DEBUG".to_string()]), "DEBUG"),
+            // Flags are rendered upper case, this reads the declared DEBUG
+            (FlowCondition::IfFlag(vec!["debug".to_string()]), "DEBUG"),
+            // Any operand of a flag condition
+            (
+                FlowCondition::IfFlag(vec!["STATIC".to_string(), "DEBUG".to_string()]),
+                "DEBUG",
+            ),
+        ] {
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, cond.clone() =>
+                    node!(PGM::Test, 1, FlowID::from_int(1)),
+                ),
+                node!(PGM::Condition, cond.clone() =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                    node!(PGM::Condition, cond.clone() =>
+                        node!(PGM::Test, 3, FlowID::from_int(3)),
+                    ),
+                ),
+                node!(PGM::OutputVariable, name.to_string()),
+            );
+
+            assert_eq!(input, run(&input)?);
+        }
+
+        // Expressions on other variables are still combined
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("other == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+            ),
+            node!(PGM::Condition, FlowCondition::IfExpr("other == 6".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::OutputVariable, "mode".to_string()),
+        );
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("other == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::OutputVariable, "mode".to_string()),
+        );
+        assert_eq!(output, run(&input)?);
         Ok(())
     }
 }

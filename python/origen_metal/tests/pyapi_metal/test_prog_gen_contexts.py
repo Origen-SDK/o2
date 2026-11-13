@@ -90,3 +90,44 @@ def test_bypassed_group_is_inside_its_conditions():
     ast = _flow_ast(build)
     assert 'Condition(IfEnable(["e"]))\n        Condition(IfFlag(["f"]))\n            BypassSubFlows\n                Group("grp"' in ast
     assert ast.count("BypassSubFlows") == 1
+
+
+def test_output_variables_are_declared_with_their_case():
+    def build(interface):
+        interface.declare_output_variable("failCaptureModeVarStd")
+        with interface.if_expr("mode == 6"):
+            with interface.group("grp"):
+                interface.declare_output_variable("BITMAP")
+
+    ast = _flow_ast(build)
+    assert 'OutputVariable("failCaptureModeVarStd")' in ast
+    assert 'OutputVariable("BITMAP")' in ast
+
+
+@pytest.mark.parametrize("context_name", ["condition", "loop", "group_condition"])
+def test_output_variables_cannot_be_declared_in_a_condition_or_loop(context_name):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("flow", None, None, None)
+    if context_name == "condition":
+        context = interface.if_flag("enabled")
+    elif context_name == "loop":
+        context = interface.loop(3)
+    else:
+        context = interface.group("grp", if_flag="enabled")
+    with context:
+        if context_name == "group_condition":
+            # The group is the flow which declares it, its condition applies to its call
+            interface.declare_output_variable("in_group")
+        else:
+            with pytest.raises(RuntimeError, match="must be called at flow level"):
+                interface.declare_output_variable("x")
+    om.prog_gen.end_flow(refs)
+
+
+@pytest.mark.parametrize("name", ["", "1st", "a b", "x.y"])
+def test_output_variable_names_must_be_identifiers(name):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("flow", None, None, None)
+    with pytest.raises(RuntimeError, match="must be an identifier"):
+        interface.declare_output_variable(name)
+    om.prog_gen.end_flow(refs)

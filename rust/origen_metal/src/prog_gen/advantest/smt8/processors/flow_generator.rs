@@ -1164,6 +1164,8 @@ impl Processor<PGM> for FlowGenerator {
                 current_flow.execute_line(format!("{} = {};", name, value));
                 Return::None
             }
+            // Only declares the variable, see create_flow_data
+            PGM::OutputVariable(_) => Return::None,
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -1455,6 +1457,123 @@ mod tests {
         assert!(inner.contains("for (per_tile_index : 9..1) {"));
         assert!(inner.contains("if (per_tile_passed == 0 && per_tile_index > 1) {"));
         assert!(inner.contains("per_tile_passed = 1;"));
+        Ok(())
+    }
+
+    #[test]
+    fn declared_output_variables_keep_their_case_and_are_passed_up() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "outputs".to_string() =>
+            node!(PGM::SubFlow, "sub".to_string(), None =>
+                node!(PGM::TestStr, "set_params".to_string(), FlowID::from_str("set_params"), None, None, None),
+                node!(PGM::Condition, FlowCondition::IfExpr("failCaptureModeVarStd == 6".to_string()) =>
+                    node!(PGM::TestStr, "std".to_string(), FlowID::from_str("std"), None, None, None)
+                ),
+                node!(PGM::OutputVariable, "failCaptureModeVarStd".to_string())
+            ),
+            node!(PGM::Group, "grp".to_string(), None, GroupType::Flow, Some(FlowID::from_str("grp")) =>
+                node!(PGM::OutputVariable, "BITMAP".to_string())
+            ),
+            node!(PGM::Group, "reader".to_string(), None, GroupType::Flow, Some(FlowID::from_str("reader")) =>
+                node!(PGM::Condition, FlowCondition::IfExpr("failCaptureModeVarStd == 6".to_string()) =>
+                    node!(PGM::TestStr, "reads".to_string(), FlowID::from_str("reads"), None, None, None)
+                )
+            )
+        );
+
+        // Declared, initialized and read in the declaring flow, but never assigned
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(
+            sub.contains("    out failCaptureModeVarStd = -1;"),
+            "{}",
+            sub
+        );
+        assert!(!sub.contains("in failCaptureModeVarStd"), "{}", sub);
+        assert!(
+            sub.contains("        failCaptureModeVarStd = -1;"),
+            "{}",
+            sub
+        );
+        assert!(sub.contains("if (failCaptureModeVarStd == 6) {"), "{}", sub);
+        assert_eq!(
+            sub.matches("failCaptureModeVarStd = ").count(),
+            2,
+            "{}",
+            sub
+        );
+
+        let grp = render_flow_file(flow.clone(), "GRP.flow")?;
+        assert!(grp.contains("    out BITMAP = -1;"), "{}", grp);
+        assert_eq!(grp.matches("BITMAP = ").count(), 2, "{}", grp);
+
+        // Passed up from the declaring flows, and down to a flow that reads it
+        let top = render_flow_file(flow.clone(), "OUTPUTS.flow")?;
+        assert!(
+            top.contains("    out failCaptureModeVarStd = -1;"),
+            "{}",
+            top
+        );
+        assert!(top.contains("    out BITMAP = -1;"), "{}", top);
+        assert!(
+            top.contains("failCaptureModeVarStd = SUB.failCaptureModeVarStd;"),
+            "{}",
+            top
+        );
+        assert!(top.contains("BITMAP = GRP.BITMAP;"), "{}", top);
+        assert!(
+            top.contains("READER.failCaptureModeVarStd = failCaptureModeVarStd;"),
+            "{}",
+            top
+        );
+        assert!(!top.contains("FAILCAPTUREMODEVARSTD"), "{}", top);
+
+        let reader = render_flow_file(flow, "READER.flow")?;
+        assert!(
+            reader.contains("    in failCaptureModeVarStd = -1;"),
+            "{}",
+            reader
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn declared_output_variables_read_as_flags_are_outputs() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "control".to_string() =>
+            node!(PGM::TestStr, "set_params".to_string(), FlowID::from_str("set_params"), None, None, None),
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["DEBUG".to_string()]) =>
+                node!(PGM::TestStr, "not_debug".to_string(), FlowID::from_str("not_debug"), None, None, None)
+            ),
+            node!(PGM::OutputVariable, "DEBUG".to_string()),
+            // Declared and also set by the user, a single output
+            node!(PGM::OutputVariable, "RETRY".to_string()),
+            node!(PGM::SetFlag, "retry".to_string(), true, false)
+        );
+        let flow = render_flow_file(flow, "CONTROL.flow")?;
+        assert!(flow.contains("    out DEBUG = -1;"), "{}", flow);
+        assert!(!flow.contains("in DEBUG"), "{}", flow);
+        assert_eq!(flow.matches("out RETRY = -1;").count(), 1, "{}", flow);
+        assert!(flow.contains("RETRY = 1;"), "{}", flow);
+        Ok(())
+    }
+
+    #[test]
+    fn declared_output_variables_are_output_when_a_generated_flag_has_their_name(
+    ) -> crate::Result<()> {
+        // T1_RAN is also the flag that Origen generates for an if_ran("t1") condition
+        let flow = node!(PGM::Flow, "outer".to_string() =>
+            node!(PGM::SubFlow, "sub".to_string(), None =>
+                node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None),
+                node!(PGM::SetFlag, "T1_RAN".to_string(), true, true),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["T1_RAN".to_string()]) =>
+                    node!(PGM::TestStr, "t2".to_string(), FlowID::from_str("t2"), None, None, None)
+                ),
+                node!(PGM::OutputVariable, "T1_RAN".to_string())
+            )
+        );
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    out T1_RAN = -1;"), "{}", sub);
+        let outer = render_flow_file(flow, "OUTER.flow")?;
+        assert!(outer.contains("    out T1_RAN = -1;"), "{}", outer);
+        assert!(outer.contains("T1_RAN = SUB.T1_RAN;"), "{}", outer);
         Ok(())
     }
 

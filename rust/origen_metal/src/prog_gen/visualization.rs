@@ -413,7 +413,8 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
         | PGM::IGXLResource(_)
         | PGM::IGXLResourcesFilename(_, _)
         | PGM::Variable(_, _, _)
-        | PGM::Parameter(_, _, _) => return None,
+        | PGM::Parameter(_, _, _)
+        | PGM::OutputVariable(_) => return None,
         PGM::Flow(name) => ("flow", name.clone(), None),
         PGM::SubFlow(name, _) => ("subflow", format!("Subflow: {}", name), None),
         PGM::Test(id, flow_id) => {

@@ -226,6 +226,14 @@ impl PyInterface {
         Ok(())
     }
 
+    /// Declare the given flow variable, keeping the case of its name, as an output of the
+    /// current flow without assigning it, e.g. a variable which a test method sets natively.
+    /// Must be called at flow level, not within a condition or loop.
+    fn declare_output_variable(&mut self, name: String) -> PyResult<()> {
+        flow_api::declare_output_variable(name, src_caller_meta())?;
+        Ok(())
+    }
+
     fn resources(&mut self) -> PyResult<Resources> {
         let r = Resources::new();
         Ok(r)
