@@ -3,12 +3,12 @@ use super::src_caller_meta;
 use super::tester_apis::IGXL;
 use super::{Condition, Group, Loop, Resources, Test, TestInvocation};
 use origen_metal::prog_gen::{
-    flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType, SupportedTester,
+    flow_api, BinType, FlowCondition, FlowID, GroupType, LoopCount, ResourcesType, SupportedTester,
 };
 use origen_metal::Result;
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyTuple};
+use pyo3::types::{PyAny, PyBool, PyDict, PyLong, PyString, PyTuple};
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -195,19 +195,24 @@ impl PyInterface {
     }
 
     /// Repeats the flow content generated within the returned context manager count times.
-    /// The iteration number, counting from 1 up to count (or down from count to 1 when
+    /// The count is a number from 1, or the name of a flow variable which holds it when the loop
+    /// starts. Like a hand-written V93K SMT8 for loop, a loop to a variable is not guarded, the
+    /// variable must be at least 1 when the loop starts.
+    /// The iteration number, counting up from start through count values (or down to start when
     /// descending), is available within the loop as the given flow variable.
     /// Flow options, e.g. if_enable, are applied to the whole loop.
-    #[pyo3(signature=(count, variable="index".to_string(), descending=false, **kwargs))]
+    #[pyo3(signature=(count, variable="index".to_string(), descending=false, start=1, **kwargs))]
     fn r#loop(
         &mut self,
-        count: u32,
+        count: &PyAny,
         variable: String,
         descending: bool,
+        start: i64,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Loop> {
+        let count = loop_count(count)?;
         let (mut l, ref_ids) = flow_options::wrap_in_conditions(kwargs, true, || {
-            Ok(Loop::new(count, variable, descending))
+            Ok(Loop::new(count, variable, descending, start))
         })?;
         l.open_conditions = ref_ids;
         Ok(l)
@@ -231,6 +236,24 @@ impl PyInterface {
     /// Must be called at flow level, not within a condition or loop.
     fn declare_output_variable(&mut self, name: String) -> PyResult<()> {
         flow_api::declare_output_variable(name, src_caller_meta())?;
+        Ok(())
+    }
+
+    /// Declare the given flow variable, keeping the case of its name, as an input of the
+    /// current flow without reading it, e.g. a value which the flow only passes down to its
+    /// sub-flows. A sub-flow receives it only if it reads or declares it too.
+    /// Must be called at flow level, not within a condition or loop.
+    fn declare_input_variable(&mut self, name: String) -> PyResult<()> {
+        flow_api::declare_input_variable(name, src_caller_meta())?;
+        Ok(())
+    }
+
+    /// Declare that the given flag, when set in the current flow or in any of its sub-flows,
+    /// is local to the flows which read it: it is passed out of the flow which sets it only as
+    /// far as the highest enclosing flow in which another flow reads it, rather than to every
+    /// enclosing flow. Must be called at flow level, not within a condition or loop.
+    fn declare_local_flag(&mut self, name: String) -> PyResult<()> {
+        flow_api::declare_local_flag(name, src_caller_meta())?;
         Ok(())
     }
 
@@ -484,6 +507,38 @@ impl PyInterface {
             kwargs,
         )
     }
+}
+
+/// Returns the count of a loop given as a number, or as the name of a flow variable
+fn loop_count(count: &PyAny) -> PyResult<LoopCount> {
+    if let Ok(name) = count.downcast::<PyString>() {
+        let name = name.to_str()?;
+        // Checked here as well as when the loop starts, so that an invalid count doesn't
+        // leave the conditions of the loop's flow options open
+        if !flow_api::is_identifier(name) {
+            return Err(PyValueError::new_err(format!(
+                "loop count '{}' must be the name of a flow variable (letters, digits and \
+                 underscores, not starting with a digit)",
+                name
+            )));
+        }
+        return Ok(LoopCount::Variable(name.to_string()));
+    }
+    // A bool is also an int in Python
+    if count.downcast::<PyLong>().is_ok() && count.downcast::<PyBool>().is_err() {
+        return match count.extract::<u32>() {
+            Ok(n) if n > 0 => Ok(LoopCount::Fixed(n)),
+            _ => Err(PyValueError::new_err(format!(
+                "loop count {} must be an integer from 1 to {}, or the name of a flow variable",
+                count,
+                u32::MAX
+            ))),
+        };
+    }
+    Err(PyTypeError::new_err(format!(
+        "loop count must be an int or the name of a flow variable (str), not '{}'",
+        count.get_type().name()?
+    )))
 }
 
 fn extract_to_string_vec(args: &PyTuple) -> Result<Vec<String>> {

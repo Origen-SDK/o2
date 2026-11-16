@@ -1,7 +1,7 @@
 use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 use crate::prog_gen::config::SMT8Config;
-use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamValue, PGM};
+use crate::prog_gen::{BinType, FlowCondition, GroupType, LoopCount, Model, ParamValue, PGM};
 use crate::Result;
 use indexmap::IndexMap;
 use std::cmp::Ordering;
@@ -795,6 +795,7 @@ impl Processor<PGM> for FlowGenerator {
                 for v in flow.flow_data.sorted_output_flags() {
                     if current_flow.flow_data.output_flags.contains(&v)
                         || current_flow.flow_data.referenced_flags.contains(&v)
+                        || current_flow.flow_data.downstream_flags.contains(&v)
                     {
                         current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                     }
@@ -828,6 +829,7 @@ impl Processor<PGM> for FlowGenerator {
                     for v in flow.flow_data.sorted_output_flags() {
                         if current_flow.flow_data.output_flags.contains(&v)
                             || current_flow.flow_data.referenced_flags.contains(&v)
+                            || current_flow.flow_data.downstream_flags.contains(&v)
                         {
                             current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
                         }
@@ -1138,18 +1140,47 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 _ => Return::ProcessChildren,
             },
-            PGM::Loop(count, variable, descending) => {
-                let count = match count {
-                    Some(c) => *c,
-                    None => bail!("V93K SMT8 flow generation only supports loops with a fixed iteration count"),
+            PGM::Loop(count, variable, descending, start) => {
+                // The first and last values of the loop variable, joined like this to match
+                // hand-written SMT8, e.g. 1..3 and 1 .. count. Computed as i128 so that no start
+                // and count can overflow.
+                let start = *start as i128;
+                let (first, last, sep) = match count {
+                    // SMT8 counts down a range whose first value is greater, so 1..0 would run
+                    // twice
+                    Some(LoopCount::Fixed(0)) => {
+                        bail!("A V93K SMT8 loop must repeat at least once, its count is 0")
+                    }
+                    Some(LoopCount::Fixed(c)) => (
+                        start.to_string(),
+                        (start + *c as i128 - 1).to_string(),
+                        "..",
+                    ),
+                    Some(LoopCount::Variable(name)) => {
+                        let last = match start - 1 {
+                            0 => name.to_string(),
+                            offset if offset > 0 => format!("{} + {}", name, offset),
+                            offset => format!("{} - {}", name, -offset),
+                        };
+                        (start.to_string(), last, " .. ")
+                    }
+                    None => bail!(
+                        "V93K SMT8 flow generation only supports loops with an iteration count"
+                    ),
                 };
                 let variable = variable.clone().unwrap_or_else(|| "index".to_string());
                 {
                     let current_flow = self.flow_stack.last_mut().unwrap();
                     if *descending {
-                        current_flow.execute_line(format!("for ({} : {}..1) {{", variable, count));
+                        current_flow.execute_line(format!(
+                            "for ({} : {}{}{}) {{",
+                            variable, last, sep, first
+                        ));
                     } else {
-                        current_flow.execute_line(format!("for ({} : 1..{}) {{", variable, count));
+                        current_flow.execute_line(format!(
+                            "for ({} : {}{}{}) {{",
+                            variable, first, sep, last
+                        ));
                     }
                     current_flow.indent += 1;
                 }
@@ -1165,7 +1196,7 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             // Only declares the variable, see create_flow_data
-            PGM::OutputVariable(_) => Return::None,
+            PGM::OutputVariable(_) | PGM::InputVariable(_) | PGM::LocalFlag(_) => Return::None,
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -1230,7 +1261,8 @@ impl Processor<PGM> for FlowGenerator {
 mod tests {
     use super::{run, FileWriter, FlowGenerator};
     use crate::prog_gen::{
-        process_flow, FlowCondition, FlowID, GroupType, Model, ParamValue, SupportedTester, PGM,
+        process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
+        SupportedTester, PGM,
     };
     use std::cmp::Ordering;
     use std::fs;
@@ -1352,10 +1384,10 @@ mod tests {
     #[test]
     fn loops_are_rendered_ascending_and_descending() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "loops".to_string() =>
-            node!(PGM::Loop, Some(3), Some("attempt".to_string()), false =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("attempt".to_string()), false, 1 =>
                 node!(PGM::TestStr, "looped".to_string(), FlowID::from_str("looped"), None, None, None)
             ),
-            node!(PGM::Loop, Some(9), None, true =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(9)), None, true, 1 =>
                 node!(PGM::TestStr, "countdown".to_string(), FlowID::from_str("countdown"), None, None, None)
             )
         );
@@ -1366,6 +1398,227 @@ mod tests {
         // Loop counters are local to the flow, not inputs
         assert!(!flow.contains("in attempt"));
         assert!(!flow.contains("in index"));
+        Ok(())
+    }
+
+    #[test]
+    fn loops_can_start_at_any_index() -> crate::Result<()> {
+        let looped = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let flow = node!(PGM::Flow, "starts".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(6)), Some("i".to_string()), false, 0 =>
+                looped("from_0")
+            ),
+            node!(PGM::Loop, Some(LoopCount::Fixed(6)), Some("j".to_string()), true, 0 =>
+                looped("down_to_0")
+            ),
+            node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("k".to_string()), false, 5 =>
+                looped("from_5")
+            )
+        );
+        let flow = render_flow_file(flow, "STARTS.flow")?;
+        assert!(flow.contains("for (i : 0..5) {"), "{}", flow);
+        assert!(flow.contains("for (j : 5..0) {"), "{}", flow);
+        assert!(flow.contains("for (k : 5..6) {"), "{}", flow);
+        Ok(())
+    }
+
+    #[test]
+    fn loops_can_repeat_to_a_count_held_in_a_flow_variable() -> crate::Result<()> {
+        let looped = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let count = |name: &str| Some(LoopCount::Variable(name.to_string()));
+        let flow = node!(PGM::Flow, "counted".to_string() =>
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), false, 1 =>
+                looped("up")
+            ),
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), true, 1 =>
+                looped("down")
+            ),
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), false, 0 =>
+                looped("from_0")
+            ),
+            node!(PGM::Loop, count("retryCount"), Some("attempt".to_string()), false, 3 =>
+                looped("from_3")
+            ),
+            // A nested loop may count to the variable of the loop around it
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("outer".to_string()), false, 1 =>
+                node!(PGM::Loop, count("outer"), Some("inner".to_string()), false, 1 =>
+                    looped("nested")
+                )
+            )
+        );
+        let flow = render_flow_file(flow, "COUNTED.flow")?;
+        assert!(
+            flow.contains("for (attempt : 1 .. retryCount) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (attempt : retryCount .. 1) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (attempt : 0 .. retryCount - 1) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (attempt : 3 .. retryCount + 2) {"),
+            "{}",
+            flow
+        );
+        assert!(flow.contains("for (inner : 1 .. outer) {"), "{}", flow);
+        // The count is an input of the flow, keeping its case, the loop variables are not
+        assert!(flow.contains("    in retryCount = -1;"), "{}", flow);
+        assert!(!flow.contains("in outer"), "{}", flow);
+        assert!(!flow.contains("RETRYCOUNT"), "{}", flow);
+        Ok(())
+    }
+
+    #[test]
+    fn a_loop_count_declared_as_an_output_is_not_an_input() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "counted".to_string() =>
+            node!(PGM::SubFlow, "sub".to_string(), None =>
+                node!(PGM::TestStr, "set_count".to_string(), FlowID::from_str("set_count"), None, None, None),
+                node!(PGM::Loop, Some(LoopCount::Variable("retryCount".to_string())), Some("attempt".to_string()), false, 1 =>
+                    node!(PGM::TestStr, "step".to_string(), FlowID::from_str("step"), None, None, None)
+                ),
+                node!(PGM::OutputVariable, "retryCount".to_string())
+            )
+        );
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    out retryCount = -1;"), "{}", sub);
+        assert!(!sub.contains("in retryCount"), "{}", sub);
+        assert!(sub.contains("for (attempt : 1 .. retryCount) {"), "{}", sub);
+        let top = render_flow_file(flow, "COUNTED.flow")?;
+        assert!(!top.contains("in retryCount"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_loop_without_a_count_is_an_error() {
+        let flow = node!(PGM::Flow, "unbounded".to_string() =>
+            node!(PGM::Loop, None, None, false, 1 =>
+                node!(PGM::TestStr, "t".to_string(), FlowID::from_str("t"), None, None, None)
+            )
+        );
+        assert!(render_flow_file(flow, "UNBOUNDED.flow").is_err());
+    }
+
+    #[test]
+    fn a_loop_with_a_fixed_count_of_0_is_an_error() {
+        // SMT8 would run 1..0 twice, counting down
+        let flow = node!(PGM::Flow, "never".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(0)), None, false, 1 =>
+                node!(PGM::TestStr, "t".to_string(), FlowID::from_str("t"), None, None, None)
+            )
+        );
+        assert!(render_flow_file(flow, "NEVER.flow").is_err());
+    }
+
+    #[test]
+    fn loop_ranges_at_the_limits_of_the_start_index_do_not_overflow() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "limits".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("i".to_string()), false, i64::MAX =>
+                node!(PGM::TestStr, "high".to_string(), FlowID::from_str("high"), None, None, None)
+            ),
+            node!(PGM::Loop, Some(LoopCount::Variable("count".to_string())), Some("j".to_string()), false, i64::MIN =>
+                node!(PGM::TestStr, "low".to_string(), FlowID::from_str("low"), None, None, None)
+            )
+        );
+        let flow = render_flow_file(flow, "LIMITS.flow")?;
+        assert!(
+            flow.contains("for (i : 9223372036854775807..9223372036854775808) {"),
+            "{}",
+            flow
+        );
+        assert!(
+            flow.contains("for (j : -9223372036854775808 .. count - 9223372036854775809) {"),
+            "{}",
+            flow
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_loop_counter_read_by_a_flow_called_within_the_loop_is_passed_down_to_it(
+    ) -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("outer".to_string()), false, 1 =>
+                flow_group("grp", vec![
+                    node!(PGM::Loop, Some(LoopCount::Variable("outer".to_string())), Some("inner".to_string()), false, 1 =>
+                        test_str("in_grp")
+                    ),
+                    flow_group("nested", vec![
+                        node!(PGM::Condition, FlowCondition::IfExpr("outer > 1".to_string()) =>
+                            test_str("in_nested")
+                        )
+                    ]),
+                ])
+            )
+        );
+        // The caller's loop counter is passed down from within its loop, it's not an input of
+        // the caller
+        let top = render_flow_file(flow.clone(), "TOP.flow")?;
+        assert!(!top.contains("in outer"), "{}", top);
+        assert!(
+            top.contains(
+                "for (outer : 1..3) {\n            GRP.outer = outer;\n            GRP.execute();"
+            ),
+            "{}",
+            top
+        );
+        let grp = render_flow_file(flow.clone(), "GRP.flow")?;
+        assert!(grp.contains("    in outer = -1;"), "{}", grp);
+        assert!(grp.contains("for (inner : 1 .. outer) {"), "{}", grp);
+        assert!(grp.contains("NESTED.outer = outer;"), "{}", grp);
+        let nested = render_flow_file(flow, "NESTED.flow")?;
+        assert!(nested.contains("    in outer = -1;"), "{}", nested);
+        Ok(())
+    }
+
+    #[test]
+    fn a_failure_tested_by_several_conditions_is_flagged_once() -> crate::Result<()> {
+        let t = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let failed = |name: &str| FlowCondition::IfFailed(vec![FlowID::from_str(name)]);
+        let flow = node!(PGM::Flow, "flagged".to_string() =>
+            t("t_first"),
+            node!(PGM::Condition, failed("t_first") =>
+                t("t_second"),
+                node!(PGM::Condition, failed("t_second") => t("t_second_check"))
+            ),
+            node!(PGM::Condition, failed("t_second") => t("t_after_second"))
+        );
+        let flow = render_flow_file(flow, "FLAGGED.flow")?;
+        assert_eq!(flow.matches("T_SECOND_FAILED = 1;").count(), 1, "{}", flow);
+        assert_eq!(flow.matches("T_FIRST_FAILED = 1;").count(), 1, "{}", flow);
         Ok(())
     }
 
@@ -1439,7 +1692,7 @@ mod tests {
         let flow = node!(PGM::Flow, "variables".to_string() =>
             node!(PGM::SetVariable, "per_tile_passed".to_string(), "0".to_string()),
             node!(PGM::Group, "inner".to_string(), None, GroupType::Flow, Some(FlowID::from_str("inner")) =>
-                node!(PGM::Loop, Some(9), Some("per_tile_index".to_string()), true =>
+                node!(PGM::Loop, Some(LoopCount::Fixed(9)), Some("per_tile_index".to_string()), true, 1 =>
                     node!(PGM::Condition, FlowCondition::IfExpr("per_tile_passed == 0 && per_tile_index > 1".to_string()) =>
                         node!(PGM::SetVariable, "per_tile_passed".to_string(), "1".to_string())
                     )
@@ -1532,6 +1785,362 @@ mod tests {
             "{}",
             reader
         );
+        Ok(())
+    }
+
+    /// A flow with a parent flow containing a sub-flow which sets FLAG and a sub-flow which
+    /// reads it, in the given order
+    fn setter_and_reader(setter_first: bool) -> crate::ast::Node<PGM> {
+        let t = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let setter = node!(PGM::Group, "setter".to_string(), None, GroupType::Flow, Some(FlowID::from_str("setter")) =>
+            t("check"),
+            node!(PGM::SetFlag, "flag".to_string(), true, false)
+        );
+        let reader = node!(PGM::Group, "reader".to_string(), None, GroupType::Flow, Some(FlowID::from_str("reader")) =>
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["flag".to_string()]) =>
+                t("gated")
+            )
+        );
+        let (first, second) = if setter_first {
+            (setter, reader)
+        } else {
+            (reader, setter)
+        };
+        node!(PGM::Flow, "top".to_string() =>
+            node!(PGM::Group, "parent".to_string(), None, GroupType::Flow, Some(FlowID::from_str("parent")) =>
+                first,
+                second
+            )
+        )
+    }
+
+    #[test]
+    fn a_flag_set_by_an_earlier_sub_flow_is_not_an_input_of_the_enclosing_flows(
+    ) -> crate::Result<()> {
+        let flow = setter_and_reader(true);
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(parent.contains("    out FLAG = -1;"), "{}", parent);
+        assert!(!parent.contains("in FLAG"), "{}", parent);
+        assert!(
+            parent.contains(
+                "FLAG = SETTER.FLAG;\n        READER.FLAG = FLAG;\n        READER.execute();"
+            ),
+            "{}",
+            parent
+        );
+        let top = render_flow_file(flow.clone(), "TOP.flow")?;
+        assert!(top.contains("    out FLAG = -1;"), "{}", top);
+        assert!(!top.contains("in FLAG"), "{}", top);
+        let reader = render_flow_file(flow, "READER.flow")?;
+        assert!(reader.contains("    in FLAG = -1;"), "{}", reader);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_read_before_a_sub_flow_sets_it_is_an_input_of_the_enclosing_flows(
+    ) -> crate::Result<()> {
+        let flow = setter_and_reader(false);
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(parent.contains("    in FLAG = -1;"), "{}", parent);
+        assert!(parent.contains("READER.FLAG = FLAG;"), "{}", parent);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    in FLAG = -1;"), "{}", top);
+        assert!(top.contains("PARENT.FLAG = FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    fn flow_group(name: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut group = node!(
+            PGM::Group,
+            name.to_string(),
+            None,
+            GroupType::Flow,
+            Some(FlowID::from_str(name))
+        );
+        for child in children {
+            group.add_child(child);
+        }
+        group
+    }
+
+    fn test_str(name: &str) -> crate::ast::Node<PGM> {
+        node!(
+            PGM::TestStr,
+            name.to_string(),
+            FlowID::from_str(name),
+            None,
+            None,
+            None
+        )
+    }
+
+    fn unless_flag(flag: &str, test: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::Condition, FlowCondition::UnlessFlag(vec![flag.to_string()]) =>
+            test_str(test)
+        )
+    }
+
+    fn set_flag(flag: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::SetFlag, flag.to_string(), true, false)
+    }
+
+    fn local_flag(flag: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::LocalFlag, flag.to_string())
+    }
+
+    #[test]
+    fn a_local_flag_which_no_other_flow_reads_stays_in_the_flow_which_sets_it() -> crate::Result<()>
+    {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("sub", vec![
+                local_flag("flag"),
+                test_str("check"),
+                set_flag("flag"),
+                unless_flag("flag", "on_fail"),
+                // Read by a sub-flow of the flow which sets it, it is passed down
+                flow_group("nested", vec![test_str("first"), unless_flag("flag", "nested_test")]),
+            ])
+        );
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    out FLAG = -1;"), "{}", sub);
+        assert!(sub.contains("NESTED.FLAG = FLAG;"), "{}", sub);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("FLAG"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_flag_is_passed_out_as_far_as_the_highest_flow_with_another_reader(
+    ) -> crate::Result<()> {
+        // Declared by the parent, for the sub-flow which sets it
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("parent", vec![
+                local_flag("FLAG"),
+                flow_group("mid", vec![
+                    flow_group("setter", vec![test_str("check"), set_flag("flag")]),
+                ]),
+                flow_group("reader", vec![unless_flag("flag", "gated")]),
+            ])
+        );
+        let mid = render_flow_file(flow.clone(), "MID.flow")?;
+        assert!(mid.contains("    out FLAG = -1;"), "{}", mid);
+        assert!(mid.contains("FLAG = SETTER.FLAG;"), "{}", mid);
+        // The parent holds it, initializing it, copying it up from the setter's flow and passing
+        // it down to the reader, but it isn't an output or an input of the parent
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(!parent.contains("out FLAG"), "{}", parent);
+        assert!(!parent.contains("in FLAG"), "{}", parent);
+        assert!(parent.contains("        FLAG = -1;"), "{}", parent);
+        assert!(
+            parent.contains(
+                "FLAG = MID.FLAG;\n        READER.FLAG = FLAG;\n        READER.execute();"
+            ),
+            "{}",
+            parent
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("FLAG"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_flag_read_by_an_expression_stays_in_the_flow_which_holds_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("parent", vec![
+                local_flag("FLAG"),
+                flow_group("setter", vec![test_str("check"), set_flag("flag")]),
+                flow_group("reader", vec![
+                    node!(PGM::Condition, FlowCondition::IfExpr("FLAG == 1".to_string()) =>
+                        test_str("gated")
+                    )
+                ]),
+            ])
+        );
+        let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+        assert!(!parent.contains("in FLAG"), "{}", parent);
+        assert!(!parent.contains("out FLAG"), "{}", parent);
+        assert!(
+            parent.contains("FLAG = SETTER.FLAG;\n        READER.FLAG = FLAG;"),
+            "{}",
+            parent
+        );
+        let reader = render_flow_file(flow.clone(), "READER.flow")?;
+        assert!(reader.contains("    in FLAG = -1;"), "{}", reader);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("FLAG"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_flag_read_by_an_enclosing_flow_is_passed_out_to_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("mid", vec![
+                flow_group("setter", vec![local_flag("flag"), set_flag("flag")]),
+            ]),
+            unless_flag("flag", "gated")
+        );
+        let mid = render_flow_file(flow.clone(), "MID.flow")?;
+        assert!(mid.contains("    out FLAG = -1;"), "{}", mid);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("out FLAG"), "{}", top);
+        assert!(!top.contains("in FLAG"), "{}", top);
+        assert!(top.contains("FLAG = MID.FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_passed_up_to_a_flow_which_reads_it_with_an_expression_is_not_its_input(
+    ) -> crate::Result<()> {
+        let reads = || {
+            node!(PGM::Condition, FlowCondition::IfExpr("FLAG == 1".to_string()) =>
+                test_str("gated")
+            )
+        };
+        // The holder of a local flag reads it, and a flag passed up to every enclosing flow is
+        // read by one of them
+        for local in [true, false] {
+            let mut parent = vec![flow_group(
+                "setter",
+                vec![test_str("check"), set_flag("flag")],
+            )];
+            if local {
+                parent.insert(0, local_flag("FLAG"));
+            }
+            parent.push(reads());
+            let flow = node!(PGM::Flow, "top".to_string() => flow_group("parent", parent));
+            let parent = render_flow_file(flow.clone(), "PARENT.flow")?;
+            assert!(!parent.contains("in FLAG"), "{}", parent);
+            assert!(
+                parent.contains("FLAG = SETTER.FLAG;\n        if (FLAG == 1) {"),
+                "{}",
+                parent
+            );
+            let top = render_flow_file(flow, "TOP.flow")?;
+            assert!(!top.contains("in FLAG"), "{}", top);
+            assert_eq!(top.contains("out FLAG"), !local, "{}", top);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_declared_local_and_as_an_output_is_output() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("sub", vec![
+                local_flag("flag"),
+                node!(PGM::OutputVariable, "FLAG".to_string()),
+                set_flag("flag"),
+            ])
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    out FLAG = -1;"), "{}", top);
+        assert!(top.contains("FLAG = SUB.FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_which_is_not_declared_local_is_passed_out_to_every_enclosing_flow(
+    ) -> crate::Result<()> {
+        // Declared local by a flow which doesn't enclose the flow which sets it
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("other", vec![local_flag("flag")]),
+            flow_group("sub", vec![set_flag("flag"), unless_flag("flag", "gated")])
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    out FLAG = -1;"), "{}", top);
+        assert!(top.contains("FLAG = SUB.FLAG;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_set_by_a_flow_is_not_its_input_when_its_sub_flow_reads_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            node!(PGM::SetFlag, "flag".to_string(), true, false),
+            node!(PGM::Group, "reader".to_string(), None, GroupType::Flow, Some(FlowID::from_str("reader")) =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["flag".to_string()]) =>
+                    node!(PGM::TestStr, "gated".to_string(), FlowID::from_str("gated"), None, None, None)
+                )
+            )
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("in FLAG"), "{}", top);
+        assert!(
+            top.contains("FLAG = 1;\n        READER.FLAG = FLAG;"),
+            "{}",
+            top
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn declared_input_variables_keep_their_case_and_are_passed_down() -> crate::Result<()> {
+        let t = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        let flow = node!(PGM::Flow, "inputs".to_string() =>
+            // Declared by a flow which only passes it down, and by the sub-flow which receives it
+            node!(PGM::Group, "outer".to_string(), None, GroupType::Flow, Some(FlowID::from_str("outer")) =>
+                node!(PGM::InputVariable, "tileMask".to_string()),
+                node!(PGM::Group, "sub".to_string(), None, GroupType::Flow, Some(FlowID::from_str("sub")) =>
+                    node!(PGM::InputVariable, "tileMask".to_string()),
+                    t("in_sub")
+                ),
+                node!(PGM::Group, "other".to_string(), None, GroupType::Flow, Some(FlowID::from_str("other")) =>
+                    t("in_other")
+                )
+            ),
+            // Declared only by a flow nested in a flow which doesn't declare it
+            node!(PGM::Group, "middle".to_string(), None, GroupType::Flow, Some(FlowID::from_str("middle")) =>
+                node!(PGM::Group, "deep".to_string(), None, GroupType::Flow, Some(FlowID::from_str("deep")) =>
+                    node!(PGM::InputVariable, "DEPTH".to_string()),
+                    t("in_deep")
+                )
+            )
+        );
+
+        let top = render_flow_file(flow.clone(), "INPUTS.flow")?;
+        assert!(top.contains("    in tileMask = -1;"), "{}", top);
+        assert!(top.contains("    in DEPTH = -1;"), "{}", top);
+        assert!(
+            top.contains("OUTER.tileMask = tileMask;\n        OUTER.execute();"),
+            "{}",
+            top
+        );
+        assert!(top.contains("MIDDLE.DEPTH = DEPTH;"), "{}", top);
+        assert!(!top.contains("out "), "{}", top);
+
+        let outer = render_flow_file(flow.clone(), "OUTER.flow")?;
+        assert!(outer.contains("    in tileMask = -1;"), "{}", outer);
+        assert!(outer.contains("SUB.tileMask = tileMask;"), "{}", outer);
+        // Not passed to a sub-flow which neither reads nor declares it
+        assert!(!outer.contains("OTHER.tileMask"), "{}", outer);
+        assert!(!outer.contains("TILEMASK"), "{}", outer);
+
+        let sub = render_flow_file(flow.clone(), "SUB.flow")?;
+        assert!(sub.contains("    in tileMask = -1;"), "{}", sub);
+        let other = render_flow_file(flow.clone(), "OTHER.flow")?;
+        assert!(!other.contains("tileMask"), "{}", other);
+
+        let middle = render_flow_file(flow.clone(), "MIDDLE.flow")?;
+        assert!(middle.contains("    in DEPTH = -1;"), "{}", middle);
+        assert!(middle.contains("DEEP.DEPTH = DEPTH;"), "{}", middle);
+        let deep = render_flow_file(flow, "DEEP.flow")?;
+        assert!(deep.contains("    in DEPTH = -1;"), "{}", deep);
         Ok(())
     }
 

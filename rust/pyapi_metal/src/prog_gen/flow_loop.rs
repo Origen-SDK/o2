@@ -1,5 +1,5 @@
 use super::src_caller_meta;
-use origen_metal::prog_gen::flow_api;
+use origen_metal::prog_gen::{flow_api, LoopCount};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyType};
 
@@ -7,19 +7,21 @@ use pyo3::types::{PyAny, PyType};
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct Loop {
-    count: u32,
+    count: LoopCount,
     variable: String,
     descending: bool,
+    start: i64,
     ref_id: usize,
     pub open_conditions: Option<Vec<usize>>,
 }
 
 impl Loop {
-    pub fn new(count: u32, variable: String, descending: bool) -> Loop {
+    pub fn new(count: LoopCount, variable: String, descending: bool, start: i64) -> Loop {
         Loop {
-            count: count,
-            variable: variable,
-            descending: descending,
+            count,
+            variable,
+            descending,
+            start,
             ref_id: 0,
             open_conditions: None,
         }
@@ -30,9 +32,10 @@ impl Loop {
 impl Loop {
     fn __enter__(&mut self) -> PyResult<Loop> {
         self.ref_id = flow_api::start_loop(
-            Some(self.count),
+            Some(self.count.clone()),
             Some(self.variable.clone()),
             self.descending,
+            self.start,
             src_caller_meta(),
         )?;
         Ok(self.clone())

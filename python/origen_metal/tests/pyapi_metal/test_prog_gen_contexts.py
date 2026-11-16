@@ -76,8 +76,41 @@ def test_loop_applies_flow_options_around_the_loop():
             pass
 
     ast = _flow_ast(build)
-    assert 'Condition(IfEnable(["retry"]))\n        Loop(Some(3), Some("attempt"), false)\n            SetFlag("looped", true, false)' in ast
-    assert 'Loop(Some(9), Some("index"), true)' in ast
+    assert 'Condition(IfEnable(["retry"]))\n        Loop(Some(Fixed(3)), Some("attempt"), false, 1)\n            SetFlag("looped", true, false)' in ast
+    assert 'Loop(Some(Fixed(9)), Some("index"), true, 1)' in ast
+
+
+def test_loops_take_a_start_and_a_count_held_in_a_flow_variable():
+    def build(interface):
+        with interface.loop(6, "attempt", start=0):
+            pass
+        with interface.loop("retryCount", "attempt", True):
+            pass
+
+    ast = _flow_ast(build)
+    assert 'Loop(Some(Fixed(6)), Some("attempt"), false, 0)' in ast
+    assert 'Loop(Some(Variable("retryCount")), Some("attempt"), true, 1)' in ast
+
+
+@pytest.mark.parametrize("count,error,match", [
+    (0, ValueError, "must be an integer from 1"),
+    (-1, ValueError, "must be an integer from 1"),
+    (2**32, ValueError, "must be an integer from 1"),
+    ("1st", ValueError, "must be the name of a flow variable"),
+    ("a b", ValueError, "must be the name of a flow variable"),
+    (True, TypeError, "not 'bool'"),
+    (3.0, TypeError, "not 'float'"),
+    (None, TypeError, "not 'NoneType'"),
+])
+def test_loop_count_must_be_an_int_or_a_variable_name(count, error, match):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("flow", None, None, None)
+    with pytest.raises(error, match=match):
+        interface.loop(count, if_flag="enabled")
+    # No condition was left open by the invalid loop
+    om.prog_gen.end_flow(refs)
+    assert "Loop" not in om.prog_gen.ast_str()
+    assert "IfFlag" not in om.prog_gen.ast_str()
 
 
 def test_bypassed_group_is_inside_its_conditions():
@@ -104,8 +137,34 @@ def test_output_variables_are_declared_with_their_case():
     assert 'OutputVariable("BITMAP")' in ast
 
 
+def test_input_variables_are_declared_with_their_case():
+    def build(interface):
+        interface.declare_input_variable("tileMask")
+        with interface.group("grp", if_flag="enabled"):
+            interface.declare_input_variable("DEPTH")
+
+    ast = _flow_ast(build)
+    assert 'InputVariable("tileMask")' in ast
+    assert 'InputVariable("DEPTH")' in ast
+
+
+def test_local_flags_are_declared():
+    def build(interface):
+        interface.declare_local_flag("retry_passed")
+        with interface.group("grp", if_flag="enabled"):
+            interface.declare_local_flag("DONE")
+
+    ast = _flow_ast(build)
+    assert 'LocalFlag("retry_passed")' in ast
+    assert 'LocalFlag("DONE")' in ast
+
+
+DECLARATIONS = ["declare_output_variable", "declare_input_variable", "declare_local_flag"]
+
+
+@pytest.mark.parametrize("api", DECLARATIONS)
 @pytest.mark.parametrize("context_name", ["condition", "loop", "group_condition"])
-def test_output_variables_cannot_be_declared_in_a_condition_or_loop(context_name):
+def test_variables_cannot_be_declared_in_a_condition_or_loop(api, context_name):
     interface = om.interface.PyInterface()
     refs = om.prog_gen.start_new_flow("flow", None, None, None)
     if context_name == "condition":
@@ -117,17 +176,18 @@ def test_output_variables_cannot_be_declared_in_a_condition_or_loop(context_name
     with context:
         if context_name == "group_condition":
             # The group is the flow which declares it, its condition applies to its call
-            interface.declare_output_variable("in_group")
+            getattr(interface, api)("in_group")
         else:
-            with pytest.raises(RuntimeError, match="must be called at flow level"):
-                interface.declare_output_variable("x")
+            with pytest.raises(RuntimeError, match=api + r"\('x'\) must be called at flow level"):
+                getattr(interface, api)("x")
     om.prog_gen.end_flow(refs)
 
 
+@pytest.mark.parametrize("api", DECLARATIONS)
 @pytest.mark.parametrize("name", ["", "1st", "a b", "x.y"])
-def test_output_variable_names_must_be_identifiers(name):
+def test_variable_names_must_be_identifiers(api, name):
     interface = om.interface.PyInterface()
     refs = om.prog_gen.start_new_flow("flow", None, None, None)
     with pytest.raises(RuntimeError, match="must be an identifier"):
-        interface.declare_output_variable(name)
+        getattr(interface, api)(name)
     om.prog_gen.end_flow(refs)
