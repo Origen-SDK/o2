@@ -1,3 +1,21 @@
+(release-origen-metal-1-10-0)=
+# Origen Metal 1.10.0
+
+- **Released:** 2026-11-16
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.10.0`
+
+This release extends SMT8 flow generation with loops that start at any index or repeat to a count set at run time, declarations of flow inputs and local flags, and fixes to flag assignment and propagation.
+
+- `loop()` takes a `start` index, e.g. `loop(6, start=0)` renders `for (index : 0..5)`, and its count may be the name of a flow variable holding it when the loop starts, rendered `for (index : 1 .. count)` with the count declared as a flow input. A fixed count of 0 is now an error. Rust: `PGM::Loop` gains a start and takes a `LoopCount`, `flow_api::start_loop` gains a `start` argument. Contributed by Stephen McGinty in #251.
+- A flow called from within a loop which reads the loop's counter declares it as an input, and the caller passes it down from within the loop. Contributed by Stephen McGinty in #251.
+- New `declare_input_variable(name)` flow API declares a flow input which the flow only passes down to its sub-flows, keeping the case of its name. Contributed by Stephen McGinty in #251.
+- New `declare_local_flag(name)` flow API: a flag set in the declaring flow or its sub-flows is passed out only as far as the highest enclosing flow in which another flow reads it, instead of to every enclosing flow. Contributed by Stephen McGinty in #251.
+- A test's or group's result flag is set once, however many conditions reference it, and a test referenced by `if_ran` before `if_failed` or `if_passed` now also sets its failed or passed flag. Contributed by Stephen McGinty in #251.
+- A flag or variable set by an earlier sub-flow and read by a later one is no longer also declared an input of the enclosing flows. A caller which assigns such an input, `<FLOW>.<FLAG> = ...`, must drop the assignment. Contributed by Stephen McGinty in #251.
+
+---
+
 (release-origen-metal-1-9-0)=
 # Origen Metal 1.9.0
 
