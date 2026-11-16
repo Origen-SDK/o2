@@ -454,7 +454,7 @@ impl FlowGenerator {
                 if !self.options.render_default_tmparams
                     && default_values
                         .get(name)
-                        .is_some_and(|default| default == value)
+                        .is_some_and(|default| default.is_same_value(value))
                 {
                     None
                 } else {
@@ -481,7 +481,7 @@ impl FlowGenerator {
                 if !self.options.render_default_tmparams
                     && default_values
                         .get(&name)
-                        .is_some_and(|default| default == value)
+                        .is_some_and(|default| default.is_same_value(value))
                 {
                     continue;
                 }
