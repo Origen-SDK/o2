@@ -139,6 +139,25 @@ pub enum ParamValue {
 }
 
 impl ParamValue {
+    /// Returns true if the given value is the same as this one, like `==` but with a NaN number
+    /// the same as another NaN of the same kind, e.g. to recognize a value equal to a NaN default
+    pub fn is_same_value(&self, other: &ParamValue) -> bool {
+        fn same(a: f64, b: f64) -> bool {
+            a == b || (a.is_nan() && b.is_nan())
+        }
+        match (self, other) {
+            (ParamValue::Float(a), ParamValue::Float(b))
+            | (ParamValue::Current(a), ParamValue::Current(b))
+            | (ParamValue::Voltage(a), ParamValue::Voltage(b))
+            | (ParamValue::Time(a), ParamValue::Time(b))
+            | (ParamValue::Frequency(a), ParamValue::Frequency(b)) => same(*a, *b),
+            (ParamValue::List(a), ParamValue::List(b)) => {
+                a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.is_same_value(b))
+            }
+            _ => self == other,
+        }
+    }
+
     pub fn is_type(&self, kind: &ParamType) -> bool {
         match self {
             ParamValue::String(_) => kind == &ParamType::String,
@@ -245,8 +264,22 @@ impl FromStr for ParamType {
 
 #[cfg(test)]
 mod tests {
-    use super::ParamType;
+    use super::{ParamType, ParamValue};
     use std::str::FromStr;
+
+    #[test]
+    fn nan_values_are_the_same_as_a_nan_default() {
+        assert!(ParamValue::Voltage(f64::NAN).is_same_value(&ParamValue::Voltage(f64::NAN)));
+        assert!(ParamValue::Float(f64::NAN).is_same_value(&ParamValue::Float(f64::NAN)));
+        assert!(!ParamValue::Voltage(1.5).is_same_value(&ParamValue::Voltage(f64::NAN)));
+        assert!(!ParamValue::Voltage(f64::NAN).is_same_value(&ParamValue::Current(f64::NAN)));
+        assert!(ParamValue::Voltage(1.5).is_same_value(&ParamValue::Voltage(1.5)));
+        assert!(ParamValue::List(vec![ParamValue::Float(f64::NAN)])
+            .is_same_value(&ParamValue::List(vec![ParamValue::Float(f64::NAN)])));
+        assert!(
+            ParamValue::String("a".to_string()).is_same_value(&ParamValue::String("a".to_string()))
+        );
+    }
 
     #[test]
     fn param_type_accepts_v93k_aliases() {

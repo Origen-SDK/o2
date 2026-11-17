@@ -265,6 +265,9 @@ impl TestCollectionItem {
         if !self.available {
             return Ok(());
         }
+        if !self.has_param(param_name_or_alias) {
+            self.add_group_param(param_name_or_alias);
+        }
         if allow_missing && !self.has_param(param_name_or_alias) {
             return Ok(());
         }
@@ -309,6 +312,47 @@ impl TestCollectionItem {
             let n = clean(param_name);
             self.aliases.contains_key(&n)
         }
+    }
+
+    /// Makes a field of a parameter group, a nested collection which is written as
+    /// `<group>.<field> = <value>;` lines in this item rather than as indexed items, e.g. a
+    /// SpecShmoo axis's `softsetSearch.expression`, a parameter of this item named
+    /// `<group>.<field>`, with the field's type, default and constraints. Returns false when
+    /// the name is not `<group>.<field>` of a nested collection of this item.
+    fn add_group_param(&mut self, name: &str) -> bool {
+        let (group, field) = match name.split_once('.') {
+            Some(parts) => parts,
+            None => return false,
+        };
+        let definition = match self.collection_defs.get(group) {
+            Some(definition) => definition,
+            None => return false,
+        };
+        let field = if definition.params.contains_key(field) {
+            field.to_string()
+        } else {
+            match definition.aliases.get(&clean(field)) {
+                Some(field) => field.to_string(),
+                None => return false,
+            }
+        };
+        let param_name = format!("{}.{}", group, field);
+        let kind = definition.params[&field].clone();
+        let default = definition.default_values.get(&field).cloned();
+        let constraints = definition.constraints.get(&field).cloned();
+        self.params.insert(param_name.clone(), kind);
+        // Like other defaults, a value equal to it is not written, but no value is written
+        // for a field which is not set
+        if let Some(default) = default {
+            self.default_values.insert(param_name.clone(), default);
+        }
+        if let Some(constraints) = constraints {
+            self.constraints.insert(param_name.clone(), constraints);
+        }
+        if param_name != name {
+            self.aliases.insert(clean(name), param_name);
+        }
+        true
     }
 
     pub fn get_type(&self, param_name_or_alias: &str) -> Result<&ParamType> {
@@ -1123,6 +1167,80 @@ mod tests {
             registers.default_values.get("zLowLimit"),
             Some(&ParamValue::Float(f64::NEG_INFINITY))
         );
+    }
+
+    #[test]
+    fn collection_items_set_parameter_group_fields_by_dotted_name() {
+        let template: TestTemplate = serde_json::from_str(
+            r#"{
+                "class_name": "com.example.Shmoo",
+                "collections": {
+                    "axis": {
+                        "parameters": {
+                            "specVariable": {"kind": "string"}
+                        },
+                        "collections": {
+                            "softsetSearch": {
+                                "parameters": {
+                                    "enableSoftsetSearch": {"kind": "boolean", "value": "false"},
+                                    "expression": {"kind": "string"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        let mut test = Test::new("example", 1, SupportedTester::V93KSMT8);
+        test.import_test_template(&template).unwrap();
+        let axis = test.definition.collection_defs.get("axis").unwrap();
+        let mut item = TestCollectionItem::from_collection(2, 1, "x", axis);
+
+        item.set(
+            "softsetSearch.expression",
+            Some(ParamValue::String("f(x)".to_string())),
+            false,
+        )
+        .unwrap();
+        item.set(
+            "softsetSearch.enableSoftsetSearch",
+            Some(ParamValue::Bool(true)),
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(
+            item.values.get("softsetSearch.expression"),
+            Some(&ParamValue::String("f(x)".to_string()))
+        );
+        assert_eq!(
+            item.values.get("softsetSearch.enableSoftsetSearch"),
+            Some(&ParamValue::Bool(true))
+        );
+        // Its default is known, so a value equal to it is not written
+        assert_eq!(
+            item.default_values.get("softsetSearch.enableSoftsetSearch"),
+            Some(&ParamValue::Bool(false))
+        );
+        // The type of the field applies
+        assert!(item
+            .set(
+                "softsetSearch.expression",
+                Some(ParamValue::Bool(true)),
+                false
+            )
+            .is_err());
+        // Not a field of a nested collection
+        assert!(item
+            .set("softsetSearch.unknown", Some(ParamValue::Bool(true)), false)
+            .is_err());
+        assert!(item
+            .set("other.expression", Some(ParamValue::Bool(true)), false)
+            .is_err());
+        assert!(item
+            .set("softsetSearch.unknown", Some(ParamValue::Bool(true)), true)
+            .is_ok());
     }
 
     #[test]
