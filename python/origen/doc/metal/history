@@ -1,3 +1,17 @@
+(release-origen-metal-1-11-0)=
+# Origen Metal 1.11.0
+
+- **Released:** 2026-11-17
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.11.0`
+
+This release improves how SMT8 test-method values are written: values equal to a NaN default are left out, and a parameter group's fields can be set in a collection item.
+
+- A test-method value equal to its NaN default is now left out, like any other value equal to its default, unless default parameters are rendered. Contributed by Bradley Dumeny in #252.
+- A field of a parameter group in a test-method collection item can be set by its dotted name, e.g. a SpecShmoo axis's `softsetSearch.expression`, with the field's type, default and constraints applied. Contributed by Bradley Dumeny in #252.
+
+---
+
 (release-origen-metal-1-10-0)=
 # Origen Metal 1.10.0
 
