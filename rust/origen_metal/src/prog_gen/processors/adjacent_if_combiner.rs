@@ -57,11 +57,15 @@ impl Processor<PGM> for AdjacentIfCombiner {
                 self.volatiles.push(flag.to_owned());
                 Return::Unmodified
             }
+            // Any node whose children run in sequence within one flow
             PGM::Flow(_)
             | PGM::SubFlow(_, _)
             | PGM::Group(_, _, GroupType::Flow, _)
             | PGM::OnFailed(_)
-            | PGM::OnPassed(_) => {
+            | PGM::OnPassed(_)
+            | PGM::Loop(..)
+            | PGM::Condition(_)
+            | PGM::Else => {
                 let children = node.process_and_box_children(self)?;
                 Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
             }
@@ -105,22 +109,22 @@ impl AdjacentIfCombiner {
     fn is_opposite_flag_states(&self, node1: &Box<Node<PGM>>, node2: &Box<Node<PGM>>) -> bool {
         if let PGM::Condition(FlowCondition::IfFlag(f1)) = &node1.attrs {
             if let PGM::Condition(FlowCondition::UnlessFlag(f2)) = &node2.attrs {
-                return f1[0] == f2[0];
+                return f1 == f2;
             }
         }
         if let PGM::Condition(FlowCondition::UnlessFlag(f1)) = &node1.attrs {
             if let PGM::Condition(FlowCondition::IfFlag(f2)) = &node2.attrs {
-                return f1[0] == f2[0];
+                return f1 == f2;
             }
         }
         if let PGM::Condition(FlowCondition::IfEnable(f1)) = &node1.attrs {
             if let PGM::Condition(FlowCondition::UnlessEnable(f2)) = &node2.attrs {
-                return f1[0] == f2[0];
+                return f1 == f2;
             }
         }
         if let PGM::Condition(FlowCondition::UnlessEnable(f1)) = &node1.attrs {
             if let PGM::Condition(FlowCondition::IfEnable(f2)) = &node2.attrs {
-                return f1[0] == f2[0];
+                return f1 == f2;
             }
         }
         if let PGM::Condition(FlowCondition::IfExpr(e1)) = &node1.attrs {
@@ -261,7 +265,7 @@ impl Processor<PGM> for ContainsATest {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, PGM};
+    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, LoopCount, PGM};
     use crate::Result;
 
     #[test]
@@ -521,6 +525,101 @@ mod tests {
                 ),
             );
             assert_eq!(output, run(&input)?);
+        }
+        Ok(())
+    }
+
+    fn opposite_pair() -> Vec<crate::ast::Node<PGM>> {
+        vec![
+            node!(PGM::Condition, FlowCondition::IfExpr("t.pass".to_string()) =>
+                node!(PGM::SetFlag, "FLAG_B".to_string(), true, false),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("t.pass".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        ]
+    }
+
+    fn combined_pair() -> crate::ast::Node<PGM> {
+        node!(PGM::Condition, FlowCondition::IfExpr("t.pass".to_string()) =>
+            node!(PGM::SetFlag, "FLAG_B".to_string(), true, false),
+            node!(PGM::Else =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        )
+    }
+
+    #[test]
+    fn opposite_conditions_are_combined_within_loops_conditions_and_else_branches() -> Result<()> {
+        let wrap = |mut node: crate::ast::Node<PGM>, children: Vec<crate::ast::Node<PGM>>| {
+            for child in children {
+                node.add_child(child);
+            }
+            node
+        };
+        let containers = || {
+            vec![
+                node!(
+                    PGM::Loop,
+                    Some(LoopCount::Fixed(2)),
+                    Some("i".to_string()),
+                    false,
+                    1
+                ),
+                node!(
+                    PGM::Condition,
+                    FlowCondition::IfEnable(vec!["e".to_string()])
+                ),
+                node!(
+                    PGM::Condition,
+                    FlowCondition::IfFailed(vec![FlowID::from_int(1)])
+                ),
+            ]
+        };
+        for container in containers() {
+            let input =
+                node!(PGM::Flow, "f1".to_string() => wrap(container.clone(), opposite_pair()));
+            let output =
+                node!(PGM::Flow, "f1".to_string() => wrap(container, vec![combined_pair()]));
+            assert_eq!(output, run(&input)?);
+        }
+
+        // Within the else branch of a combined pair
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+            ),
+            wrap(
+                node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["F".to_string()])),
+                opposite_pair()
+            ),
+        );
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Else => combined_pair()),
+            ),
+        );
+        assert_eq!(output, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn conditions_on_different_lists_of_flags_are_not_combined() -> Result<()> {
+        for (a, b) in [
+            (vec!["A", "B"], vec!["A", "C"]),
+            (vec!["A"], vec!["A", "B"]),
+        ] {
+            let flags = |v: &Vec<&str>| v.iter().map(|f| f.to_string()).collect::<Vec<_>>();
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, FlowCondition::IfFlag(flags(&a)) =>
+                    node!(PGM::Test, 1, FlowID::from_int(1)),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessFlag(flags(&b)) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            );
+            assert_eq!(input, run(&input)?);
         }
         Ok(())
     }
