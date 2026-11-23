@@ -95,8 +95,9 @@ impl Config {
         let mut lp = self.test_template_load_path.write();
         if lp.1 != paths {
             lp.0 += 1;
-            lp.1 = paths;
         }
+        // The paths as given are kept, even when they are the same directories
+        lp.1 = paths;
     }
 
     pub fn test_template_load_path(&self) -> Vec<PathBuf> {
@@ -144,5 +145,28 @@ impl Config {
 
     pub fn smt8_options(&self) -> SMT8Config {
         self.smt8.read().clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_load_path_is_kept_as_given_and_its_revision_advances_when_it_changes() {
+        let config = Config::default();
+        config.set_test_template_load_path(vec![PathBuf::from("templates//version")]);
+        let (revision, _) = config.test_template_load_path_revision();
+        // The same directory, spelled differently
+        config.set_test_template_load_path(vec![PathBuf::from("templates/version")]);
+        let (same_revision, paths) = config.test_template_load_path_revision();
+        assert_eq!(same_revision, revision);
+        assert_eq!(paths[0].as_os_str(), "templates/version");
+        assert_eq!(
+            config.test_template_load_path()[0].as_os_str(),
+            "templates/version"
+        );
+        config.set_test_template_load_path(vec![PathBuf::from("other")]);
+        assert_eq!(config.test_template_load_path_revision().0, revision + 1);
     }
 }
