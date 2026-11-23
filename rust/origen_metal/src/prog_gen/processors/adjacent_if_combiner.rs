@@ -144,6 +144,12 @@ impl AdjacentIfCombiner {
         false
     }
 
+    /// Returns true if the given flag or variable is declared volatile. Flags are rendered upper
+    /// case, so a declaration in another case may be the same variable, it is treated as the same
+    fn is_volatile(&self, name: &str) -> bool {
+        self.volatiles.iter().any(|v| v.eq_ignore_ascii_case(name))
+    }
+
     /// Nodes won't be collapsed if node1 touches the shared run flag, enable or expression
     /// variables, i.e. if there is any chance that by the time it would naturally execute node2,
     /// the condition could have been changed by node1
@@ -155,8 +161,7 @@ impl AdjacentIfCombiner {
                 | FlowCondition::IfEnable(fl)
                 | FlowCondition::UnlessEnable(fl) => {
                     let volatile = fl.iter().any(|flag| {
-                        self.volatiles.contains(flag)
-                            || super::flag_reads_output(flag, &self.outputs)
+                        self.is_volatile(flag) || super::flag_reads_output(flag, &self.outputs)
                     });
                     if !volatile || !ContainsATest::run(node1) {
                         return fl.iter().all(|flag| !ChangesFlag::run(node1, flag, true));
@@ -168,7 +173,7 @@ impl AdjacentIfCombiner {
                     // test which the expression reads, e.g. t.pass
                     if (variables
                         .iter()
-                        .any(|v| self.volatiles.contains(v) || self.outputs.contains(v))
+                        .any(|v| self.is_volatile(v) || self.outputs.contains(v))
                         || reads_a_reference(expression))
                         && ContainsATest::run(node1)
                     {
@@ -217,11 +222,20 @@ fn reads_a_reference(expression: &str) -> bool {
             while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
                 i += 1;
             }
-            if i + 1 < chars.len()
-                && chars[i] == '.'
-                && (chars[i + 1].is_ascii_alphabetic() || chars[i + 1] == '_')
-            {
-                return true;
+            // As in expression_variables, whitespace may separate the name, the dot and the
+            // attribute
+            let mut j = i;
+            while j < chars.len() && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < chars.len() && chars[j] == '.' {
+                j += 1;
+                while j < chars.len() && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if j < chars.len() && (chars[j].is_ascii_alphabetic() || chars[j] == '_') {
+                    return true;
+                }
             }
         } else {
             i += 1;
@@ -254,6 +268,12 @@ impl<'a> ChangesFlag<'a> {
 impl<'a> Processor<PGM> for ChangesFlag<'a> {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
+            // Raw tester statements and external calls may change any flag or variable, or run a
+            // test again
+            PGM::Render(_) | PGM::Call(_, _) | PGM::Callback(_, _) => {
+                self.flag_found = true;
+                Return::None
+            }
             PGM::SetFlag(flag, _, _)
             | PGM::Enable(flag)
             | PGM::Disable(flag)
@@ -300,7 +320,12 @@ impl ContainsATest {
 impl Processor<PGM> for ContainsATest {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
+            // A raw tester statement or an external call may execute a test
+            PGM::Test(_, _)
+            | PGM::TestStr(_, _, _, _, _)
+            | PGM::Render(_)
+            | PGM::Call(_, _)
+            | PGM::Callback(_, _) => {
                 self.test_found = true;
                 Return::None
             }
@@ -700,6 +725,33 @@ mod tests {
                     set_flag("RETEST_FAILED", true),
                 ),
             ],
+            // The first branch runs the test again with a raw statement
+            vec![
+                node!(PGM::Condition, FlowCondition::IfExpr("probe.pass".to_string()) =>
+                    node!(PGM::Render, "probe.execute();".to_string()),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessExpr("probe.pass".to_string()) =>
+                    set_flag("RETEST_FAILED", true),
+                ),
+            ],
+            // The first branch may change the flag with a raw statement
+            vec![
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) =>
+                    node!(PGM::Render, "F = 0;".to_string()),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["F".to_string()]) =>
+                    set_flag("C", true),
+                ),
+            ],
+            // A spaced reference to the result of a test which the first branch runs again
+            vec![
+                node!(PGM::Condition, FlowCondition::IfExpr("probe . pass".to_string()) =>
+                    node!(PGM::TestStr, "probe".to_string(), FlowID::from_str("probe_again"), None, None, None),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessExpr("probe . pass".to_string()) =>
+                    set_flag("RETEST_FAILED", true),
+                ),
+            ],
             // The first condition already has an else branch
             vec![
                 node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) =>
@@ -739,10 +791,29 @@ mod tests {
     }
 
     #[test]
+    fn a_volatile_flag_declared_in_another_case_is_volatile() -> Result<()> {
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Volatile, "READY".to_string()),
+            node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("i".to_string()), false, 1 =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["ready".to_string()]) =>
+                    node!(PGM::TestStr, "native_writer".to_string(), FlowID::from_str("native_writer"), None, None, None),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["ready".to_string()]) =>
+                    node!(PGM::SetFlag, "SECOND".to_string(), true, false),
+                ),
+            ),
+        );
+        assert_eq!(input, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
     fn references_are_found_in_expressions() {
         use super::reads_a_reference;
         assert!(reads_a_reference("probe.pass"));
         assert!(reads_a_reference("x > 1 && t_1.fail"));
+        assert!(reads_a_reference("probe . pass"));
+        assert!(reads_a_reference("probe\n.pass"));
         assert!(!reads_a_reference("x > 1.5"));
         assert!(!reads_a_reference("name == \"a.b\""));
         assert!(!reads_a_reference("mode == 6"));
