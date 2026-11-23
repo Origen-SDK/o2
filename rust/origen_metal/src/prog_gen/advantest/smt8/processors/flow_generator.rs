@@ -1144,6 +1144,12 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 _ => Return::ProcessChildren,
             },
+            // A loop within resources only holds the flows which are kept there, it is not
+            // executed
+            PGM::Loop(..) if self.resources_block => {
+                node.process_children(self)?;
+                Return::None
+            }
             PGM::Loop(count, variable, descending, start) => {
                 // The first and last values of the loop variable, joined like this to match
                 // hand-written SMT8, e.g. 1..3 and 1 .. count. Computed as i128 so that no start
@@ -2778,6 +2784,43 @@ mod tests {
             "{}",
             main
         );
+        Ok(())
+    }
+
+    #[test]
+    fn the_counter_of_a_loop_around_a_kept_flow_is_not_an_input_of_the_enclosing_flow(
+    ) -> crate::Result<()> {
+        let flows = render_flow_files(main_flow(vec![resources(
+            true,
+            vec![
+                node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("attempt".to_string()), false, 1 =>
+                    flow_group("shared", vec![if_expr("attempt > 1", vec![test_str("t1")])])
+                ),
+                node!(PGM::Loop, Some(LoopCount::Variable("retryCount".to_string())), Some("retry".to_string()), false, 1 =>
+                    flow_group("retried", vec![if_expr("retry > 1", vec![test_str("t2")])])
+                ),
+            ],
+        )]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(!main.contains("attempt"), "{}", main);
+        assert!(!main.contains("in retry ="), "{}", main);
+        // The count is read by the loop, as when it is executed
+        assert!(main.contains("    in retryCount = -1;"), "{}", main);
+        assert!(
+            main.contains("flow SHARED calls flows.main.SHARED { }"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("flow RETRIED calls flows.main.RETRIED { }"),
+            "{}",
+            main
+        );
+        assert!(main.contains("    execute {\n    }"), "{}", main);
+        let shared = flow_file(&flows, "SHARED.flow");
+        assert!(shared.contains("    in attempt = -1;"), "{}", shared);
+        let retried = flow_file(&flows, "RETRIED.flow");
+        assert!(retried.contains("    in retry = -1;"), "{}", retried);
         Ok(())
     }
 

@@ -6,7 +6,8 @@
 //!
 //! * the flow-type groups and sub-flows within it are kept whole, as flow definitions, the
 //!   cleaning stops at their boundary. A BypassSubFlows node within the block is kept too, it
-//!   marks the call of the flows within it as bypassed;
+//!   marks the call of the flows within it as bypassed, and so is a Loop node, whose counter is
+//!   passed down to the flows within it rather than being an input of the enclosing flow;
 //! * the content which declares the flow's variables, the conditions on job, enables, flags and
 //!   expressions, flag and variable assignments, variable declarations and loops, is kept in a
 //!   FlowDataOnly node at the end of the block. It is analysed like executed content to work out
@@ -82,7 +83,7 @@ impl Processor<PGM> for CleanResources {
                 self.in_resources = true;
                 Ok(Return::ReplaceChildren(nodes?))
             }
-            PGM::BypassSubFlows if self.in_resources && self.keeping_flows => {
+            PGM::BypassSubFlows | PGM::Loop(..) if self.in_resources && self.keeping_flows => {
                 Ok(Return::ProcessChildren)
             }
             // For all other nodes
