@@ -405,6 +405,8 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
         | PGM::PushPattern(_, _, _)
         | PGM::DefBin(_, _, _, _, _)
         | PGM::Resources
+        | PGM::ResourcesKeepFlows
+        | PGM::FlowDataOnly
         | PGM::ResourcesFilename(_, _)
         | PGM::FlowDescription(_)
         | PGM::FlowNameOverride(_)

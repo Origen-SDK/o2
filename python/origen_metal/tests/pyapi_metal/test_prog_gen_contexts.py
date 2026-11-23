@@ -68,6 +68,21 @@ def test_expression_condition_must_be_a_single_string(name):
         getattr(interface, name)(["a > 1", "b > 2"])
 
 
+def test_resources_keep_flows_only_when_asked():
+    def build(interface):
+        with interface.resources():
+            interface.set_flag("plain")
+        with interface.resources(keep_flows=False):
+            interface.set_flag("not_kept")
+        with interface.resources(keep_flows=True):
+            interface.set_flag("kept")
+
+    ast = _flow_ast(build)
+    assert '    Resources\n        SetFlag("plain", true, false)' in ast
+    assert '    Resources\n        SetFlag("not_kept", true, false)' in ast
+    assert '    ResourcesKeepFlows\n        SetFlag("kept", true, false)' in ast
+
+
 def test_loop_applies_flow_options_around_the_loop():
     def build(interface):
         with interface.loop(3, "attempt", if_enable="retry"):
