@@ -2489,17 +2489,6 @@ mod tests {
         Ok(flow.split_once("    execute {\n").unwrap().1.to_string())
     }
 
-    fn test_str_node(name: &str) -> crate::ast::Node<PGM> {
-        node!(
-            PGM::TestStr,
-            name.to_string(),
-            FlowID::from_str(name),
-            None,
-            None,
-            None
-        )
-    }
-
     fn condition(
         condition: FlowCondition,
         children: Vec<crate::ast::Node<PGM>>,
@@ -2515,11 +2504,11 @@ mod tests {
     fn an_empty_else_is_rendered_unless_turned_off() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "main".to_string() =>
             node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("i".to_string()), false, 1 =>
-                condition(FlowCondition::IfExpr("x.pass".to_string()), vec![test_str_node("t1")])
+                condition(FlowCondition::IfExpr("x.pass".to_string()), vec![test_str("t1")])
             ),
-            condition(FlowCondition::IfJob(vec!["ws".to_string()]), vec![test_str_node("t2")]),
-            condition(FlowCondition::IfEnable(vec!["e".to_string()]), vec![test_str_node("t3")]),
-            condition(FlowCondition::IfFlag(vec!["f".to_string()]), vec![test_str_node("t4")])
+            condition(FlowCondition::IfJob(vec!["ws".to_string()]), vec![test_str("t2")]),
+            condition(FlowCondition::IfEnable(vec!["e".to_string()]), vec![test_str("t3")]),
+            condition(FlowCondition::IfFlag(vec!["f".to_string()]), vec![test_str("t4")])
         );
         let rendered = render_execute(flow.clone(), true)?;
         assert_eq!(
@@ -2572,12 +2561,12 @@ mod tests {
     fn an_else_with_content_is_rendered_when_empty_else_is_off() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "main".to_string() =>
             // Content only in the else branch
-            condition(FlowCondition::UnlessFlag(vec!["f".to_string()]), vec![test_str_node("t1")]),
+            condition(FlowCondition::UnlessFlag(vec!["f".to_string()]), vec![test_str("t1")]),
             // Content in both branches, with an empty else nested in the else branch
             condition(FlowCondition::IfExpr("a".to_string()), vec![
-                test_str_node("t2"),
+                test_str("t2"),
                 node!(PGM::Else =>
-                    condition(FlowCondition::IfExpr("b".to_string()), vec![test_str_node("t3")])
+                    condition(FlowCondition::IfExpr("b".to_string()), vec![test_str("t3")])
                 ),
             ])
         );
