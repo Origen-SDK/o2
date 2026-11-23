@@ -42,6 +42,8 @@ pub struct Condition {
     outputs: Vec<String>,
     /// The conditions to remove from nested nodes, only their attributes are compared
     conditions_to_remove: Vec<PGM>,
+    /// True within a resources block, outside of any flow kept within it
+    in_resources: bool,
 }
 
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
@@ -49,6 +51,7 @@ pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
         volatiles: vec![],
         outputs: super::declared_output_variables(node),
         conditions_to_remove: vec![],
+        in_resources: false,
     };
     let ast = node.process(&mut p)?.unwrap();
 
@@ -61,6 +64,27 @@ impl Processor<PGM> for Condition {
             PGM::Volatile(flag) => {
                 self.volatiles.push(flag.to_owned());
                 Return::Unmodified
+            }
+            PGM::Resources => {
+                let orig = self.in_resources;
+                self.in_resources = true;
+                let children = node.process_and_box_children(self);
+                self.in_resources = orig;
+                Return::Replace(node.updated(None, Some(children?), None))
+            }
+            // A flow kept within resources is a definition, which can be called from anywhere,
+            // so the conditions around the block do not hold within it
+            PGM::Group(_, _, GroupType::Flow, _) | PGM::SubFlow(_, _) if self.in_resources => {
+                let conditions_to_remove = std::mem::take(&mut self.conditions_to_remove);
+                if matches!(node.attrs, PGM::Group(..)) {
+                    // Remove any nested occurences of this same group, as for any group
+                    self.conditions_to_remove.push(node.attrs.clone());
+                }
+                self.in_resources = false;
+                let children = node.process_and_box_children(self);
+                self.in_resources = true;
+                self.conditions_to_remove = conditions_to_remove;
+                Return::Replace(node.updated(None, Some(self.optimize(children?)?), None))
             }
             PGM::Flow(_) | PGM::SubFlow(_, _) => {
                 let children = node.process_and_box_children(self)?;

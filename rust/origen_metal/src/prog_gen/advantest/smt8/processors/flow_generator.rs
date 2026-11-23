@@ -2825,6 +2825,28 @@ mod tests {
     }
 
     #[test]
+    fn the_conditions_around_kept_resources_do_not_remove_those_within_a_kept_flow(
+    ) -> crate::Result<()> {
+        for kept in [
+            flow_group("shared", vec![if_flag("F", vec![set_flag("DID_RUN")])]),
+            sub_flow("shared", vec![if_flag("F", vec![set_flag("DID_RUN")])]),
+        ] {
+            let flows = render_flow_files(main_flow(vec![if_flag(
+                "F",
+                vec![resources(true, vec![kept])],
+            )]))?;
+            let shared = flow_file(&flows, "SHARED.flow");
+            assert!(shared.contains("    in F = -1;"), "{}", shared);
+            assert!(
+                shared.contains("if (F == 1) {\n            DID_RUN = 1;\n        }"),
+                "{}",
+                shared
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn resources_which_keep_flows_are_plain_resources_on_other_testers() -> crate::Result<()> {
         let content = || {
             vec![if_flag(
