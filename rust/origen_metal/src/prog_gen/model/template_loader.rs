@@ -27,10 +27,11 @@ use std::sync::RwLock;
 include!(concat!(env!("OUT_DIR"), "/test_templates.rs"));
 
 lazy_static! {
-    /// The templates loaded so far, with the template load path that each was found from. Which
-    /// file a template comes from, an app-defined one or a built-in one, depends on the load path,
-    /// so a template is only served from here while the load path is the same.
-    static ref LOADED_TESTS: RwLock<HashMap<String, (Vec<PathBuf>, TestTemplate)>> =
+    /// The templates loaded so far, with the revision of the template load path and the resolved
+    /// load path that each was found from. Which file a template comes from, an app-defined one or
+    /// a built-in one, depends on the load path, so a template is only served from here while the
+    /// load path has not been changed and resolves to the same directories.
+    static ref LOADED_TESTS: RwLock<HashMap<String, (usize, Vec<PathBuf>, TestTemplate)>> =
         RwLock::new(HashMap::new());
 }
 
@@ -68,6 +69,17 @@ pub fn load_test_from_lib(
     lib_name: &str,
     test_name: &str,
 ) -> Result<TestTemplate> {
+    let current_dir = std::env::current_dir().ok();
+    load_test_from_lib_in(tester, lib_name, test_name, current_dir.as_deref())
+}
+
+/// As load_test_from_lib, finding a relative directory of the load path from the given directory
+fn load_test_from_lib_in(
+    tester: &SupportedTester,
+    lib_name: &str,
+    test_name: &str,
+    current_dir: Option<&std::path::Path>,
+) -> Result<TestTemplate> {
     log_trace!(
         "Looking for test template definition '{}' in library '{}' (for {})",
         test_name,
@@ -78,10 +90,15 @@ pub fn load_test_from_lib(
 
     let key = format!("{}_{}_{}", &tester_name, lib_name, test_name);
 
-    let load_path = crate::PROG_GEN_CONFIG.test_template_load_path();
+    let (revision, load_path) = crate::PROG_GEN_CONFIG.test_template_load_path_revision();
+    // A relative directory is found from the current directory, as when it is opened
+    let load_path: Vec<PathBuf> = match current_dir {
+        Some(dir) => load_path.iter().map(|p| dir.join(p)).collect(),
+        None => load_path,
+    };
 
-    if let Some((loaded_from, t)) = LOADED_TESTS.read().unwrap().get(&key) {
-        if loaded_from == &load_path {
+    if let Some((loaded_revision, loaded_from, t)) = LOADED_TESTS.read().unwrap().get(&key) {
+        if *loaded_revision == revision && loaded_from == &load_path {
             return Ok(t.clone());
         }
     }
@@ -98,7 +115,7 @@ pub fn load_test_from_lib(
             LOADED_TESTS
                 .write()
                 .unwrap()
-                .insert(key, (load_path.clone(), t.clone()));
+                .insert(key, (revision, load_path.clone(), t.clone()));
             return Ok(t);
         }
         if path.parent().unwrap().exists() {
@@ -119,7 +136,7 @@ pub fn load_test_from_lib(
             LOADED_TESTS
                 .write()
                 .unwrap()
-                .insert(key, (load_path.clone(), t.clone()));
+                .insert(key, (revision, load_path.clone(), t.clone()));
             return Ok(t);
         }
         Err(e) => {
@@ -227,6 +244,43 @@ mod unit_tests {
                 builtin.class_name.as_deref(),
                 Some("load_path_cache.Override")
             );
+
+            // A template changed while another load path is in use, without being loaded from
+            // it, is read again on returning to its load path
+            crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![b.path().to_path_buf()]);
+            write_template(
+                a.path(),
+                file,
+                r#"{"parameters": {"x": {"kind": "string"}, "z": {"kind": "string"}}}"#,
+            );
+            crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![a.path().to_path_buf()]);
+            let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
+            assert_eq!(parameters(&t), vec!["x", "z"]);
+
+            // A relative directory is found from the current directory
+            write_template(
+                &a.path().join("templates"),
+                file,
+                r#"{"parameters": {"x": {"kind": "string"}}}"#,
+            );
+            write_template(
+                &b.path().join("templates"),
+                file,
+                r#"{"parameters": {"x": {"kind": "string"}, "y": {"kind": "string"}}}"#,
+            );
+            crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![PathBuf::from("templates")]);
+            let load_in = |dir: &std::path::Path| {
+                load_test_from_lib_in(
+                    &SupportedTester::V93KSMT8,
+                    "load_path_cache_lib",
+                    "T",
+                    Some(dir),
+                )
+                .unwrap()
+            };
+            assert_eq!(parameters(&load_in(a.path())), vec!["x"]);
+            assert_eq!(parameters(&load_in(b.path())), vec!["x", "y"]);
+            assert_eq!(parameters(&load_in(a.path())), vec!["x"]);
         });
         crate::PROG_GEN_CONFIG.set_test_template_load_path(original_load_path);
         if let Err(panic) = result {

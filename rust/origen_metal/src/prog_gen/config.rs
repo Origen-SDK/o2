@@ -10,7 +10,8 @@ pub struct Config {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     src_files: RwLock<Vec<PathBuf>>,
-    test_template_load_path: RwLock<Vec<PathBuf>>,
+    /// The test template load path, with a revision which advances each time it is changed
+    test_template_load_path: RwLock<(usize, Vec<PathBuf>)>,
     flow_visualization_enabled: RwLock<bool>,
     uniqueness_option: RwLock<Option<UniquenessOption>>,
     smt7: RwLock<SMT7Config>,
@@ -35,7 +36,7 @@ impl Default for Config {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             src_files: RwLock::new(vec![]),
-            test_template_load_path: RwLock::new(vec![]),
+            test_template_load_path: RwLock::new((0, vec![])),
             flow_visualization_enabled: RwLock::new(false),
             uniqueness_option: RwLock::new(None),
             smt7: RwLock::new(SMT7Config {
@@ -92,10 +93,19 @@ impl Config {
 
     pub fn set_test_template_load_path(&self, paths: Vec<PathBuf>) {
         let mut lp = self.test_template_load_path.write();
-        *lp = paths;
+        if lp.1 != paths {
+            lp.0 += 1;
+            lp.1 = paths;
+        }
     }
 
     pub fn test_template_load_path(&self) -> Vec<PathBuf> {
+        self.test_template_load_path.read().1.clone()
+    }
+
+    /// Returns the test template load path with its revision, which advances each time the load
+    /// path is changed, read together
+    pub(crate) fn test_template_load_path_revision(&self) -> (usize, Vec<PathBuf>) {
         self.test_template_load_path.read().clone()
     }
 
