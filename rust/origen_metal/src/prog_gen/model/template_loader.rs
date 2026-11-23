@@ -187,7 +187,8 @@ mod unit_tests {
             r#"{"parameters": {"x": {"kind": "string"}, "y": {"kind": "string"}}}"#,
         );
         // A built-in template, overridden by an app-defined one in b
-        let builtin = "v93ksmt7/dc_tml/continuity.json";
+        // One which no other test loads, as the load path is global
+        let builtin = "v93ksmt7/dc_tml/dps_status.json";
         assert!(TEST_TEMPLATES.get(builtin).is_some());
         write_template(
             b.path(),
@@ -202,7 +203,7 @@ mod unit_tests {
             crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![a.path().to_path_buf()]);
             let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
             assert_eq!(parameters(&t), vec!["x"]);
-            let builtin = load(&SupportedTester::V93KSMT7, "dc_tml", "continuity");
+            let builtin = load(&SupportedTester::V93KSMT7, "dc_tml", "dps_status");
             assert_ne!(
                 builtin.class_name.as_deref(),
                 Some("load_path_cache.Override")
@@ -211,7 +212,7 @@ mod unit_tests {
             crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![b.path().to_path_buf()]);
             let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
             assert_eq!(parameters(&t), vec!["x", "y"]);
-            let overridden = load(&SupportedTester::V93KSMT7, "dc_tml", "continuity");
+            let overridden = load(&SupportedTester::V93KSMT7, "dc_tml", "dps_status");
             assert_eq!(
                 overridden.class_name.as_deref(),
                 Some("load_path_cache.Override")
@@ -221,7 +222,7 @@ mod unit_tests {
             crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![a.path().to_path_buf()]);
             let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
             assert_eq!(parameters(&t), vec!["x"]);
-            let builtin = load(&SupportedTester::V93KSMT7, "dc_tml", "continuity");
+            let builtin = load(&SupportedTester::V93KSMT7, "dc_tml", "dps_status");
             assert_ne!(
                 builtin.class_name.as_deref(),
                 Some("load_path_cache.Override")
