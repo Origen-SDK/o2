@@ -2827,9 +2827,22 @@ mod tests {
     #[test]
     fn the_conditions_around_kept_resources_do_not_remove_those_within_a_kept_flow(
     ) -> crate::Result<()> {
-        for kept in [
-            flow_group("shared", vec![if_flag("F", vec![set_flag("DID_RUN")])]),
-            sub_flow("shared", vec![if_flag("F", vec![set_flag("DID_RUN")])]),
+        let guarded = || vec![if_flag("F", vec![set_flag("DID_RUN")])];
+        // Adjacent guards are combined, and the combined node is processed again
+        let adjacent = || {
+            vec![
+                if_flag("F", vec![set_flag("DID_RUN")]),
+                if_flag("F", vec![set_flag("DID_RUN_ALSO")]),
+            ]
+        };
+        let one = "if (F == 1) {\n            DID_RUN = 1;\n        }";
+        let both =
+            "if (F == 1) {\n            DID_RUN = 1;\n            DID_RUN_ALSO = 1;\n        }";
+        for (kept, expected) in [
+            (flow_group("shared", guarded()), one),
+            (sub_flow("shared", guarded()), one),
+            (flow_group("shared", adjacent()), both),
+            (sub_flow("shared", adjacent()), both),
         ] {
             let flows = render_flow_files(main_flow(vec![if_flag(
                 "F",
@@ -2837,11 +2850,7 @@ mod tests {
             )]))?;
             let shared = flow_file(&flows, "SHARED.flow");
             assert!(shared.contains("    in F = -1;"), "{}", shared);
-            assert!(
-                shared.contains("if (F == 1) {\n            DID_RUN = 1;\n        }"),
-                "{}",
-                shared
-            );
+            assert!(shared.contains(expected), "{}", shared);
         }
         Ok(())
     }

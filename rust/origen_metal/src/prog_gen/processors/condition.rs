@@ -76,15 +76,11 @@ impl Processor<PGM> for Condition {
             // so the conditions around the block do not hold within it
             PGM::Group(_, _, GroupType::Flow, _) | PGM::SubFlow(_, _) if self.in_resources => {
                 let conditions_to_remove = std::mem::take(&mut self.conditions_to_remove);
-                if matches!(node.attrs, PGM::Group(..)) {
-                    // Remove any nested occurences of this same group, as for any group
-                    self.conditions_to_remove.push(node.attrs.clone());
-                }
                 self.in_resources = false;
-                let children = node.process_and_box_children(self);
+                let children = self.process_kept_flow(node);
                 self.in_resources = true;
                 self.conditions_to_remove = conditions_to_remove;
-                Return::Replace(node.updated(None, Some(self.optimize(children?)?), None))
+                Return::Replace(node.updated(None, Some(children?), None))
             }
             PGM::Flow(_) | PGM::SubFlow(_, _) => {
                 let children = node.process_and_box_children(self)?;
@@ -145,6 +141,19 @@ impl Processor<PGM> for Condition {
 }
 
 impl Condition {
+    /// Processes and optimizes the children of a flow kept within resources, from an empty set of
+    /// conditions to remove. Its siblings are optimized in this scope too, combining two of them
+    /// processes the combined node again.
+    fn process_kept_flow(&mut self, node: &Node<PGM>) -> Result<Vec<Box<Node<PGM>>>> {
+        if matches!(node.attrs, PGM::Group(..)) {
+            // Remove any nested occurences of this same group, as for any group
+            self.conditions_to_remove.push(node.attrs.clone());
+        }
+        let children = node.process_and_box_children(self);
+        self.conditions_to_remove.clear();
+        self.optimize(children?)
+    }
+
     /// Returns true if any of the given flags is volatile or reads a declared output
     fn is_volatile_flag(&self, flags: &[String]) -> bool {
         flags.iter().any(|flag| {
