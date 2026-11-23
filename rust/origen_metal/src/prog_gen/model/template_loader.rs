@@ -5,6 +5,7 @@ use crate::Result;
 use indexmap::IndexMap;
 use phf::phf_map;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::RwLock;
 
 // This includes a map of all test template files, it is built by build.rs at compile time.
@@ -26,7 +27,11 @@ use std::sync::RwLock;
 include!(concat!(env!("OUT_DIR"), "/test_templates.rs"));
 
 lazy_static! {
-    static ref LOADED_TESTS: RwLock<HashMap<String, TestTemplate>> = RwLock::new(HashMap::new());
+    /// The templates loaded so far, with the template load path that each was found from. Which
+    /// file a template comes from, an app-defined one or a built-in one, depends on the load path,
+    /// so a template is only served from here while the load path is the same.
+    static ref LOADED_TESTS: RwLock<HashMap<String, (Vec<PathBuf>, TestTemplate)>> =
+        RwLock::new(HashMap::new());
 }
 
 /// Test template definitions from json files are read into this structure
@@ -73,20 +78,27 @@ pub fn load_test_from_lib(
 
     let key = format!("{}_{}_{}", &tester_name, lib_name, test_name);
 
-    if let Some(t) = LOADED_TESTS.read().unwrap().get(&key) {
-        return Ok(t.clone());
+    let load_path = crate::PROG_GEN_CONFIG.test_template_load_path();
+
+    if let Some((loaded_from, t)) = LOADED_TESTS.read().unwrap().get(&key) {
+        if loaded_from == &load_path {
+            return Ok(t.clone());
+        }
     }
 
     let mut available_tests: HashSet<String> = HashSet::new();
 
     // Look for an app-defined library/test first
-    for path in crate::PROG_GEN_CONFIG.test_template_load_path() {
+    for path in &load_path {
         let path = path.join(format!("{}/{}/{}.json", tester_name, lib_name, test_name));
         if path.exists() {
             // Get the file contents
             let contents = std::fs::read_to_string(&path)?;
             let t: TestTemplate = serde_json::from_str(&contents)?;
-            LOADED_TESTS.write().unwrap().insert(key, t.clone());
+            LOADED_TESTS
+                .write()
+                .unwrap()
+                .insert(key, (load_path.clone(), t.clone()));
             return Ok(t);
         }
         if path.parent().unwrap().exists() {
@@ -104,7 +116,10 @@ pub fn load_test_from_lib(
 
     match import_test_template(&format!("{}/{}/{}.json", tester_name, lib_name, test_name)) {
         Ok(t) => {
-            LOADED_TESTS.write().unwrap().insert(key, t.clone());
+            LOADED_TESTS
+                .write()
+                .unwrap()
+                .insert(key, (load_path.clone(), t.clone()));
             return Ok(t);
         }
         Err(e) => {
@@ -140,6 +155,83 @@ fn import_test_template(path: &str) -> Result<TestTemplate> {
 #[cfg(test)]
 mod unit_tests {
     use super::*;
+
+    fn write_template(dir: &std::path::Path, file: &str, json: &str) {
+        let path = dir.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, json).unwrap();
+    }
+
+    fn parameters(template: &TestTemplate) -> Vec<String> {
+        template
+            .parameters
+            .as_ref()
+            .map(|p| p.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn a_loaded_template_is_not_served_once_the_load_path_changes() {
+        let original_load_path = crate::PROG_GEN_CONFIG.test_template_load_path();
+        let a = tempfile::tempdir().unwrap();
+        let b = tempfile::tempdir().unwrap();
+        let file = "v93ksmt8/load_path_cache_lib/T.json";
+        write_template(
+            a.path(),
+            file,
+            r#"{"parameters": {"x": {"kind": "string"}}}"#,
+        );
+        write_template(
+            b.path(),
+            file,
+            r#"{"parameters": {"x": {"kind": "string"}, "y": {"kind": "string"}}}"#,
+        );
+        // A built-in template, overridden by an app-defined one in b
+        let builtin = "v93ksmt7/dc_tml/continuity.json";
+        assert!(TEST_TEMPLATES.get(builtin).is_some());
+        write_template(
+            b.path(),
+            builtin,
+            r#"{"class_name": "load_path_cache.Override"}"#,
+        );
+        let load = |tester: &SupportedTester, lib: &str, test: &str| {
+            load_test_from_lib(tester, lib, test).unwrap()
+        };
+
+        let result = std::panic::catch_unwind(|| {
+            crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![a.path().to_path_buf()]);
+            let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
+            assert_eq!(parameters(&t), vec!["x"]);
+            let builtin = load(&SupportedTester::V93KSMT7, "dc_tml", "continuity");
+            assert_ne!(
+                builtin.class_name.as_deref(),
+                Some("load_path_cache.Override")
+            );
+
+            crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![b.path().to_path_buf()]);
+            let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
+            assert_eq!(parameters(&t), vec!["x", "y"]);
+            let overridden = load(&SupportedTester::V93KSMT7, "dc_tml", "continuity");
+            assert_eq!(
+                overridden.class_name.as_deref(),
+                Some("load_path_cache.Override")
+            );
+
+            // And back again
+            crate::PROG_GEN_CONFIG.set_test_template_load_path(vec![a.path().to_path_buf()]);
+            let t = load(&SupportedTester::V93KSMT8, "load_path_cache_lib", "T");
+            assert_eq!(parameters(&t), vec!["x"]);
+            let builtin = load(&SupportedTester::V93KSMT7, "dc_tml", "continuity");
+            assert_ne!(
+                builtin.class_name.as_deref(),
+                Some("load_path_cache.Override")
+            );
+        });
+        crate::PROG_GEN_CONFIG.set_test_template_load_path(original_load_path);
+        if let Err(panic) = result {
+            std::panic::resume_unwind(panic);
+        }
+    }
 
     #[test]
     fn test_all_templates_import_cleanly() {
