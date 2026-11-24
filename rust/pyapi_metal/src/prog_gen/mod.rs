@@ -117,17 +117,26 @@ fn set_smt7_options(render_default_tm_params: bool) -> PyResult<()> {
 }
 
 /// Sets the V93K SMT8 options. With tpgf_formatting=True, flows are formatted as TPGF
-/// (origen_testers) writes them, see Config::set_smt8_tpgf_formatting. Like the other options,
-/// tpgf_formatting takes its default when it is not given.
+/// (origen_testers) writes them, see Config::set_smt8_tpgf_formatting. With
+/// keep_sub_flow_instance_case=True, sub-flow instance names keep their case, see
+/// Config::set_smt8_keep_sub_flow_instance_case. Like the other options, these take their
+/// defaults when they are not given.
 #[pyfunction]
-#[pyo3(signature=(create_limits_file, render_default_tm_params, tpgf_formatting=false))]
+#[pyo3(signature=(
+    create_limits_file,
+    render_default_tm_params,
+    tpgf_formatting=false,
+    keep_sub_flow_instance_case=false
+))]
 fn set_smt8_options(
     create_limits_file: bool,
     render_default_tm_params: bool,
     tpgf_formatting: bool,
+    keep_sub_flow_instance_case: bool,
 ) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_smt8_options(create_limits_file, render_default_tm_params);
     origen_metal::PROG_GEN_CONFIG.set_smt8_tpgf_formatting(tpgf_formatting);
+    origen_metal::PROG_GEN_CONFIG.set_smt8_keep_sub_flow_instance_case(keep_sub_flow_instance_case);
     Ok(())
 }
 

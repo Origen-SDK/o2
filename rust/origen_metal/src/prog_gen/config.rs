@@ -17,6 +17,8 @@ pub struct Config {
     smt8: RwLock<SMT8Config>,
     /// Format V93K SMT8 flows as TPGF (origen_testers) writes them
     smt8_tpgf_formatting: RwLock<bool>,
+    /// Keep the case of V93K SMT8 sub-flow instance names
+    smt8_keep_sub_flow_instance_case: RwLock<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +50,7 @@ impl Default for Config {
                 render_default_tmparams: true,
             }),
             smt8_tpgf_formatting: RwLock::new(false),
+            smt8_keep_sub_flow_instance_case: RwLock::new(false),
         }
     }
 }
@@ -153,5 +156,19 @@ impl Config {
     /// Returns true if V93K SMT8 flows are formatted as TPGF (origen_testers) writes them
     pub fn smt8_tpgf_formatting(&self) -> bool {
         *self.smt8_tpgf_formatting.read()
+    }
+
+    /// Set whether a V93K SMT8 sub-flow (or flow group) instance name keeps the case it is given,
+    /// which it does not by default. The instance name is the one the calling flow declares
+    /// (`flow <instance> calls ...`) and refers to (`<instance>.execute();`), and which the tester
+    /// logs in the flow path of a test. The flow's own name, of its file and its definition,
+    /// is upper case either way.
+    pub fn set_smt8_keep_sub_flow_instance_case(&self, keep_case: bool) {
+        *self.smt8_keep_sub_flow_instance_case.write() = keep_case;
+    }
+
+    /// Returns true if a V93K SMT8 sub-flow instance name keeps the case it is given
+    pub fn smt8_keep_sub_flow_instance_case(&self) -> bool {
+        *self.smt8_keep_sub_flow_instance_case.read()
     }
 }

@@ -217,3 +217,28 @@ def test_smt8_tpgf_formatting_option(tmp_path, tpgf_formatting):
     else:
         assert "sub-flow" not in rendered
         assert "        VMIN.E = E;\n        VMIN.execute();\n" in rendered
+
+
+@pytest.mark.parametrize("keep_case", [None, False, True])
+def test_smt8_keep_sub_flow_instance_case_option(tmp_path, keep_case):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("main", None, None, None)
+    sub_refs = om.prog_gen.start_new_flow("Vmin 800mV", True, None, None)
+    with interface.if_enable("e"):
+        interface.set_flag("done")
+    om.prog_gen.end_flow(sub_refs)
+    om.prog_gen.end_flow(refs)
+    try:
+        if keep_case is None:
+            om.prog_gen.set_smt8_options(False, False)
+        else:
+            om.prog_gen.set_smt8_options(False, False, keep_sub_flow_instance_case=keep_case)
+        files = om.prog_gen.render_program_for("v93ksmt8", str(tmp_path / "flows"))
+    finally:
+        om.prog_gen.set_smt8_options(True, True)
+    names = sorted(str(f).replace("\\", "/").split("/")[-1] for f in files if str(f).endswith(".flow"))
+    assert names == ["MAIN.flow", "VMIN_800MV.flow"]
+    main = open(next(f for f in files if str(f).endswith("MAIN.flow"))).read()
+    instance = "Vmin_800mV" if keep_case else "VMIN_800MV"
+    assert f"flow {instance} calls flows.main.VMIN_800MV {{ }}" in main
+    assert f"        {instance}.execute();\n" in main

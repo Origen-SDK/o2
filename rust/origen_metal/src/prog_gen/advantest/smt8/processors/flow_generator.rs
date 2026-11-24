@@ -102,13 +102,19 @@ struct FlowGenerator {
     options: SMT8Config,
     /// Format the flows as TPGF writes them, see Config::set_smt8_tpgf_formatting
     tpgf_formatting: bool,
+    /// Keep the case of sub-flow instance names, see Config::set_smt8_keep_sub_flow_instance_case
+    keep_sub_flow_instance_case: bool,
     writer: FileWriter,
 }
 
 /// Contains the data for a .flow file
 #[derive(Default)]
 struct FlowFile {
+    /// The name of the flow, its file and its definition
     name: String,
+    /// The name of the instance of the flow which its parent calls, the same as its name unless
+    /// the case of instance names is kept
+    instance: String,
     path: PathBuf,
     indent: usize,
     execute_lines: Vec<String>,
@@ -117,7 +123,8 @@ struct FlowFile {
     test_ids: Vec<(String, usize)>,
     existing_test_counter: HashMap<String, usize>,
     existing_flow_counter: HashMap<String, usize>,
-    sub_flows: Vec<String>,
+    /// The sub-flows which this flow calls, (instance name, flow name)
+    sub_flows: Vec<(String, String)>,
     /// Sub-flows which are called with bypass enabled
     bypassed_sub_flows: HashSet<String>,
     flow_data: FlowData,
@@ -158,26 +165,38 @@ impl FlowFile {
 }
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
-    run_with_tpgf_formatting(
-        ast,
-        output_dir,
-        model,
-        crate::PROG_GEN_CONFIG.smt8_tpgf_formatting(),
-    )
+    run_with_options(ast, output_dir, model, &Options::from_config())
 }
 
-/// As run, with the option to format the flows as TPGF does given, rather than taken from the
-/// config
-fn run_with_tpgf_formatting(
+/// The rendering options which are taken from the config
+#[derive(Default)]
+struct Options {
+    /// See Config::set_smt8_tpgf_formatting
+    tpgf_formatting: bool,
+    /// See Config::set_smt8_keep_sub_flow_instance_case
+    keep_sub_flow_instance_case: bool,
+}
+
+impl Options {
+    fn from_config() -> Options {
+        Options {
+            tpgf_formatting: crate::PROG_GEN_CONFIG.smt8_tpgf_formatting(),
+            keep_sub_flow_instance_case: crate::PROG_GEN_CONFIG.smt8_keep_sub_flow_instance_case(),
+        }
+    }
+}
+
+/// As run, with the options given, rather than taken from the config
+fn run_with_options(
     ast: &Node<PGM>,
     output_dir: &Path,
     model: Model,
-    tpgf_formatting: bool,
+    options: &Options,
 ) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
     //ast.to_file("smt8_flow.txt")?;
 
-    let mut p = FlowGenerator::new(output_dir, model, tpgf_formatting);
+    let mut p = FlowGenerator::new(output_dir, model, options);
 
     let mut i = 0;
     for (_, t) in &p.model.tests {
@@ -203,7 +222,7 @@ fn run_with_tpgf_formatting(
 }
 
 impl FlowGenerator {
-    fn new(output_dir: &Path, model: Model, tpgf_formatting: bool) -> FlowGenerator {
+    fn new(output_dir: &Path, model: Model, options: &Options) -> FlowGenerator {
         FlowGenerator {
             name: "".to_string(),
             description: None,
@@ -221,7 +240,8 @@ impl FlowGenerator {
             limits_file: None,
             namespaces: vec![],
             options: crate::PROG_GEN_CONFIG.smt8_options(),
-            tpgf_formatting,
+            tpgf_formatting: options.tpgf_formatting,
+            keep_sub_flow_instance_case: options.keep_sub_flow_instance_case,
             writer: FileWriter::new(),
         }
     }
@@ -327,7 +347,7 @@ impl FlowGenerator {
             .collect();
         // TPGF groups the assignments of each kind in a block headed by a comment
         let open_block = |current_flow: &mut FlowFile, kind: &str| {
-            current_flow.execute_line(format!("// {} sub-flow {} variables", flow.name, kind));
+            current_flow.execute_line(format!("// {} sub-flow {} variables", flow.instance, kind));
             current_flow.execute_line("{".to_string());
             current_flow.indent += 1;
         };
@@ -340,22 +360,26 @@ impl FlowGenerator {
             open_block(current_flow, "input");
         }
         for v in &inputs {
-            current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
+            current_flow.execute_line(format!("{}.{} = {};", flow.instance, v, v));
         }
         if grouped {
             close_block(current_flow);
         }
-        current_flow.execute_line(format!("{}.execute();", flow.name));
-        current_flow.sub_flows.push(flow.name.clone());
+        current_flow.execute_line(format!("{}.execute();", flow.instance));
+        current_flow
+            .sub_flows
+            .push((flow.instance.clone(), flow.name.clone()));
         if self.bypass_sub_flows {
-            current_flow.bypassed_sub_flows.insert(flow.name.clone());
+            current_flow
+                .bypassed_sub_flows
+                .insert(flow.instance.clone());
         }
         let grouped = tpgf_formatting && !outputs.is_empty();
         if grouped {
             open_block(current_flow, "output");
         }
         for v in &outputs {
-            current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
+            current_flow.execute_line(format!("{} = {}.{};", v, flow.instance, v));
         }
         if grouped {
             close_block(current_flow);
@@ -630,9 +654,9 @@ impl FlowGenerator {
             let mut p = "".to_string();
             for f in &self.flow_stack[1..self.flow_stack.len()] {
                 if p.is_empty() {
-                    p = f.name.to_string();
+                    p = f.instance.to_string();
                 } else {
-                    p = format!("{}.{}", p, f.name);
+                    p = format!("{}.{}", p, f.instance);
                 }
             }
             Some(p)
@@ -640,13 +664,14 @@ impl FlowGenerator {
     }
 
     fn open_flow_file(&mut self, name: &str, flow_data: FlowData) -> Result<()> {
-        // Create a clean upper case name where each run of spaces is an underscore, keeping any
-        // underscores of the name itself, e.g. a MAIN__RETEST sub-flow
-        let mut name = name
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join("_")
-            .to_uppercase();
+        // Create a clean name where each run of spaces is an underscore, keeping any underscores
+        // of the name itself, e.g. a MAIN__RETEST sub-flow. The flow's name is upper case, its
+        // instance name keeps its case when asked.
+        let mut instance = name.split_whitespace().collect::<Vec<_>>().join("_");
+        let mut name = instance.to_uppercase();
+        if !self.keep_sub_flow_instance_case {
+            instance = name.clone();
+        }
         if let Some(current_flow) = self.flow_stack.last_mut() {
             if current_flow.existing_flow_counter.contains_key(&name) {
                 let count = current_flow.existing_flow_counter.get(&name).unwrap() + 1;
@@ -654,6 +679,7 @@ impl FlowGenerator {
                     .existing_flow_counter
                     .insert(name.to_owned(), count);
                 name = format!("{}_{}", name, count);
+                instance = format!("{}_{}", instance, count);
             } else {
                 current_flow
                     .existing_flow_counter
@@ -672,6 +698,7 @@ impl FlowGenerator {
         };
         self.flow_stack.push(FlowFile {
             name: name.to_string(),
+            instance,
             path: flow_path,
             render_bins: true,
             flow_data,
@@ -760,7 +787,7 @@ impl FlowGenerator {
             }
             writeln!(&mut f, "")?;
         }
-        for sub_flow in &flow_file.sub_flows {
+        for (instance, sub_flow) in &flow_file.sub_flows {
             let relative_path = flow_file
                 .path
                 .strip_prefix(&self.output_dir)
@@ -770,7 +797,7 @@ impl FlowGenerator {
                 .join(flow_file.name.to_lowercase());
             let call = format!(
                 "        flow {} calls {}flows.{}.{} {{",
-                sub_flow,
+                instance,
                 &namespace,
                 relative_path
                     .to_str()
@@ -779,7 +806,7 @@ impl FlowGenerator {
                     .replace("/", "."),
                 sub_flow
             );
-            if flow_file.bypassed_sub_flows.contains(sub_flow) {
+            if flow_file.bypassed_sub_flows.contains(instance) {
                 writeln!(&mut f, "{}", call)?;
                 writeln!(&mut f, "            bypass = true;")?;
                 writeln!(&mut f, "        }}")?;
@@ -922,7 +949,7 @@ impl Processor<PGM> for FlowGenerator {
                     self.bypass_sub_flows = orig_bypass;
                     let flow = self.close_flow_file(self.namespaces.last().cloned())?;
                     self.call_flow(&flow);
-                    self.render_result_branches(&node.children, &flow.name, false)?;
+                    self.render_result_branches(&node.children, &flow.instance, false)?;
                 } else {
                     node.process_children(self)?;
                 }
@@ -1347,7 +1374,7 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, run_with_tpgf_formatting, FileWriter, FlowGenerator};
+    use super::{run, run_with_options, FileWriter, FlowGenerator, Options};
     use crate::prog_gen::{
         process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
         SupportedTester, PGM,
@@ -2593,6 +2620,13 @@ mod tests {
         Ok(())
     }
 
+    fn tpgf(tpgf_formatting: bool) -> Options {
+        Options {
+            tpgf_formatting,
+            ..Default::default()
+        }
+    }
+
     /// Renders the given flow AST for SMT8, formatted as TPGF does or not, and returns the content
     /// of every flow file by its name
     fn render_flows(
@@ -2609,7 +2643,7 @@ mod tests {
         )?;
         let output_dir = tempdir()?;
         let (_model, files) =
-            run_with_tpgf_formatting(&ast, output_dir.path(), model, tpgf_formatting)?;
+            run_with_options(&ast, output_dir.path(), model, &tpgf(tpgf_formatting))?;
         let mut flows = std::collections::HashMap::new();
         for path in files {
             let name = path.file_name().unwrap().to_str().unwrap().to_string();
@@ -2725,7 +2759,7 @@ mod tests {
             let generator = FlowGenerator::new(
                 output_dir.path(),
                 Model::new(SupportedTester::V93KSMT8),
-                tpgf_formatting,
+                &tpgf(tpgf_formatting),
             );
             let mut rendered: Vec<u8> = vec![];
             generator.render_sorted_contents(
@@ -2794,7 +2828,7 @@ mod tests {
             let output_dir = tempdir()?;
             let mut model = Model::new(SupportedTester::V93KSMT8);
             model.test_collection_items.insert(100, item.clone());
-            let generator = FlowGenerator::new(output_dir.path(), model, tpgf_formatting);
+            let generator = FlowGenerator::new(output_dir.path(), model, &tpgf(tpgf_formatting));
             let mut rendered: Vec<u8> = vec![];
             generator.render_sorted_contents(
                 &mut rendered,
@@ -2896,6 +2930,185 @@ mod tests {
         let serialized = serde_json::to_string(&data).unwrap();
         assert!(!serialized.contains("set_flags"), "{}", serialized);
         assert!(serialized.contains("modified_flags"), "{}", serialized);
+    }
+
+    fn instance_case_example() -> crate::ast::Node<PGM> {
+        let group = |name: &str, id: &str| {
+            node!(
+                PGM::Group,
+                name.to_string(),
+                None,
+                GroupType::Flow,
+                Some(FlowID::from_str(id))
+            )
+        };
+        let mut vmin = group("Vmin 800mV", "vmin");
+        vmin.add_child(
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["E".to_string()]) =>
+                node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None)
+            ),
+        );
+        vmin.add_child(node!(PGM::SetFlag, "OUT".to_string(), true, false));
+        vmin.add_child(node!(PGM::OnFailed, FlowID::from_str("vmin") =>
+            node!(PGM::SetFlag, "VMIN_FAILED".to_string(), true, false)
+        ));
+        let mut again = group("VMIN_800MV", "again");
+        again.add_child(node!(
+            PGM::TestStr,
+            "t2".to_string(),
+            FlowID::from_str("t2"),
+            None,
+            None,
+            None
+        ));
+        let mut bypassed = group("Vmin_800mV", "bypassed");
+        bypassed.add_child(node!(
+            PGM::TestStr,
+            "t3".to_string(),
+            FlowID::from_str("t3"),
+            None,
+            None,
+            None
+        ));
+        node!(PGM::Flow, "main".to_string() =>
+            vmin,
+            again,
+            node!(PGM::BypassSubFlows => bypassed),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["OUT".to_string()]) =>
+                node!(PGM::TestStr, "t4".to_string(), FlowID::from_str("t4"), None, None, None)
+            )
+        )
+    }
+
+    fn render_with(
+        flow: crate::ast::Node<PGM>,
+        options: &Options,
+    ) -> crate::Result<std::collections::HashMap<String, String>> {
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run_with_options(&ast, output_dir.path(), model, options)?;
+        let mut flows = std::collections::HashMap::new();
+        for path in files {
+            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            if name.ends_with(".flow") {
+                flows.insert(name, fs::read_to_string(&path)?);
+            }
+        }
+        Ok(flows)
+    }
+
+    #[test]
+    fn sub_flow_instance_names_keep_their_case_when_asked() -> crate::Result<()> {
+        let flows = render_with(
+            instance_case_example(),
+            &Options {
+                keep_sub_flow_instance_case: true,
+                ..Default::default()
+            },
+        )?;
+        let mut files: Vec<&String> = flows.keys().collect();
+        files.sort();
+        assert_eq!(
+            files,
+            vec![
+                "MAIN.flow",
+                "VMIN_800MV.flow",
+                "VMIN_800MV_1.flow",
+                "VMIN_800MV_2.flow"
+            ]
+        );
+        let main = &flows["MAIN.flow"];
+        for line in [
+            "        flow Vmin_800mV calls flows.main.VMIN_800MV { }\n",
+            "        flow VMIN_800MV_1 calls flows.main.VMIN_800MV_1 { }\n",
+            "        flow Vmin_800mV_2 calls flows.main.VMIN_800MV_2 {\n            bypass = true;\n",
+            "        Vmin_800mV.E = E;\n        Vmin_800mV.execute();\n",
+            "        OUT = Vmin_800mV.OUT;\n",
+            "        if (!Vmin_800mV.pass) {\n",
+            "        VMIN_800MV_1.execute();\n",
+            "        Vmin_800mV_2.execute();\n",
+        ] {
+            assert!(main.contains(line), "{}: {}", line, main);
+        }
+        assert!(!main.contains("VMIN_800MV.execute"), "{}", main);
+        // The flows' definitions are upper case
+        assert!(flows["VMIN_800MV.flow"].starts_with("flow VMIN_800MV {"));
+        assert!(flows["VMIN_800MV_2.flow"].starts_with("flow VMIN_800MV_2 {"));
+
+        // And with TPGF formatting, its comments name the instance
+        let flows = render_with(
+            instance_case_example(),
+            &Options {
+                keep_sub_flow_instance_case: true,
+                tpgf_formatting: true,
+            },
+        )?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains("        // Vmin_800mV sub-flow input variables\n"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("        // Vmin_800mV sub-flow output variables\n"),
+            "{}",
+            main
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn sub_flow_instance_names_are_upper_case_by_default() -> crate::Result<()> {
+        let flows = render_with(instance_case_example(), &Options::default())?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains("        flow VMIN_800MV calls flows.main.VMIN_800MV { }\n"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("        flow VMIN_800MV_2 calls flows.main.VMIN_800MV_2 {\n"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("        VMIN_800MV.E = E;\n        VMIN_800MV.execute();\n"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("        if (!VMIN_800MV.pass) {\n"),
+            "{}",
+            main
+        );
+        assert!(!main.contains("Vmin"), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn a_test_path_is_made_of_the_sub_flow_instance_names() -> crate::Result<()> {
+        let output_dir = tempdir()?;
+        for (keep_case, expected) in [(false, "VMIN_800MV"), (true, "Vmin_800mV")] {
+            let mut generator = FlowGenerator::new(
+                output_dir.path(),
+                Model::new(SupportedTester::V93KSMT8),
+                &Options {
+                    keep_sub_flow_instance_case: keep_case,
+                    ..Default::default()
+                },
+            );
+            generator.open_flow_file("main", Default::default())?;
+            generator.open_flow_file("Vmin 800mV", Default::default())?;
+            assert_eq!(generator.current_flow_path().as_deref(), Some(expected));
+        }
+        Ok(())
     }
 }
 
