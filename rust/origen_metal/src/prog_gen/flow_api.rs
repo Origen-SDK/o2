@@ -347,6 +347,24 @@ pub fn declare_local_flag(name: String, meta: Option<Meta>) -> Result<()> {
     FLOW.push(n)
 }
 
+/// Declare that the given flow variable, keeping the case of its name, when assigned with
+/// set_variable in the current flow or in any of its sub-flows, is local to the flows which read
+/// it, as a flag declared with declare_local_flag is.
+/// By default a variable which a flow assigns is an input of that flow and of every enclosing
+/// flow. For V93K SMT8 a local variable is instead declared `out <name> = -1;` in the flow which
+/// assigns it, and it is passed out only as far as the highest enclosing flow in which another
+/// flow reads it, or not at all when no other flow reads it. A variable which is also declared
+/// as an output variable is passed out to every enclosing flow. As for a flag which a flow sets,
+/// a local variable which a flow assigns is not its input, even if it is declared as an input
+/// variable.
+/// A declaration applies to the whole flow and so it must be made at flow level, an error is
+/// returned when it is within a condition or a loop.
+pub fn declare_local_variable(name: String, meta: Option<Meta>) -> Result<()> {
+    ensure_flow_level_declaration("declare_local_variable", &name)?;
+    let n = node!(PGM::LocalVariable, name; meta);
+    FLOW.push(n)
+}
+
 /// Returns an error if the given name is not an identifier, or if the current position is not at
 /// flow level, e.g. it is within a condition or a loop
 fn ensure_flow_level_declaration(api: &str, name: &str) -> Result<()> {

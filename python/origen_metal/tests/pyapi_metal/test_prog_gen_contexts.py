@@ -174,7 +174,12 @@ def test_local_flags_are_declared():
     assert 'LocalFlag("DONE")' in ast
 
 
-DECLARATIONS = ["declare_output_variable", "declare_input_variable", "declare_local_flag"]
+DECLARATIONS = [
+    "declare_output_variable",
+    "declare_input_variable",
+    "declare_local_flag",
+    "declare_local_variable",
+]
 
 
 @pytest.mark.parametrize("api", DECLARATIONS)
@@ -256,3 +261,30 @@ def test_smt8_o1_formatting_option(tmp_path, o1_formatting):
     else:
         assert "sub-flow" not in rendered
         assert "        VMIN.E = E;\n        VMIN.execute();\n" in rendered
+
+
+@pytest.mark.parametrize("declare_local", [False, True])
+def test_a_local_variable_stays_in_the_flow_which_assigns_and_reads_it(tmp_path, declare_local):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("top", None, None, None)
+    with interface.group("outer"):
+        with interface.group("counter"):
+            if declare_local:
+                interface.declare_local_variable("passed_count")
+            interface.set_variable("passed_count", "-1")
+            with interface.if_expr("count.pass"):
+                interface.set_variable("passed_count", "1")
+            with interface.if_expr("passed_count == 1"):
+                interface.set_flag("counted")
+    om.prog_gen.end_flow(refs)
+    files = om.prog_gen.render_program_for("v93ksmt8", str(tmp_path / "flows"))
+    rendered = {str(f).replace("\\", "/").split("/")[-1]: open(f).read()
+                for f in files if str(f).endswith(".flow")}
+    if declare_local:
+        assert "    out passed_count = -1;" in rendered["COUNTER.flow"]
+        assert "in passed_count" not in rendered["COUNTER.flow"]
+        assert "passed_count" not in rendered["OUTER.flow"]
+        assert "passed_count" not in rendered["TOP.flow"]
+    else:
+        assert "    in passed_count = -1;" in rendered["COUNTER.flow"]
+        assert "    in passed_count = -1;" in rendered["TOP.flow"]

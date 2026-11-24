@@ -422,7 +422,8 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
         | PGM::Parameter(_, _, _)
         | PGM::OutputVariable(_)
         | PGM::InputVariable(_)
-        | PGM::LocalFlag(_) => return None,
+        | PGM::LocalFlag(_)
+        | PGM::LocalVariable(_) => return None,
         PGM::Flow(name) => ("flow", name.clone(), None),
         PGM::SubFlow(name, _) => ("subflow", format!("Subflow: {}", name), None),
         PGM::Test(id, flow_id) => {

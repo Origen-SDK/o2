@@ -166,6 +166,9 @@ pub enum PGM {
     /// passed out only as far as the highest enclosing flow in which another flow reads it,
     /// rather than to every enclosing flow. It renders nothing for other testers.
     LocalFlag(String),
+    /// Declares a flow variable, case preserved, local to the flows which read it, see
+    /// flow_api::declare_local_variable
+    LocalVariable(String),
 
     /// Flow input/output parameter declaration: (name, type_name, default_value).
     /// Distinct from Variable (local variable). Represents a named, typed parameter
