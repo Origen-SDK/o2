@@ -131,6 +131,28 @@ struct FlowFile {
 }
 
 impl FlowFile {
+    /// Returns an error if a sub-flow instance has the same name as a test suite of this flow,
+    /// both are declared and executed by their names. Sub-flow instances are upper case unless
+    /// their case is kept, which can make one the same as a suite.
+    fn check_instance_names(&self) -> Result<()> {
+        for (instance, _) in &self.sub_flows {
+            if self
+                .test_ids
+                .iter()
+                .any(|(test_name, _)| test_name == instance)
+            {
+                bail!(
+                    "In SMT8 flow '{}', the test suite '{}' and the sub-flow (or flow group) \
+                     instance '{}' have the same name, rename one of them",
+                    self.name,
+                    instance,
+                    instance
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Adds a line to the execute section of the flow file, automatically
     /// indenting it appropriately
     fn execute_line(&mut self, line: String) {
@@ -709,6 +731,9 @@ impl FlowGenerator {
 
     fn close_flow_file(&mut self, namespace: Option<String>) -> Result<FlowFile> {
         let flow_file = self.flow_stack.pop().unwrap();
+        if self.keep_sub_flow_instance_case {
+            flow_file.check_instance_names()?;
+        }
         let namespace = {
             match namespace {
                 Some(n) => format!("{}.", n),
@@ -3108,6 +3133,83 @@ mod tests {
             generator.open_flow_file("Vmin 800mV", Default::default())?;
             assert_eq!(generator.current_flow_path().as_deref(), Some(expected));
         }
+        Ok(())
+    }
+
+    #[test]
+    fn a_sub_flow_instance_named_as_a_suite_is_an_error() {
+        let mut flow = super::FlowFile {
+            name: "MAIN".to_string(),
+            ..Default::default()
+        };
+        flow.test_ids.push(("Vmin".to_string(), 1));
+        flow.sub_flows
+            .push(("VMIN".to_string(), "VMIN".to_string()));
+        assert!(flow.check_instance_names().is_ok());
+        flow.sub_flows
+            .push(("Vmin".to_string(), "VMIN_1".to_string()));
+        let error = flow.check_instance_names().unwrap_err().to_string();
+        assert!(
+            error
+                .contains("the test suite 'Vmin' and the sub-flow (or flow group) instance 'Vmin'"),
+            "{}",
+            error
+        );
+        assert!(error.contains("SMT8 flow 'MAIN'"), "{}", error);
+    }
+
+    #[test]
+    fn a_suite_and_a_group_with_the_same_kept_case_name_are_an_error() -> crate::Result<()> {
+        // A test method template from the load path, which is global, in a library which no
+        // other test uses
+        let templates = tempdir()?;
+        let template = templates.path().join("v93ksmt8/instance_case_lib/T.json");
+        fs::create_dir_all(template.parent().unwrap())?;
+        fs::write(&template, r#"{"class_name": "instance_case_lib.T"}"#)?;
+        let original_load_path = crate::PROG_GEN_CONFIG.test_template_load_path();
+        let mut load_path = original_load_path.clone();
+        load_path.push(templates.path().to_path_buf());
+        crate::PROG_GEN_CONFIG.set_test_template_load_path(load_path);
+        let flow = || {
+            node!(PGM::Flow, "main".to_string() =>
+                node!(PGM::DefTest, 1, "vmin_tm".to_string(), SupportedTester::V93KSMT8, "instance_case_lib".to_string(), "T".to_string()),
+                node!(PGM::DefTestInv, 2, "Vmin".to_string(), SupportedTester::V93KSMT8),
+                node!(PGM::AssignTestToInv, 2, 1),
+                node!(PGM::SetAttr, 2, "name".to_string(), Some(ParamValue::Any("Vmin".to_string())), false),
+                node!(PGM::Test, 2, FlowID::from_str("vmin_suite")),
+                node!(PGM::Group, "Vmin".to_string(), None, GroupType::Flow, Some(FlowID::from_str("child")) =>
+                    node!(PGM::TestStr, "t1".to_string(), FlowID::from_str("t1"), None, None, None)
+                )
+            )
+        };
+        let kept = render_with(
+            flow(),
+            &Options {
+                keep_sub_flow_instance_case: true,
+                ..Default::default()
+            },
+        );
+        let default = render_with(flow(), &Options::default());
+        crate::PROG_GEN_CONFIG.set_test_template_load_path(original_load_path);
+
+        let error = kept.unwrap_err().to_string();
+        assert!(
+            error
+                .contains("the test suite 'Vmin' and the sub-flow (or flow group) instance 'Vmin'"),
+            "{}",
+            error
+        );
+        let main = &default?["MAIN.flow"];
+        assert!(
+            main.contains("        suite Vmin calls instance_case_lib.T {"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("        flow VMIN calls flows.main.VMIN { }"),
+            "{}",
+            main
+        );
         Ok(())
     }
 }
