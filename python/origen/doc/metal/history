@@ -1,3 +1,23 @@
+(release-origen-metal-1-12-0)=
+# Origen Metal 1.12.0
+
+- **Released:** 2026-11-24
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.12.0`
+
+This release extends SMT8 flow generation with resources blocks that keep their flows, flow variables local to the flows which read them, and opt-in formatting options, and fixes how adjacent opposite conditions are combined and how test templates are cached.
+
+- `resources(keep_flows=True)` keeps the flow-type groups and sub-flows within a resources block as SMT8 flow definitions: each is written to its own flow file and declared, but not executed, by the enclosing flow, which declares the variables the block would read or set if it were executed. Rust: `flow_api::start_resources_keep_flows`, `PGM::ResourcesKeepFlows`. Contributed by Stephen McGinty in #253.
+- New `set_smt8_options(..., empty_else=False)` option leaves out the empty `else { }` branch of an SMT8 condition. Rust: `Config::set_smt8_empty_else`. Contributed by Stephen McGinty in #254.
+- Adjacent opposite conditions, e.g. `if_flag(F)` then `unless_flag(F)`, are now also combined into one `if`/`else` within loops, conditions and else branches. Conditions are only combined when they test the same list of flags or enables, and not when the first one may change what the second tests. This changes the SMT8 and SMT7 output of such nested pairs. Contributed by Stephen McGinty in #255.
+- Fixed the else branch of combined conditions being dropped on UltraFLEX, and on SMT7 for conditions it renders as plain content. Contributed by Stephen McGinty in #255.
+- Fixed a cached test template being served after the template load path changed, e.g. when one process generates for targets with different test-method library versions. Contributed by Stephen McGinty in #256.
+- New `set_smt8_options(..., o1_formatting=True)` option formats SMT8 flows as Origen 1 (origen_testers) writes them: sub-flow variable blocks, only the flags a flow sets initialized, and test-method parameters in Origen 1's order. Rust: `Config::set_smt8_o1_formatting`. Contributed by Stephen McGinty in #257.
+- New `set_smt8_options(..., keep_sub_flow_instance_case=True)` option keeps the case of SMT8 sub-flow instance names in the calling flow and in limits-file test paths; flow files and definitions stay upper case. Rust: `Config::set_smt8_keep_sub_flow_instance_case`. Contributed by Stephen McGinty in #258.
+- New `declare_local_variable(name)` flow API: a flow variable assigned with `set_variable` is an output of the flow which assigns it, passed out only as far as the highest enclosing flow in which another flow reads it, rather than an input of every enclosing flow. Rust: `flow_api::declare_local_variable`, `PGM::LocalVariable`. Contributed by Stephen McGinty in #259.
+
+---
+
 (release-origen-metal-1-11-0)=
 # Origen Metal 1.11.0
 
