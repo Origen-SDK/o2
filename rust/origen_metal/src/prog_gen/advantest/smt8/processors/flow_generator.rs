@@ -2671,6 +2671,68 @@ mod tests {
         assert!(!top.contains("cnt"), "{}", top);
         Ok(())
     }
+
+    fn if_enable_node(enable: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut node = node!(
+            PGM::Condition,
+            FlowCondition::IfEnable(vec![enable.to_string()])
+        );
+        for child in children {
+            node.add_child(child);
+        }
+        node
+    }
+
+    #[test]
+    fn a_local_flag_assigned_as_a_variable_by_another_flow_is_routed_as_before() -> crate::Result<()>
+    {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            local_flag("X"),
+            flow_group("setter", vec![set_flag("X")]),
+            flow_group("writer", vec![if_enable_node("w", vec![set_variable("X", "2")])])
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("X = SETTER.X;"), "{}", top);
+        assert!(top.contains("WRITER.X = X;"), "{}", top);
+        assert!(!top.contains("in X = -1;"), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_variable_declaration_does_not_apply_to_a_flag_of_its_name() -> crate::Result<()> {
+        let flow = |declare: bool| {
+            let mut top = node!(PGM::Flow, "top".to_string());
+            if declare {
+                top.add_child(local_variable("X"));
+            }
+            top.add_child(flow_group("setter", vec![set_flag("X")]));
+            top
+        };
+        let undeclared = render_flow_file(flow(false), "TOP.flow")?;
+        assert!(undeclared.contains("    out X = -1;"), "{}", undeclared);
+        assert!(undeclared.contains("X = SETTER.X;"), "{}", undeclared);
+        let declared = render_flow_file(flow(true), "TOP.flow")?;
+        assert_eq!(declared, undeclared);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_variable_named_as_an_enable_of_its_flow_is_an_error() {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("child", vec![
+                local_variable("GATE"),
+                if_enable_node("gate", vec![set_variable("GATE", "0")]),
+            ])
+        );
+        let error = render_flow_file(flow, "CHILD.flow")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("The local variable 'GATE' is assigned in a flow which reads an enable"),
+            "{}",
+            error
+        );
+    }
 }
 
 fn extract_bin(nodes: &Vec<Box<Node<PGM>>>) -> (Option<usize>, Option<usize>) {

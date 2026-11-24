@@ -56,6 +56,13 @@ pub struct FlowData {
     /// does not include those which it only assigns
     #[serde(skip_serializing)]
     pub read_variables: HashSet<String>,
+    /// The local variables which this flow assigns, these are in modified_flags too
+    #[serde(skip_serializing)]
+    pub held_local_variables: HashSet<String>,
+    /// As flag_readers, for the variables read by flows, not counting the flows which only
+    /// assign them
+    #[serde(skip_serializing)]
+    pub variable_readers: HashMap<String, usize>,
     /// The number of flows within this flow, including itself, which read each flag (or a
     /// variable with the same name)
     pub flag_readers: HashMap<String, usize>,
@@ -68,6 +75,12 @@ impl FlowData {
     /// Returns the number of flows within this flow, including itself, which read the given flag
     fn readers_of(&self, flag: &str) -> usize {
         self.flag_readers.get(flag).copied().unwrap_or(0)
+    }
+
+    /// Returns the number of flows within this flow, including itself, which read the given
+    /// variable, not counting those which only assign it
+    fn variable_readers_of(&self, variable: &str) -> usize {
+        self.variable_readers.get(variable).copied().unwrap_or(0)
     }
 
     /// Returns true if this flow holds a value for the given flag or variable which it can pass
@@ -307,20 +320,33 @@ impl Collector {
     fn with_flow_data(&mut self, node: &Node<PGM>, children: Vec<Box<Node<PGM>>>) -> Node<PGM> {
         let mut fdata = self.flows.pop().unwrap();
         self.loop_variables = self.saved_loop_variables.pop().unwrap();
-        // Count this flow as a reader of the flags and variables it reads, not those which it only
-        // assigns, its sub-flows have already been counted, and add its counts to those of its
-        // parent
+        // Count this flow as a reader of the flags it reads, its sub-flows have already been
+        // counted, and add its counts to those of its parent
         let read: HashSet<&String> = fdata
             .referenced_flags
             .iter()
-            .chain(fdata.read_variables.iter())
+            .chain(fdata.referenced_variables.iter())
             .collect();
         for flag in read {
             *fdata.flag_readers.entry(flag.to_string()).or_insert(0) += 1;
         }
+        // And likewise of the variables it reads, not counting those which it only assigns, for
+        // local variables
+        for variable in &fdata.read_variables {
+            *fdata
+                .variable_readers
+                .entry(variable.to_string())
+                .or_insert(0) += 1;
+        }
         if let Some(parent) = self.flows.last_mut() {
             for (flag, count) in &fdata.flag_readers {
                 *parent.flag_readers.entry(flag.to_string()).or_insert(0) += count;
+            }
+            for (variable, count) in &fdata.variable_readers {
+                *parent
+                    .variable_readers
+                    .entry(variable.to_string())
+                    .or_insert(0) += count;
             }
         }
         let mut new_children = Vec::with_capacity(children.len() + 1);
@@ -348,7 +374,7 @@ impl Processor<PGM> for PassthroughCollector {
         if let Some(first_child) = node.children.first() {
             if let PGM::FlowData(fdata) = &first_child.attrs {
                 let mut fdata = (**fdata).clone();
-                self.hold_local_variables(&mut fdata);
+                self.hold_local_variables(&mut fdata)?;
                 self.flow_stack.push(fdata);
             }
         }
@@ -440,8 +466,15 @@ impl PassthroughCollector {
                 continue;
             }
             flow_data.output_flags.insert(fl.to_string());
-            if self.is_local(&flow_data, fl) {
-                self.pass_out_local_flag(&flow_data, fl);
+            if flow_data.held_local_variables.contains(fl) {
+                // A local variable which this flow assigns, passed out to every enclosing flow
+                // when it is declared as an output too
+                if !self.is_declared_output(&flow_data, fl) {
+                    self.pass_out_local(&flow_data, fl, true);
+                    continue;
+                }
+            } else if self.is_local(&flow_data, fl) {
+                self.pass_out_local(&flow_data, fl, false);
                 continue;
             }
             for f in &mut self.flow_stack {
@@ -451,11 +484,11 @@ impl PassthroughCollector {
         flow_data
     }
 
-    /// Returns true if the given flag (or variable), set by the given flow, is declared local by
-    /// it or by an enclosing flow, and not declared as an output by any of them
+    /// Returns true if the given flag, set by the given flow, is declared local by it or by an
+    /// enclosing flow, and not declared as an output by any of them
     fn is_local(&self, flow_data: &FlowData, flag: &str) -> bool {
         let flows = || self.flow_stack.iter().chain(std::iter::once(flow_data));
-        flows().any(|f| f.local_flags.contains(flag) || f.local_variables.contains(flag))
+        flows().any(|f| f.local_flags.contains(flag))
             && !flows().any(|f| f.declared_outputs.contains(flag))
     }
 
@@ -463,7 +496,7 @@ impl PassthroughCollector {
     /// being its input. This is applied as the flow is entered, before its sub-flows are
     /// finalized, so that a sub-flow which reads the variable gets it from this flow, which
     /// holds it, rather than from further up.
-    fn hold_local_variables(&self, flow_data: &mut FlowData) {
+    fn hold_local_variables(&self, flow_data: &mut FlowData) -> Result<()> {
         let local_variables: Vec<String> = flow_data
             .assigned_variables
             .iter()
@@ -471,8 +504,27 @@ impl PassthroughCollector {
             .cloned()
             .collect();
         for v in local_variables {
-            flow_data.modified_flags.insert(v);
+            // An enable which the flow reads is always its input, the flow cannot also set it
+            if flow_data.referenced_enables.contains(&v) {
+                bail!(
+                    "The local variable '{}' is assigned in a flow which reads an enable of the \
+                     same name, the variable or the enable must be renamed",
+                    v
+                );
+            }
+            flow_data.modified_flags.insert(v.clone());
+            flow_data.held_local_variables.insert(v);
         }
+        Ok(())
+    }
+
+    /// Returns true if the given variable is declared as an output by the given flow or by an
+    /// enclosing flow
+    fn is_declared_output(&self, flow_data: &FlowData, variable: &str) -> bool {
+        self.flow_stack
+            .iter()
+            .chain(std::iter::once(flow_data))
+            .any(|f| f.declared_outputs.contains(variable))
     }
 
     /// Returns true if the given variable is declared local by the given flow or by an enclosing
@@ -486,13 +538,20 @@ impl PassthroughCollector {
 
     /// Passes a local flag set by the given flow out as far as the highest enclosing flow in
     /// which another flow reads it, that flow holds it and passes it down to its readers
-    fn pass_out_local_flag(&mut self, flow_data: &FlowData, flag: &str) {
+    fn pass_out_local(&mut self, flow_data: &FlowData, flag: &str, variable: bool) {
+        let readers_of = |f: &FlowData| {
+            if variable {
+                f.variable_readers_of(flag)
+            } else {
+                f.readers_of(flag)
+            }
+        };
         // Working up from the setter, an enclosing flow has another reader when it contains more
         // readers than its sub-flow which contains the setter
         let mut holder = None;
-        let mut readers_on_path = flow_data.readers_of(flag);
+        let mut readers_on_path = readers_of(flow_data);
         for (i, f) in self.flow_stack.iter().enumerate().rev() {
-            let readers = f.readers_of(flag);
+            let readers = readers_of(f);
             if readers > readers_on_path {
                 holder = Some(i);
             }
