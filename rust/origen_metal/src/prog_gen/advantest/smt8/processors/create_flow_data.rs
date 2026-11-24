@@ -206,7 +206,7 @@ impl Processor<PGM> for Collector {
                 if *is_auto_generated {
                     current_flow.auto_flags.insert(flag.clone());
                 }
-                // As TPGF, which initializes the flags a flow sets, not those it only clears
+                // As Origen 1, which initializes the flags a flow sets, not those it only clears
                 if *state {
                     current_flow.set_flags.insert(flag.clone());
                 }
