@@ -131,7 +131,8 @@ impl Processor<PGM> for FlowDataOnly {
             | PGM::SetVariable(_, _)
             | PGM::InputVariable(_)
             | PGM::OutputVariable(_)
-            | PGM::LocalFlag(_) => Return::ProcessChildren,
+            | PGM::LocalFlag(_)
+            | PGM::LocalVariable(_) => Return::ProcessChildren,
             _ => Return::UnwrapWithProcessedChildren,
         })
     }

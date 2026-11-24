@@ -257,6 +257,16 @@ impl PyInterface {
         Ok(())
     }
 
+    /// Declare that the given flow variable (case kept), when assigned with set_variable in the
+    /// current flow or in any of its sub-flows, is local to the flows which read it, as a flag
+    /// declared with declare_local_flag is: it is an output of the flow which assigns it, rather
+    /// than an input, and it is passed out only as far as the highest enclosing flow in which
+    /// another flow reads it. Must be called at flow level, not within a condition or loop.
+    fn declare_local_variable(&mut self, name: String) -> PyResult<()> {
+        flow_api::declare_local_variable(name, src_caller_meta())?;
+        Ok(())
+    }
+
     /// Returns a context manager for a block of resources: the tests within it are defined in the
     /// test program but are not executed by the flow.
     ///
