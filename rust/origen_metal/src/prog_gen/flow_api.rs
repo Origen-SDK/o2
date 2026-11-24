@@ -281,6 +281,16 @@ pub fn start_resources(meta: Option<Meta>) -> Result<usize> {
     FLOW.push_and_open(n)
 }
 
+/// Start a resources block which, like start_resources, does not add its tests to the flow but
+/// keeps the flow-type groups and sub-flows within it as flow definitions on the testers which
+/// support them (V93K SMT8): each one is written as its own flow and declared by the enclosing
+/// flow, which does not execute it. On other testers this is the same as start_resources. The
+/// returned reference should be retained and passed to end_block
+pub fn start_resources_keep_flows(meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGM::ResourcesKeepFlows; meta);
+    FLOW.push_and_open(n)
+}
+
 pub fn set_flag(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGM::SetFlag, name, state, false; meta);
     FLOW.push(n)

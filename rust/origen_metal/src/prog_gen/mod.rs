@@ -223,7 +223,9 @@ pub fn process_flow(
 
     //ast.to_file("unprocesed_ast.txt")?;
     log_debug!("Processing flow for tester {:?}", tester);
-    ast = processors::clean_resources::run(&ast)?;
+    // Only SMT8 writes each flow to a file of its own, a flow within a block of resources which
+    // keeps flows is flattened like the content of other resources blocks on other testers
+    ast = processors::clean_resources::run(&ast, tester == SupportedTester::V93KSMT8)?;
     ast = processors::nest_on_result_nodes::run(&ast)?;
     ast = processors::relationship::run(&ast)?;
     ast = processors::condition::run(&ast)?;
