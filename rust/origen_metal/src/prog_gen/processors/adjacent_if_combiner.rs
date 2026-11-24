@@ -2,6 +2,7 @@ use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::expressions::expression_variables;
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
+use std::collections::HashMap;
 
 /// This combines adjacent if flag nodes where the flag is in the opposite state, and likewise
 /// adjacent enable and expression conditions
@@ -38,12 +39,32 @@ pub struct AdjacentIfCombiner {
     volatiles: Vec<String>,
     /// Variables declared as outputs, which tests may change natively
     outputs: Vec<String>,
+    /// The names of the test invocations, by their IDs
+    test_names: HashMap<usize, String>,
+    /// Each flow group and sub-flow has its own scope of suite names, as on SMT8, so a reference
+    /// such as t.pass does not name a suite within a flow which the condition calls
+    flows_have_own_scope: bool,
 }
 
+/// Combines the adjacent opposite conditions, a test whose name is not known may be any test
+#[cfg(test)]
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
+    run_with_test_names(node, HashMap::new(), false)
+}
+
+/// Combines the adjacent opposite conditions, with the names of the test invocations, by their
+/// IDs, to tell which tests a condition runs, and whether each flow group and sub-flow has its own
+/// scope of suite names
+pub fn run_with_test_names(
+    node: &Node<PGM>,
+    test_names: HashMap<usize, String>,
+    flows_have_own_scope: bool,
+) -> Result<Node<PGM>> {
     let mut p = AdjacentIfCombiner {
         volatiles: vec![],
         outputs: super::declared_output_variables(node),
+        test_names,
+        flows_have_own_scope,
     };
     let ast = node.process(&mut p)?.unwrap();
 
@@ -147,7 +168,7 @@ impl AdjacentIfCombiner {
     /// Returns true if the given flag or variable is declared volatile. Flags are rendered upper
     /// case, so a declaration in another case may be the same variable, it is treated as the same
     fn is_volatile(&self, name: &str) -> bool {
-        self.volatiles.iter().any(|v| v.eq_ignore_ascii_case(name))
+        self.volatiles.iter().any(|v| same_name(v, name))
     }
 
     /// Nodes won't be collapsed if node1 touches the shared run flag, enable or expression
@@ -169,13 +190,24 @@ impl AdjacentIfCombiner {
                 }
                 FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
                     let variables = expression_variables(expression);
-                    // A test executed by node1 may change a volatile variable, or the result of a
-                    // test which the expression reads, e.g. t.pass
-                    if (variables
+                    // A test executed by node1 may change a volatile variable
+                    if variables
                         .iter()
                         .any(|v| self.is_volatile(v) || self.outputs.contains(v))
-                        || reads_a_reference(expression))
                         && ContainsATest::run(node1)
+                    {
+                        return false;
+                    }
+                    // Or the result of a test or flow which the expression reads, e.g. t.pass, when
+                    // node1 executes it again
+                    let objects = referenced_objects(expression);
+                    if !objects.is_empty()
+                        && ExecutesOneOf::run(
+                            node1,
+                            &objects,
+                            &self.test_names,
+                            self.flows_have_own_scope,
+                        )
                     {
                         return false;
                     }
@@ -196,9 +228,39 @@ fn has_else(node: &Node<PGM>) -> bool {
     node.children.iter().any(|n| matches!(n.attrs, PGM::Else))
 }
 
+/// Returns true if the given text mentions the given name as an identifier, compared as
+/// same_identifier does, e.g. `F = 0;` mentions F, `@ALARM = 0;` mentions $ALARM, and
+/// `probe.execute();` mentions probe and execute
+fn mentions_identifier(text: &str, name: &str) -> bool {
+    text.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$' || c == '@'))
+        .any(|word| same_identifier(word, name))
+}
+
+/// Returns true if the given names may be the same variable as rendered: without the $ or @
+/// prefix of a variable, which an expression does not include and a tester may change, e.g.
+/// SMT7 renders the flag $Alarm as @Alarm, and compared as same_name does
+fn same_identifier(a: &str, b: &str) -> bool {
+    let prefix = |c: char| c == '$' || c == '@';
+    same_name(a.trim_start_matches(prefix), b.trim_start_matches(prefix))
+}
+
+/// Returns true if the given names are the same as flags are rendered, upper case, e.g. straße
+/// and STRASSE
+fn same_name(a: &str, b: &str) -> bool {
+    a == b || a.to_uppercase() == b.to_uppercase()
+}
+
 /// Returns true if the given expression reads a reference to an attribute of something, e.g. the
 /// result of a test, t.pass, which expression_variables does not return
+#[cfg(test)]
 fn reads_a_reference(expression: &str) -> bool {
+    !referenced_objects(expression).is_empty()
+}
+
+/// Returns the names of the things whose attributes the given expression reads, e.g. t for the
+/// result of a test, t.pass, which expression_variables does not return
+fn referenced_objects(expression: &str) -> Vec<String> {
+    let mut objects = vec![];
     let chars: Vec<char> = expression.chars().collect();
     let mut i = 0;
     while i < chars.len() {
@@ -219,6 +281,7 @@ fn reads_a_reference(expression: &str) -> bool {
                 i += 1;
             }
         } else if c.is_ascii_alphabetic() || c == '_' {
+            let start = i;
             while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
                 i += 1;
             }
@@ -234,14 +297,132 @@ fn reads_a_reference(expression: &str) -> bool {
                     j += 1;
                 }
                 if j < chars.len() && (chars[j].is_ascii_alphabetic() || chars[j] == '_') {
-                    return true;
+                    objects.push(chars[start..i].iter().collect());
                 }
             }
         } else {
             i += 1;
         }
     }
-    false
+    objects
+}
+
+/// Returns true if the given test name may be the given object: the same name, or the name with
+/// the _<n> suffix of a suite whose name is used again in its flow, which the SMT7 and SMT8
+/// renderers add. A name which only starts with the object's name, e.g. probe_passed for probe,
+/// is another test.
+fn may_be_suite(name: &str, object: &str) -> bool {
+    object == name
+        || object
+            .strip_prefix(name)
+            .and_then(|rest| rest.strip_prefix('_'))
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// Returns true if the given flow name, as rendered, may be the given object, compared without
+/// regard to case and allowing for the _<n> suffix of a flow instance made unique within its flow
+fn may_be_flow(name: &str, object: &str) -> bool {
+    let name = name
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("_")
+        .to_uppercase();
+    let object = object.to_uppercase();
+    object == name
+        || object
+            .strip_prefix(&name)
+            .and_then(|rest| rest.strip_prefix('_'))
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// Finds whether a node may execute a test or flow with one of the given names: a test, a test
+/// whose name is not known, a flow group or sub-flow, or a raw statement or call which mentions
+/// it. Where each flow has its own scope of suite names, the content of a flow which the node
+/// calls is not searched, other than its result handlers, which run in the calling flow.
+struct ExecutesOneOf<'a> {
+    objects: &'a [String],
+    test_names: &'a HashMap<usize, String>,
+    flows_have_own_scope: bool,
+    found: bool,
+}
+
+impl<'a> ExecutesOneOf<'a> {
+    fn run(
+        node: &Node<PGM>,
+        objects: &'a [String],
+        test_names: &'a HashMap<usize, String>,
+        flows_have_own_scope: bool,
+    ) -> bool {
+        let mut p = ExecutesOneOf {
+            objects,
+            test_names,
+            flows_have_own_scope,
+            found: false,
+        };
+        let _ = node.process(&mut p);
+        p.found
+    }
+
+    fn may_be_a_suite(&self, name: &str) -> bool {
+        self.objects.iter().any(|object| may_be_suite(name, object))
+    }
+
+    fn may_be_a_flow(&self, name: &str) -> bool {
+        self.objects.iter().any(|object| may_be_flow(name, object))
+    }
+}
+
+impl<'a> Processor<PGM> for ExecutesOneOf<'a> {
+    fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
+        if self.found {
+            return Ok(Return::None);
+        }
+        match &node.attrs {
+            PGM::Test(id, _) | PGM::Cz(id, _, _) => match self.test_names.get(id) {
+                Some(name) => {
+                    if self.may_be_a_suite(name) {
+                        self.found = true;
+                    }
+                }
+                // A test whose name is not known may be any test
+                None => self.found = true,
+            },
+            PGM::TestStr(name, _, _, _, _) => {
+                if self.may_be_a_suite(name) {
+                    self.found = true;
+                }
+            }
+            PGM::SubFlow(name, _) | PGM::Group(name, _, GroupType::Flow, _) => {
+                if self.may_be_a_flow(name) {
+                    self.found = true;
+                } else if self.flows_have_own_scope {
+                    for child in &node.children {
+                        if matches!(child.attrs, PGM::OnPassed(_) | PGM::OnFailed(_)) {
+                            let _ = child.process(self)?;
+                        }
+                    }
+                    return Ok(Return::None);
+                }
+            }
+            // The content of a resources block, including a kept flow, is declared, not executed
+            PGM::Resources => return Ok(Return::None),
+            PGM::Render(text) => {
+                if self.objects.iter().any(|o| mentions_identifier(text, o)) {
+                    self.found = true;
+                }
+            }
+            PGM::Call(name, args) | PGM::Callback(name, args) => {
+                if std::iter::once(name)
+                    .chain(args.iter())
+                    .any(|text| self.objects.iter().any(|o| mentions_identifier(text, o)))
+                {
+                    self.found = true;
+                }
+            }
+            _ => {}
+        }
+        Ok(Return::ProcessChildren)
+    }
 }
 
 /// Finds whether a node changes the given flag, enable or flow variable, including a declared
@@ -268,10 +449,21 @@ impl<'a> ChangesFlag<'a> {
 impl<'a> Processor<PGM> for ChangesFlag<'a> {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            // Raw tester statements and external calls may change any flag or variable, or run a
-            // test again
-            PGM::Render(_) | PGM::Call(_, _) | PGM::Callback(_, _) => {
-                self.flag_found = true;
+            // A raw tester statement or an external call may change a flag or variable which it
+            // mentions
+            PGM::Render(text) => {
+                if mentions_identifier(text, self.flag) {
+                    self.flag_found = true;
+                }
+                Return::None
+            }
+            PGM::Call(name, args) | PGM::Callback(name, args) => {
+                if std::iter::once(name)
+                    .chain(args.iter())
+                    .any(|text| mentions_identifier(text, self.flag))
+                {
+                    self.flag_found = true;
+                }
                 Return::None
             }
             PGM::SetFlag(flag, _, _)
@@ -280,7 +472,7 @@ impl<'a> Processor<PGM> for ChangesFlag<'a> {
             | PGM::SetVariable(flag, _) => {
                 // Flags and enables are rendered upper case, so a name in another case may be
                 // the same variable, it is treated as the same one
-                if flag.eq_ignore_ascii_case(self.flag) {
+                if same_name(flag, self.flag) {
                     self.flag_found = true;
                 }
                 Return::None
@@ -320,12 +512,12 @@ impl ContainsATest {
 impl Processor<PGM> for ContainsATest {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            // A raw tester statement or an external call may execute a test
-            PGM::Test(_, _)
-            | PGM::TestStr(_, _, _, _, _)
-            | PGM::Render(_)
-            | PGM::Call(_, _)
-            | PGM::Callback(_, _) => {
+            PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
+                self.test_found = true;
+                Return::None
+            }
+            // A raw tester statement or an external call may execute a test, e.g. `run(t);`
+            PGM::Render(_) | PGM::Call(_, _) | PGM::Callback(_, _) => {
                 self.test_found = true;
                 Return::None
             }
@@ -817,5 +1009,263 @@ mod tests {
         assert!(!reads_a_reference("x > 1.5"));
         assert!(!reads_a_reference("name == \"a.b\""));
         assert!(!reads_a_reference("mode == 6"));
+    }
+
+    #[test]
+    fn a_raw_statement_which_does_not_mention_the_condition_does_not_stop_combining() -> Result<()>
+    {
+        let render = |text: &str| node!(PGM::Render, text.to_string());
+        // The first branch runs a test and renders a statement, e.g. binning on its failure,
+        // which neither runs a test nor mentions the expression's variable
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("MODE == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                render("if ($ALARM == 1) { multi_bin; }"),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("MODE == 6".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        );
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("MODE == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                render("if ($ALARM == 1) { multi_bin; }"),
+                node!(PGM::Else =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            ),
+        );
+        assert_eq!(output, run(&input)?);
+
+        // Likewise for a flag condition, and a call
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) =>
+                render("multi_bin;"),
+                node!(PGM::Call, "log_it".to_string(), vec!["x".to_string()]),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["F".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        );
+        assert_eq!(run(&input)?.to_string().matches("Else").count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn a_reference_to_a_test_stops_combining_only_when_the_first_branch_runs_that_test(
+    ) -> Result<()> {
+        use super::run_with_test_names;
+        use std::collections::HashMap;
+        let pair = |first: crate::ast::Node<PGM>| {
+            node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, FlowCondition::IfExpr("probe.pass".to_string()) => first),
+                node!(PGM::Condition, FlowCondition::UnlessExpr("probe.pass".to_string()) =>
+                    node!(PGM::SetFlag, "RETEST_FAILED".to_string(), true, false),
+                ),
+            )
+        };
+        let combined_on =
+            |input: &crate::ast::Node<PGM>, names: HashMap<usize, String>, own_scope: bool| {
+                run_with_test_names(input, names, own_scope)
+                    .unwrap()
+                    .to_string()
+                    .contains("Else")
+            };
+        let combined = |input: &crate::ast::Node<PGM>, names: HashMap<usize, String>| {
+            combined_on(input, names, false)
+        };
+        let names = HashMap::from([
+            (1, "other".to_string()),
+            (2, "probe".to_string()),
+            (4, "probe_passed".to_string()),
+            (5, "Probe".to_string()),
+            (6, "probe_2".to_string()),
+        ]);
+        // Another test is run, combined as in 1.11.0
+        assert!(combined(
+            &pair(node!(PGM::Test, 1, FlowID::from_int(1))),
+            names.clone()
+        ));
+        // Including one whose name only starts with the referenced name, or differs in case
+        assert!(combined(
+            &pair(node!(PGM::Test, 4, FlowID::from_int(4))),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Test, 5, FlowID::from_int(5))),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Test, 6, FlowID::from_int(6))),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(
+                PGM::TestStr,
+                "probe_passed".to_string(),
+                FlowID::from_str("pp"),
+                None,
+                None,
+                None
+            )),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Render, "probe_passed.execute();".to_string())),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(
+                PGM::TestStr,
+                "other".to_string(),
+                FlowID::from_str("o"),
+                None,
+                None,
+                None
+            )),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Render, "multi_bin;".to_string())),
+            names.clone()
+        ));
+        // The referenced test is run again, not combined
+        assert!(!combined(
+            &pair(node!(PGM::Test, 2, FlowID::from_int(2))),
+            names.clone()
+        ));
+        assert!(!combined(
+            &pair(node!(
+                PGM::TestStr,
+                "probe".to_string(),
+                FlowID::from_str("p"),
+                None,
+                None,
+                None
+            )),
+            names.clone()
+        ));
+        assert!(!combined(
+            &pair(node!(PGM::Render, "probe.execute();".to_string())),
+            names.clone()
+        ));
+        // Or a flow of that name, or a test whose name is not known
+        assert!(!combined(
+            &pair(node!(
+                PGM::Group,
+                "Probe".to_string(),
+                None,
+                GroupType::Flow,
+                Some(FlowID::from_str("g"))
+            )),
+            names.clone()
+        ));
+        assert!(!combined(
+            &pair(node!(PGM::Test, 3, FlowID::from_int(3))),
+            names.clone()
+        ));
+        // A suite whose name is used again is rendered with a suffix, e.g. probe_1, so a
+        // reference to probe_1 may be the test probe
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("probe_1.pass".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("probe_1.pass".to_string()) =>
+                node!(PGM::SetFlag, "RETEST_FAILED".to_string(), true, false),
+            ),
+        );
+        assert!(!combined_on(&input, names.clone(), true));
+        assert!(!combined_on(&input, names.clone(), false));
+        // A suite of that name within a flow which the first branch calls is the reference's
+        // suite only where the flows share one scope of suite names
+        let nested = pair(node!(
+            PGM::Group,
+            "nested".to_string(),
+            None,
+            GroupType::Flow,
+            Some(FlowID::from_str("n"))
+            => node!(PGM::Test, 2, FlowID::from_int(2))
+        ));
+        assert!(combined_on(&nested, names.clone(), true));
+        assert!(!combined_on(&nested, names.clone(), false));
+        // But the flow's result handlers run in the calling flow
+        let handled = pair(node!(
+            PGM::Group,
+            "nested".to_string(),
+            None,
+            GroupType::Flow,
+            Some(FlowID::from_str("n"))
+            => node!(PGM::Test, 1, FlowID::from_int(1)),
+               node!(PGM::OnFailed, FlowID::from_str("n") =>
+                   node!(PGM::Test, 2, FlowID::from_int(2))
+               )
+        ));
+        assert!(!combined_on(&handled, names, true));
+        // A flow or test of that name within a resources block, e.g. a kept flow, is declared,
+        // not executed
+        let declared = pair(node!(PGM::Resources =>
+            node!(
+                PGM::Group,
+                "probe".to_string(),
+                None,
+                GroupType::Flow,
+                Some(FlowID::from_str("p"))
+                => node!(PGM::Log, "kept".to_string())
+            ),
+            node!(PGM::Test, 2, FlowID::from_int(2))
+        ));
+        assert!(combined_on(
+            &declared,
+            HashMap::from([(2, "probe".to_string())]),
+            true
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_raw_write_of_a_flag_is_found_by_its_rendered_name() -> Result<()> {
+        for (flag, statement) in [
+            ("$ALARM", "$ALARM = 0;"),
+            ("straße", "STRASSE = 0;"),
+            // SMT7 renders the flag $Alarm as @Alarm
+            ("$Alarm", "@Alarm = 0;"),
+        ] {
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec![flag.to_string()]) =>
+                    node!(PGM::Render, statement.to_string()),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessFlag(vec![flag.to_string()]) =>
+                    node!(PGM::SetFlag, "B".to_string(), true, false),
+                ),
+            );
+            assert_eq!(input, run(&input)?, "{}", flag);
+        }
+        // An expression reads a $ variable without its prefix
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("$ALARM == 1".to_string()) =>
+                node!(PGM::Render, "$ALARM = 0;".to_string()),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("$ALARM == 1".to_string()) =>
+                node!(PGM::SetFlag, "B".to_string(), true, false),
+            ),
+        );
+        assert_eq!(input, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_raw_statement_may_run_a_test_which_changes_a_volatile_flag() -> Result<()> {
+        // e.g. SMT7's run(probe);
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Volatile, "READY".to_string()),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["READY".to_string()]) =>
+                node!(PGM::Render, "run(probe);".to_string()),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["READY".to_string()]) =>
+                node!(PGM::SetFlag, "B".to_string(), true, false),
+            ),
+        );
+        assert_eq!(input, run(&input)?);
+        Ok(())
     }
 }

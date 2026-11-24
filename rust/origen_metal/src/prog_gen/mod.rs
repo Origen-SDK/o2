@@ -231,7 +231,21 @@ pub fn process_flow(
     ast = processors::condition::run(&ast)?;
     ast = processors::continue_implementer::run(&ast)?;
     ast = processors::flag_optimizer::run(&ast, None)?;
-    ast = processors::adjacent_if_combiner::run(&ast)?;
+    // The names of the test invocations, to tell which tests a condition runs
+    let test_names = m
+        .test_invocations
+        .iter()
+        .filter_map(|(id, t)| match t.get("name") {
+            Ok(Some(name)) => Some((*id, name.to_string())),
+            _ => None,
+        })
+        .collect();
+    // On SMT8 each flow group and sub-flow is a flow of its own, with its own suite names
+    ast = processors::adjacent_if_combiner::run_with_test_names(
+        &ast,
+        test_names,
+        tester == SupportedTester::V93KSMT8,
+    )?;
 
     // Any tester-specific processing
     match tester {
@@ -291,5 +305,48 @@ mod tests {
             "{}",
             error
         );
+    }
+
+    #[test]
+    fn a_reference_to_a_suite_is_matched_by_the_suite_name() -> crate::Result<()> {
+        // Two suites, probe and other, whose test method is added to the model directly
+        let processed = |run_first: usize| -> crate::Result<String> {
+            let mut model = Model::new(SupportedTester::V93KSMT8);
+            let mut method = model::Test::new("tm", 1, SupportedTester::V93KSMT8);
+            method.class_name = Some("lib.T".to_string());
+            model.tests.insert(1, method);
+            let mut flow = AST::new();
+            flow.push_and_open(Node::new(PGM::Flow("main".to_string())));
+            for (id, name) in [(2, "probe"), (3, "other")] {
+                flow.push(Node::new(PGM::DefTestInv(
+                    id,
+                    name.to_string(),
+                    SupportedTester::V93KSMT8,
+                )));
+                flow.push(Node::new(PGM::AssignTestToInv(id, 1)));
+                flow.push(Node::new(PGM::SetAttr(
+                    id,
+                    "name".to_string(),
+                    Some(ParamValue::Any(name.to_string())),
+                    false,
+                )));
+            }
+            let mut first = Node::new(PGM::Condition(FlowCondition::IfExpr(
+                "probe.pass".to_string(),
+            )));
+            first.add_child(Node::new(PGM::Test(run_first, FlowID::from_str("first"))));
+            let mut second = Node::new(PGM::Condition(FlowCondition::UnlessExpr(
+                "probe.pass".to_string(),
+            )));
+            second.add_child(Node::new(PGM::SetFlag("FAILED".to_string(), true, false)));
+            flow.push(first);
+            flow.push(second);
+            let (ast, _model) = process_flow(&flow, model, SupportedTester::V93KSMT8, true)?;
+            Ok(ast.to_string())
+        };
+        // Running another suite, the conditions are combined, running probe again they are not
+        assert!(processed(3)?.contains("Else"));
+        assert!(!processed(2)?.contains("Else"));
+        Ok(())
     }
 }
