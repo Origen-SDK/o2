@@ -1,6 +1,7 @@
 use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 use crate::prog_gen::config::SMT8Config;
+use crate::prog_gen::model::TestCollectionItem;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, LoopCount, Model, ParamValue, PGM};
 use crate::Result;
 use indexmap::IndexMap;
@@ -101,6 +102,8 @@ struct FlowGenerator {
     options: SMT8Config,
     /// Render an else branch which has no content, see Config::set_smt8_empty_else
     empty_else: bool,
+    /// Format the flows as Origen 1 writes them, see Config::set_smt8_o1_formatting
+    o1_formatting: bool,
     writer: FileWriter,
 }
 
@@ -157,44 +160,53 @@ impl FlowFile {
 }
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
-    run_with_empty_else(
+    run_with(
         ast,
         output_dir,
         model,
         crate::PROG_GEN_CONFIG.smt8_empty_else(),
+        crate::PROG_GEN_CONFIG.smt8_o1_formatting(),
     )
 }
 
 /// As run, with the option to render an empty else given, rather than taken from the config
+#[cfg(test)]
 fn run_with_empty_else(
     ast: &Node<PGM>,
     output_dir: &Path,
     model: Model,
     empty_else: bool,
 ) -> Result<(Model, Vec<PathBuf>)> {
+    let o1_formatting = crate::PROG_GEN_CONFIG.smt8_o1_formatting();
+    run_with(ast, output_dir, model, empty_else, o1_formatting)
+}
+
+/// As run, with the option to format the flows as Origen 1 does given, rather than taken from the
+/// config
+#[cfg(test)]
+fn run_with_o1_formatting(
+    ast: &Node<PGM>,
+    output_dir: &Path,
+    model: Model,
+    o1_formatting: bool,
+) -> Result<(Model, Vec<PathBuf>)> {
+    let empty_else = crate::PROG_GEN_CONFIG.smt8_empty_else();
+    run_with(ast, output_dir, model, empty_else, o1_formatting)
+}
+
+/// As run, with the options given, rather than taken from the config
+fn run_with(
+    ast: &Node<PGM>,
+    output_dir: &Path,
+    model: Model,
+    empty_else: bool,
+    o1_formatting: bool,
+) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
     //ast.to_file("smt8_flow.txt")?;
 
-    let mut p = FlowGenerator {
-        name: "".to_string(),
-        description: None,
-        name_override: None,
-        sub_flow_open: false,
-        bypass_sub_flows: false,
-        output_dir: output_dir.to_owned(),
-        generated_files: vec![],
-        model: model,
-        test_methods: BTreeMap::new(),
-        test_suites: BTreeMap::new(),
-        test_method_names: HashMap::new(),
-        resources_block: false,
-        flow_stack: vec![],
-        limits_file: None,
-        namespaces: vec![],
-        options: crate::PROG_GEN_CONFIG.smt8_options(),
-        empty_else,
-        writer: FileWriter::new(),
-    };
+    let mut p = FlowGenerator::new(output_dir, model, o1_formatting);
+    p.empty_else = empty_else;
 
     let mut i = 0;
     for (_, t) in &p.model.tests {
@@ -220,6 +232,30 @@ fn run_with_empty_else(
 }
 
 impl FlowGenerator {
+    fn new(output_dir: &Path, model: Model, o1_formatting: bool) -> FlowGenerator {
+        FlowGenerator {
+            name: "".to_string(),
+            description: None,
+            name_override: None,
+            sub_flow_open: false,
+            bypass_sub_flows: false,
+            output_dir: output_dir.to_owned(),
+            generated_files: vec![],
+            model: model,
+            test_methods: BTreeMap::new(),
+            test_suites: BTreeMap::new(),
+            test_method_names: HashMap::new(),
+            resources_block: false,
+            flow_stack: vec![],
+            limits_file: None,
+            namespaces: vec![],
+            options: crate::PROG_GEN_CONFIG.smt8_options(),
+            empty_else: crate::PROG_GEN_CONFIG.smt8_empty_else(),
+            o1_formatting,
+            writer: FileWriter::new(),
+        }
+    }
+
     fn alpha_cmp(a: &str, b: &str) -> Ordering {
         a.to_ascii_lowercase()
             .cmp(&b.to_ascii_lowercase())
@@ -387,10 +423,39 @@ impl FlowGenerator {
     /// declared but not executed. Returns true if the flow is executed.
     fn call_flow(&mut self, flow: &FlowFile) -> bool {
         let executed = !self.resources_block;
+        let o1_formatting = self.o1_formatting;
         let current_flow = self.flow_stack.last_mut().unwrap();
+        let inputs = flow.flow_data.sorted_input_vars();
+        let outputs: Vec<String> = flow
+            .flow_data
+            .sorted_output_flags()
+            .into_iter()
+            .filter(|v| {
+                current_flow.flow_data.output_flags.contains(v)
+                    || current_flow.flow_data.referenced_flags.contains(v)
+                    || current_flow.flow_data.downstream_flags.contains(v)
+            })
+            .collect();
+        // Origen 1 groups the assignments of each kind in a block headed by a comment
+        let open_block = |current_flow: &mut FlowFile, kind: &str| {
+            current_flow.execute_line(format!("// {} sub-flow {} variables", flow.name, kind));
+            current_flow.execute_line("{".to_string());
+            current_flow.indent += 1;
+        };
+        let close_block = |current_flow: &mut FlowFile| {
+            current_flow.indent -= 1;
+            current_flow.execute_line("}".to_string());
+        };
         if executed {
-            for v in flow.flow_data.sorted_input_vars() {
+            let grouped = o1_formatting && !inputs.is_empty();
+            if grouped {
+                open_block(current_flow, "input");
+            }
+            for v in &inputs {
                 current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
+            }
+            if grouped {
+                close_block(current_flow);
             }
             current_flow.execute_line(format!("{}.execute();", flow.name));
         }
@@ -399,13 +464,15 @@ impl FlowGenerator {
             current_flow.bypassed_sub_flows.insert(flow.name.clone());
         }
         if executed {
-            for v in flow.flow_data.sorted_output_flags() {
-                if current_flow.flow_data.output_flags.contains(&v)
-                    || current_flow.flow_data.referenced_flags.contains(&v)
-                    || current_flow.flow_data.downstream_flags.contains(&v)
-                {
-                    current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
-                }
+            let grouped = o1_formatting && !outputs.is_empty();
+            if grouped {
+                open_block(current_flow, "output");
+            }
+            for v in &outputs {
+                current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
+            }
+            if grouped {
+                close_block(current_flow);
             }
         }
         executed
@@ -566,10 +633,12 @@ impl FlowGenerator {
         })
     }
 
+    /// Renders the parameters of a test suite, or of the given collection item within it
     fn render_sorted_contents<W: Write>(
         &self,
         f: &mut W,
         indent: usize,
+        item: Option<&TestCollectionItem>,
         values: &IndexMap<String, ParamValue>,
         default_values: &IndexMap<String, ParamValue>,
         collections: &IndexMap<String, Vec<usize>>,
@@ -599,7 +668,33 @@ impl FlowGenerator {
                 names.push(collection_name.clone());
             }
         }
-        names.sort_by(|a, b| Self::alpha_cmp(a, b));
+        match (self.o1_formatting, item) {
+            // Origen 1 orders a test suite's parameters by the byte order of their names
+            (true, None) => names.sort(),
+            // and a collection item's parameters in the order of their definition, followed here
+            // by its collections in the order of theirs, anything else follows those by name.
+            // A template defines a collection's parameters and its collections in separate maps,
+            // so a collection defined between two parameters, which Origen 1 writes in between them,
+            // is written after them here.
+            (true, Some(item)) => {
+                let position = |name: &String| {
+                    item.params
+                        .get_index_of(name)
+                        .or_else(|| {
+                            item.collection_defs
+                                .get_index_of(name)
+                                .map(|i| item.params.len() + i)
+                        })
+                        .unwrap_or(usize::MAX)
+                };
+                names.sort_by(|a, b| {
+                    position(a)
+                        .cmp(&position(b))
+                        .then_with(|| Self::alpha_cmp(a, b))
+                });
+            }
+            (false, _) => names.sort_by(|a, b| Self::alpha_cmp(a, b)),
+        }
         names.dedup();
 
         for name in names {
@@ -632,6 +727,7 @@ impl FlowGenerator {
                     self.render_sorted_contents(
                         f,
                         indent + 1,
+                        Some(item),
                         &item.values,
                         &item.default_values,
                         &item.collections,
@@ -771,6 +867,7 @@ impl FlowGenerator {
                 self.render_sorted_contents(
                     &mut f,
                     3,
+                    None,
                     &test.values,
                     &test.definition.default_values,
                     &test.collections,
@@ -809,11 +906,24 @@ impl FlowGenerator {
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
         writeln!(&mut f, "    execute {{")?;
-        for v in flow_file.flow_data.sorted_modified_flags() {
-            writeln!(&mut f, "        {} = -1;", v)?;
-        }
-        if !flow_file.flow_data.output_flags.is_empty() {
-            writeln!(&mut f, "")?;
+        if self.o1_formatting {
+            // Only the flags which this flow sets itself are initialized, as Origen 1 does, not those
+            // which it only declares as outputs, which a test method sets natively
+            let mut flags: Vec<&String> = flow_file.flow_data.set_flags.iter().collect();
+            flags.sort();
+            for v in &flags {
+                writeln!(&mut f, "        {} = -1;", v)?;
+            }
+            if !flags.is_empty() {
+                writeln!(&mut f, "")?;
+            }
+        } else {
+            for v in flow_file.flow_data.sorted_modified_flags() {
+                writeln!(&mut f, "        {} = -1;", v)?;
+            }
+            if !flow_file.flow_data.output_flags.is_empty() {
+                writeln!(&mut f, "")?;
+            }
         }
         for line in &flow_file.execute_lines {
             writeln!(&mut f, "        {}", line)?;
@@ -1233,7 +1343,7 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, run_with_empty_else, FileWriter, FlowGenerator};
+    use super::{run, run_with_empty_else, run_with_o1_formatting, FileWriter, FlowGenerator};
     use crate::prog_gen::{
         process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
         SupportedTester, PGM,
@@ -2508,6 +2618,311 @@ mod tests {
         Ok(())
     }
 
+    /// Renders the given flow AST for SMT8, formatted as Origen 1 does or not, and returns the content
+    /// of every flow file by its name
+    fn render_flows(
+        flow: crate::ast::Node<PGM>,
+        o1_formatting: bool,
+    ) -> crate::Result<std::collections::HashMap<String, String>> {
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) =
+            run_with_o1_formatting(&ast, output_dir.path(), model, o1_formatting)?;
+        let mut flows = std::collections::HashMap::new();
+        for path in files {
+            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            if name.ends_with(".flow") {
+                flows.insert(name, fs::read_to_string(&path)?);
+            }
+        }
+        Ok(flows)
+    }
+
+    fn o1_example() -> crate::ast::Node<PGM> {
+        let test = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::SubFlow, "vmin".to_string(), None =>
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["CONTINUE_ON_FAIL".to_string()]) =>
+                    test("t1")
+                ),
+                node!(PGM::SetFlag, "RUN_FALLBACK_TRUE".to_string(), true, false)
+            ),
+            node!(PGM::Group, "plain".to_string(), None, GroupType::Flow, Some(FlowID::from_str("plain")) =>
+                test("t2")
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["RUN_FALLBACK_TRUE".to_string()]) =>
+                test("t3")
+            )
+        )
+    }
+
+    #[test]
+    fn flows_are_formatted_as_origen_1_does_when_asked() -> crate::Result<()> {
+        let flows = render_flows(o1_example(), true)?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains(
+                "    execute {\n\
+                \x20       // VMIN sub-flow input variables\n\
+                \x20       {\n\
+                \x20           VMIN.CONTINUE_ON_FAIL = CONTINUE_ON_FAIL;\n\
+                \x20       }\n\
+                \x20       VMIN.execute();\n\
+                \x20       // VMIN sub-flow output variables\n\
+                \x20       {\n\
+                \x20           RUN_FALLBACK_TRUE = VMIN.RUN_FALLBACK_TRUE;\n\
+                \x20       }\n\
+                \x20       PLAIN.execute();\n"
+            ),
+            "{}",
+            main
+        );
+        // A flag which only a sub-flow sets is declared, but not initialized
+        assert!(main.contains("    out RUN_FALLBACK_TRUE = -1;"), "{}", main);
+        assert!(
+            !main.contains("        RUN_FALLBACK_TRUE = -1;"),
+            "{}",
+            main
+        );
+        // The sub-flow which sets it initializes it
+        let vmin = &flows["VMIN.flow"];
+        assert!(
+            vmin.contains("    execute {\n        RUN_FALLBACK_TRUE = -1;\n\n"),
+            "{}",
+            vmin
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn flows_are_formatted_as_before_by_default() -> crate::Result<()> {
+        let flows = render_flows(o1_example(), false)?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains(
+                "    execute {\n\
+                \x20       RUN_FALLBACK_TRUE = -1;\n\
+                \n\
+                \x20       VMIN.CONTINUE_ON_FAIL = CONTINUE_ON_FAIL;\n\
+                \x20       VMIN.execute();\n\
+                \x20       RUN_FALLBACK_TRUE = VMIN.RUN_FALLBACK_TRUE;\n\
+                \x20       PLAIN.execute();\n"
+            ),
+            "{}",
+            main
+        );
+        assert!(!main.contains("sub-flow"), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn suite_parameters_are_ordered_by_byte_order_when_formatted_as_origen_1_does(
+    ) -> crate::Result<()> {
+        let mut values = indexmap::IndexMap::new();
+        for name in [
+            "scan.SSN",
+            "logging",
+            "outputType",
+            "Zed",
+            "alpha2",
+            "alpha10",
+        ] {
+            values.insert(name.to_string(), ParamValue::Int(1));
+        }
+        let render = |o1_formatting: bool| -> crate::Result<Vec<String>> {
+            let output_dir = tempdir()?;
+            let generator = FlowGenerator::new(
+                output_dir.path(),
+                Model::new(SupportedTester::V93KSMT8),
+                o1_formatting,
+            );
+            let mut rendered: Vec<u8> = vec![];
+            generator.render_sorted_contents(
+                &mut rendered,
+                0,
+                None,
+                &values,
+                &indexmap::IndexMap::new(),
+                &indexmap::IndexMap::new(),
+            )?;
+            Ok(String::from_utf8(rendered)
+                .unwrap()
+                .lines()
+                .map(|l| l.split(' ').next().unwrap().to_string())
+                .collect())
+        };
+        assert_eq!(
+            render(true)?,
+            vec![
+                "Zed",
+                "alpha10",
+                "alpha2",
+                "logging",
+                "outputType",
+                "scan.SSN"
+            ]
+        );
+        assert_eq!(
+            render(false)?,
+            vec![
+                "alpha10",
+                "alpha2",
+                "logging",
+                "outputType",
+                "scan.SSN",
+                "Zed"
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn collection_parameters_are_in_definition_order_when_formatted_as_origen_1_does(
+    ) -> crate::Result<()> {
+        use crate::prog_gen::model::{TestCollection, TestCollectionItem};
+        use crate::prog_gen::ParamType;
+        let mut collection = TestCollection::new("variable");
+        for name in ["expression", "outputVariable", "outputType", "logging"] {
+            collection
+                .params
+                .insert(name.to_string(), ParamType::String);
+        }
+        let mut item = TestCollectionItem::from_collection(100, 1, "param0", &collection);
+        for name in ["logging", "outputType", "outputVariable", "expression"] {
+            item.values
+                .insert(name.to_string(), ParamValue::String(name.to_string()));
+        }
+        let mut suite_values = indexmap::IndexMap::new();
+        for name in ["testDescription.a", "binning.binnable"] {
+            suite_values.insert(name.to_string(), ParamValue::Int(1));
+        }
+        let mut collections = indexmap::IndexMap::new();
+        collections.insert("variable".to_string(), vec![100]);
+
+        let render = |o1_formatting: bool| -> crate::Result<Vec<String>> {
+            let output_dir = tempdir()?;
+            let mut model = Model::new(SupportedTester::V93KSMT8);
+            model.test_collection_items.insert(100, item.clone());
+            let generator = FlowGenerator::new(output_dir.path(), model, o1_formatting);
+            let mut rendered: Vec<u8> = vec![];
+            generator.render_sorted_contents(
+                &mut rendered,
+                0,
+                None,
+                &suite_values,
+                &indexmap::IndexMap::new(),
+                &collections,
+            )?;
+            Ok(String::from_utf8(rendered)
+                .unwrap()
+                .lines()
+                .map(|l| l.trim().split(' ').next().unwrap().to_string())
+                .collect())
+        };
+        assert_eq!(
+            render(true)?,
+            vec![
+                "binning.binnable",
+                "testDescription.a",
+                "variable[param0]",
+                "expression",
+                "outputVariable",
+                "outputType",
+                "logging",
+                "};"
+            ]
+        );
+        assert_eq!(
+            render(false)?,
+            vec![
+                "binning.binnable",
+                "testDescription.a",
+                "variable[param0]",
+                "expression",
+                "logging",
+                "outputType",
+                "outputVariable",
+                "};"
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_declared_output_is_not_initialized_when_formatted_as_origen_1_does() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::OutputVariable, "nativeOut".to_string()),
+            node!(PGM::OutputVariable, "BOTH".to_string()),
+            node!(PGM::SetFlag, "BOTH".to_string(), true, false),
+            node!(PGM::SetFlag, "EXPLICIT".to_string(), true, false)
+        );
+        let main = render_flows(flow.clone(), true)?
+            .remove("MAIN.flow")
+            .unwrap();
+        assert!(main.contains("    out nativeOut = -1;"), "{}", main);
+        assert!(
+            main.contains("    execute {\n        BOTH = -1;\n        EXPLICIT = -1;\n\n"),
+            "{}",
+            main
+        );
+        assert!(!main.contains("        nativeOut = -1;"), "{}", main);
+        // By default, it is initialized as before
+        let main = render_flows(flow, false)?.remove("MAIN.flow").unwrap();
+        assert!(main.contains("        nativeOut = -1;"), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flag_which_is_only_cleared_is_not_initialized_when_formatted_as_origen_1_does(
+    ) -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::OutputVariable, "CLEARED".to_string()),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["clear".to_string()]) =>
+                node!(PGM::SetFlag, "CLEARED".to_string(), false, false),
+                node!(PGM::SetFlag, "BOTH".to_string(), false, false)
+            ),
+            node!(PGM::SetFlag, "BOTH".to_string(), true, false)
+        );
+        let main = render_flows(flow.clone(), true)?
+            .remove("MAIN.flow")
+            .unwrap();
+        assert!(
+            main.contains("    execute {\n        BOTH = -1;\n\n        if (CLEAR == 1) {"),
+            "{}",
+            main
+        );
+        assert!(!main.contains("        CLEARED = -1;"), "{}", main);
+        assert!(main.contains("CLEARED = 0;"), "{}", main);
+        let main = render_flows(flow, false)?.remove("MAIN.flow").unwrap();
+        assert!(main.contains("        CLEARED = -1;"), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn the_flags_a_flow_sets_are_not_serialized_with_its_data() {
+        let mut data = super::FlowData::default();
+        data.set_flags.insert("X".to_string());
+        let serialized = serde_json::to_string(&data).unwrap();
+        assert!(!serialized.contains("set_flags"), "{}", serialized);
+        assert!(serialized.contains("modified_flags"), "{}", serialized);
+    }
+
     /// Renders the given flow AST for SMT8, with or without empty else branches, and returns the
     /// execute section of its top-level flow file
     fn render_execute(flow: crate::ast::Node<PGM>, empty_else: bool) -> crate::Result<String> {
@@ -2993,6 +3408,33 @@ mod tests {
             };
             assert_eq!(processed(true)?, processed(false)?, "{:?}", tester);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn a_kept_flow_gets_no_o1_variable_blocks_as_it_is_not_executed() -> crate::Result<()> {
+        let flow = main_flow(vec![resources(
+            true,
+            vec![flow_group(
+                "shared",
+                vec![if_enable("E", vec![test_str("t1")]), set_flag("F")],
+            )],
+        )]);
+        let flows = render_flows(flow, true)?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains("flow SHARED calls flows.main.SHARED { }"),
+            "{}",
+            main
+        );
+        assert!(!main.contains("sub-flow"), "{}", main);
+        assert!(!main.contains("SHARED."), "{}", main);
+        let shared = &flows["SHARED.flow"];
+        assert!(
+            shared.contains("    execute {\n        F = -1;\n"),
+            "{}",
+            shared
+        );
         Ok(())
     }
 }
