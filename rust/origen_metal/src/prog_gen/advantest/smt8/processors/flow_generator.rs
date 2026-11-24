@@ -99,6 +99,8 @@ struct FlowGenerator {
     limits_file: Option<BufWriter<std::fs::File>>,
     namespaces: Vec<String>,
     options: SMT8Config,
+    /// Format the flows as TPGF writes them, see Config::set_smt8_tpgf_formatting
+    tpgf_formatting: bool,
     writer: FileWriter,
 }
 
@@ -155,28 +157,26 @@ impl FlowFile {
 }
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
+    run_with_tpgf_formatting(
+        ast,
+        output_dir,
+        model,
+        crate::PROG_GEN_CONFIG.smt8_tpgf_formatting(),
+    )
+}
+
+/// As run, with the option to format the flows as TPGF does given, rather than taken from the
+/// config
+fn run_with_tpgf_formatting(
+    ast: &Node<PGM>,
+    output_dir: &Path,
+    model: Model,
+    tpgf_formatting: bool,
+) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
     //ast.to_file("smt8_flow.txt")?;
 
-    let mut p = FlowGenerator {
-        name: "".to_string(),
-        description: None,
-        name_override: None,
-        sub_flow_open: false,
-        bypass_sub_flows: false,
-        output_dir: output_dir.to_owned(),
-        generated_files: vec![],
-        model: model,
-        test_methods: BTreeMap::new(),
-        test_suites: BTreeMap::new(),
-        test_method_names: HashMap::new(),
-        resources_block: false,
-        flow_stack: vec![],
-        limits_file: None,
-        namespaces: vec![],
-        options: crate::PROG_GEN_CONFIG.smt8_options(),
-        writer: FileWriter::new(),
-    };
+    let mut p = FlowGenerator::new(output_dir, model, tpgf_formatting);
 
     let mut i = 0;
     for (_, t) in &p.model.tests {
@@ -202,6 +202,29 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
 }
 
 impl FlowGenerator {
+    fn new(output_dir: &Path, model: Model, tpgf_formatting: bool) -> FlowGenerator {
+        FlowGenerator {
+            name: "".to_string(),
+            description: None,
+            name_override: None,
+            sub_flow_open: false,
+            bypass_sub_flows: false,
+            output_dir: output_dir.to_owned(),
+            generated_files: vec![],
+            model: model,
+            test_methods: BTreeMap::new(),
+            test_suites: BTreeMap::new(),
+            test_method_names: HashMap::new(),
+            resources_block: false,
+            flow_stack: vec![],
+            limits_file: None,
+            namespaces: vec![],
+            options: crate::PROG_GEN_CONFIG.smt8_options(),
+            tpgf_formatting,
+            writer: FileWriter::new(),
+        }
+    }
+
     fn alpha_cmp(a: &str, b: &str) -> Ordering {
         a.to_ascii_lowercase()
             .cmp(&b.to_ascii_lowercase())
@@ -282,6 +305,59 @@ impl FlowGenerator {
             format!("{:.1}", value)
         } else {
             format!("{}", value)
+        }
+    }
+
+    /// Declares the given flow, which has just been rendered, in the current flow and executes it
+    /// there, passing its inputs in and its outputs back
+    fn call_flow(&mut self, flow: &FlowFile) {
+        let tpgf_formatting = self.tpgf_formatting;
+        let current_flow = self.flow_stack.last_mut().unwrap();
+        let inputs = flow.flow_data.sorted_input_vars();
+        let outputs: Vec<String> = flow
+            .flow_data
+            .sorted_output_flags()
+            .into_iter()
+            .filter(|v| {
+                current_flow.flow_data.output_flags.contains(v)
+                    || current_flow.flow_data.referenced_flags.contains(v)
+                    || current_flow.flow_data.downstream_flags.contains(v)
+            })
+            .collect();
+        // TPGF groups the assignments of each kind in a block headed by a comment
+        let open_block = |current_flow: &mut FlowFile, kind: &str| {
+            current_flow.execute_line(format!("// {} sub-flow {} variables", flow.name, kind));
+            current_flow.execute_line("{".to_string());
+            current_flow.indent += 1;
+        };
+        let close_block = |current_flow: &mut FlowFile| {
+            current_flow.indent -= 1;
+            current_flow.execute_line("}".to_string());
+        };
+        let grouped = tpgf_formatting && !inputs.is_empty();
+        if grouped {
+            open_block(current_flow, "input");
+        }
+        for v in &inputs {
+            current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
+        }
+        if grouped {
+            close_block(current_flow);
+        }
+        current_flow.execute_line(format!("{}.execute();", flow.name));
+        current_flow.sub_flows.push(flow.name.clone());
+        if self.bypass_sub_flows {
+            current_flow.bypassed_sub_flows.insert(flow.name.clone());
+        }
+        let grouped = tpgf_formatting && !outputs.is_empty();
+        if grouped {
+            open_block(current_flow, "output");
+        }
+        for v in &outputs {
+            current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
+        }
+        if grouped {
+            close_block(current_flow);
         }
     }
 
@@ -440,10 +516,12 @@ impl FlowGenerator {
         })
     }
 
+    /// Renders the parameters of a test suite (suite_level), or of a collection item within it
     fn render_sorted_contents<W: Write>(
         &self,
         f: &mut W,
         indent: usize,
+        suite_level: bool,
         values: &IndexMap<String, ParamValue>,
         default_values: &IndexMap<String, ParamValue>,
         collections: &IndexMap<String, Vec<usize>>,
@@ -473,7 +551,12 @@ impl FlowGenerator {
                 names.push(collection_name.clone());
             }
         }
-        names.sort_by(|a, b| Self::alpha_cmp(a, b));
+        if self.tpgf_formatting && suite_level {
+            // A test suite's parameters, TPGF orders them by the byte order of their names
+            names.sort();
+        } else {
+            names.sort_by(|a, b| Self::alpha_cmp(a, b));
+        }
         names.dedup();
 
         for name in names {
@@ -506,6 +589,7 @@ impl FlowGenerator {
                     self.render_sorted_contents(
                         f,
                         indent + 1,
+                        false,
                         &item.values,
                         &item.default_values,
                         &item.collections,
@@ -645,6 +729,7 @@ impl FlowGenerator {
                 self.render_sorted_contents(
                     &mut f,
                     3,
+                    true,
                     &test.values,
                     &test.definition.default_values,
                     &test.collections,
@@ -683,11 +768,23 @@ impl FlowGenerator {
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
         writeln!(&mut f, "    execute {{")?;
-        for v in flow_file.flow_data.sorted_modified_flags() {
-            writeln!(&mut f, "        {} = -1;", v)?;
-        }
-        if !flow_file.flow_data.output_flags.is_empty() {
-            writeln!(&mut f, "")?;
+        if self.tpgf_formatting {
+            // Only the flags which this flow sets itself are initialized, as TPGF does
+            let mut flags: Vec<&String> = flow_file.flow_data.modified_flags.iter().collect();
+            flags.sort();
+            for v in &flags {
+                writeln!(&mut f, "        {} = -1;", v)?;
+            }
+            if !flags.is_empty() {
+                writeln!(&mut f, "")?;
+            }
+        } else {
+            for v in flow_file.flow_data.sorted_modified_flags() {
+                writeln!(&mut f, "        {} = -1;", v)?;
+            }
+            if !flow_file.flow_data.output_flags.is_empty() {
+                writeln!(&mut f, "")?;
+            }
         }
         for line in &flow_file.execute_lines {
             writeln!(&mut f, "        {}", line)?;
@@ -783,23 +880,7 @@ impl Processor<PGM> for FlowGenerator {
                 self.bypass_sub_flows = orig_bypass;
                 self.sub_flow_open = orig;
                 let flow = self.close_flow_file(self.namespaces.last().cloned())?;
-                let current_flow = self.flow_stack.last_mut().unwrap();
-                for v in flow.flow_data.sorted_input_vars() {
-                    current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
-                }
-                current_flow.execute_line(format!("{}.execute();", flow.name));
-                current_flow.sub_flows.push(flow.name.clone());
-                if self.bypass_sub_flows {
-                    current_flow.bypassed_sub_flows.insert(flow.name.clone());
-                }
-                for v in flow.flow_data.sorted_output_flags() {
-                    if current_flow.flow_data.output_flags.contains(&v)
-                        || current_flow.flow_data.referenced_flags.contains(&v)
-                        || current_flow.flow_data.downstream_flags.contains(&v)
-                    {
-                        current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
-                    }
-                }
+                self.call_flow(&flow);
                 Return::None
             }
             PGM::Group(name, _, kind, _) => {
@@ -817,23 +898,7 @@ impl Processor<PGM> for FlowGenerator {
                     node.process_children(self)?;
                     self.bypass_sub_flows = orig_bypass;
                     let flow = self.close_flow_file(self.namespaces.last().cloned())?;
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    for v in flow.flow_data.sorted_input_vars() {
-                        current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
-                    }
-                    current_flow.execute_line(format!("{}.execute();", flow.name));
-                    current_flow.sub_flows.push(flow.name.clone());
-                    if self.bypass_sub_flows {
-                        current_flow.bypassed_sub_flows.insert(flow.name.clone());
-                    }
-                    for v in flow.flow_data.sorted_output_flags() {
-                        if current_flow.flow_data.output_flags.contains(&v)
-                            || current_flow.flow_data.referenced_flags.contains(&v)
-                            || current_flow.flow_data.downstream_flags.contains(&v)
-                        {
-                            current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
-                        }
-                    }
+                    self.call_flow(&flow);
                     self.render_result_branches(&node.children, &flow.name, false)?;
                 } else {
                     node.process_children(self)?;
@@ -1259,7 +1324,7 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, FileWriter, FlowGenerator};
+    use super::{run, run_with_tpgf_formatting, FileWriter, FlowGenerator};
     use crate::prog_gen::{
         process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
         SupportedTester, PGM,
@@ -2501,6 +2566,180 @@ mod tests {
         assert!(flow.contains("if (!primary_check_retest.pass) {"));
         assert!(
             !flow.contains("primary_check.execute();\n        if (!primary_check_retest.pass) {")
+        );
+        Ok(())
+    }
+
+    /// Renders the given flow AST for SMT8, formatted as TPGF does or not, and returns the content
+    /// of every flow file by its name
+    fn render_flows(
+        flow: crate::ast::Node<PGM>,
+        tpgf_formatting: bool,
+    ) -> crate::Result<std::collections::HashMap<String, String>> {
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) =
+            run_with_tpgf_formatting(&ast, output_dir.path(), model, tpgf_formatting)?;
+        let mut flows = std::collections::HashMap::new();
+        for path in files {
+            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            if name.ends_with(".flow") {
+                flows.insert(name, fs::read_to_string(&path)?);
+            }
+        }
+        Ok(flows)
+    }
+
+    fn tpgf_example() -> crate::ast::Node<PGM> {
+        let test = |name: &str| {
+            node!(
+                PGM::TestStr,
+                name.to_string(),
+                FlowID::from_str(name),
+                None,
+                None,
+                None
+            )
+        };
+        node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::SubFlow, "vmin".to_string(), None =>
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["CONTINUE_ON_FAIL".to_string()]) =>
+                    test("t1")
+                ),
+                node!(PGM::SetFlag, "RUN_FALLBACK_TRUE".to_string(), true, false)
+            ),
+            node!(PGM::Group, "plain".to_string(), None, GroupType::Flow, Some(FlowID::from_str("plain")) =>
+                test("t2")
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["RUN_FALLBACK_TRUE".to_string()]) =>
+                test("t3")
+            )
+        )
+    }
+
+    #[test]
+    fn flows_are_formatted_as_tpgf_does_when_asked() -> crate::Result<()> {
+        let flows = render_flows(tpgf_example(), true)?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains(
+                "    execute {\n\
+                \x20       // VMIN sub-flow input variables\n\
+                \x20       {\n\
+                \x20           VMIN.CONTINUE_ON_FAIL = CONTINUE_ON_FAIL;\n\
+                \x20       }\n\
+                \x20       VMIN.execute();\n\
+                \x20       // VMIN sub-flow output variables\n\
+                \x20       {\n\
+                \x20           RUN_FALLBACK_TRUE = VMIN.RUN_FALLBACK_TRUE;\n\
+                \x20       }\n\
+                \x20       PLAIN.execute();\n"
+            ),
+            "{}",
+            main
+        );
+        // A flag which only a sub-flow sets is declared, but not initialized
+        assert!(main.contains("    out RUN_FALLBACK_TRUE = -1;"), "{}", main);
+        assert!(
+            !main.contains("        RUN_FALLBACK_TRUE = -1;"),
+            "{}",
+            main
+        );
+        // The sub-flow which sets it initializes it
+        let vmin = &flows["VMIN.flow"];
+        assert!(
+            vmin.contains("    execute {\n        RUN_FALLBACK_TRUE = -1;\n\n"),
+            "{}",
+            vmin
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn flows_are_formatted_as_before_by_default() -> crate::Result<()> {
+        let flows = render_flows(tpgf_example(), false)?;
+        let main = &flows["MAIN.flow"];
+        assert!(
+            main.contains(
+                "    execute {\n\
+                \x20       RUN_FALLBACK_TRUE = -1;\n\
+                \n\
+                \x20       VMIN.CONTINUE_ON_FAIL = CONTINUE_ON_FAIL;\n\
+                \x20       VMIN.execute();\n\
+                \x20       RUN_FALLBACK_TRUE = VMIN.RUN_FALLBACK_TRUE;\n\
+                \x20       PLAIN.execute();\n"
+            ),
+            "{}",
+            main
+        );
+        assert!(!main.contains("sub-flow"), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn suite_parameters_are_ordered_by_byte_order_when_formatted_as_tpgf_does() -> crate::Result<()>
+    {
+        let mut values = indexmap::IndexMap::new();
+        for name in [
+            "scan.SSN",
+            "logging",
+            "outputType",
+            "Zed",
+            "alpha2",
+            "alpha10",
+        ] {
+            values.insert(name.to_string(), ParamValue::Int(1));
+        }
+        let render = |tpgf_formatting: bool| -> crate::Result<Vec<String>> {
+            let output_dir = tempdir()?;
+            let generator = FlowGenerator::new(
+                output_dir.path(),
+                Model::new(SupportedTester::V93KSMT8),
+                tpgf_formatting,
+            );
+            let mut rendered: Vec<u8> = vec![];
+            generator.render_sorted_contents(
+                &mut rendered,
+                0,
+                true,
+                &values,
+                &indexmap::IndexMap::new(),
+                &indexmap::IndexMap::new(),
+            )?;
+            Ok(String::from_utf8(rendered)
+                .unwrap()
+                .lines()
+                .map(|l| l.split(' ').next().unwrap().to_string())
+                .collect())
+        };
+        assert_eq!(
+            render(true)?,
+            vec![
+                "Zed",
+                "alpha10",
+                "alpha2",
+                "logging",
+                "outputType",
+                "scan.SSN"
+            ]
+        );
+        assert_eq!(
+            render(false)?,
+            vec![
+                "alpha10",
+                "alpha2",
+                "logging",
+                "outputType",
+                "scan.SSN",
+                "Zed"
+            ]
         );
         Ok(())
     }

@@ -15,6 +15,8 @@ pub struct Config {
     uniqueness_option: RwLock<Option<UniquenessOption>>,
     smt7: RwLock<SMT7Config>,
     smt8: RwLock<SMT8Config>,
+    /// Format V93K SMT8 flows as TPGF (origen_testers) writes them
+    smt8_tpgf_formatting: RwLock<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +47,7 @@ impl Default for Config {
                 create_limits_file: true,
                 render_default_tmparams: true,
             }),
+            smt8_tpgf_formatting: RwLock::new(false),
         }
     }
 }
@@ -134,5 +137,21 @@ impl Config {
 
     pub fn smt8_options(&self) -> SMT8Config {
         self.smt8.read().clone()
+    }
+
+    /// Set whether V93K SMT8 flows are formatted as TPGF (origen_testers) writes them, which is
+    /// off by default. When on:
+    /// * a sub-flow's input assignments, and its output copies, are each grouped in a block
+    ///   headed by a `// <NAME> sub-flow input variables` (or `output`) comment;
+    /// * only the flags which a flow sets itself are initialized to -1 at the start of it, not
+    ///   those which only its sub-flows set;
+    /// * a test suite's parameters are ordered by the byte order of their names.
+    pub fn set_smt8_tpgf_formatting(&self, tpgf_formatting: bool) {
+        *self.smt8_tpgf_formatting.write() = tpgf_formatting;
+    }
+
+    /// Returns true if V93K SMT8 flows are formatted as TPGF (origen_testers) writes them
+    pub fn smt8_tpgf_formatting(&self) -> bool {
+        *self.smt8_tpgf_formatting.read()
     }
 }

@@ -116,9 +116,18 @@ fn set_smt7_options(render_default_tm_params: bool) -> PyResult<()> {
     Ok(())
 }
 
+/// Sets the V93K SMT8 options. With tpgf_formatting=True, flows are formatted as TPGF
+/// (origen_testers) writes them, see Config::set_smt8_tpgf_formatting. Like the other options,
+/// tpgf_formatting takes its default when it is not given.
 #[pyfunction]
-fn set_smt8_options(create_limits_file: bool, render_default_tm_params: bool) -> PyResult<()> {
+#[pyo3(signature=(create_limits_file, render_default_tm_params, tpgf_formatting=false))]
+fn set_smt8_options(
+    create_limits_file: bool,
+    render_default_tm_params: bool,
+    tpgf_formatting: bool,
+) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_smt8_options(create_limits_file, render_default_tm_params);
+    origen_metal::PROG_GEN_CONFIG.set_smt8_tpgf_formatting(tpgf_formatting);
     Ok(())
 }
 

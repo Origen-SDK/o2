@@ -191,3 +191,29 @@ def test_variable_names_must_be_identifiers(api, name):
     with pytest.raises(RuntimeError, match="must be an identifier"):
         getattr(interface, api)(name)
     om.prog_gen.end_flow(refs)
+
+
+@pytest.mark.parametrize("tpgf_formatting", [None, False, True])
+def test_smt8_tpgf_formatting_option(tmp_path, tpgf_formatting):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("main", None, None, None)
+    sub_refs = om.prog_gen.start_new_flow("vmin", True, None, None)
+    with interface.if_enable("e"):
+        interface.set_flag("done")
+    om.prog_gen.end_flow(sub_refs)
+    om.prog_gen.end_flow(refs)
+    try:
+        if tpgf_formatting is None:
+            om.prog_gen.set_smt8_options(False, False)
+        else:
+            om.prog_gen.set_smt8_options(False, False, tpgf_formatting=tpgf_formatting)
+        files = om.prog_gen.render_program_for("v93ksmt8", str(tmp_path / "flows"))
+    finally:
+        om.prog_gen.set_smt8_options(True, True)
+    flow = next(f for f in files if str(f).endswith("MAIN.flow"))
+    rendered = open(flow).read()
+    if tpgf_formatting:
+        assert "// VMIN sub-flow input variables\n        {\n            VMIN.E = E;\n        }\n" in rendered
+    else:
+        assert "sub-flow" not in rendered
+        assert "        VMIN.E = E;\n        VMIN.execute();\n" in rendered
