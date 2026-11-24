@@ -34,8 +34,10 @@ pub struct FlowData {
     pub output_flags: HashSet<String>,
     pub input_enables: HashSet<String>,
     pub modified_flags: HashSet<String>,
-    /// Flags which this flow sets itself, the modified flags without the declared outputs which
-    /// it does not set
+    /// Flags which this flow sets true itself, unlike modified_flags this does not include the
+    /// declared outputs which it does not set, or the flags which it only clears. Only used to
+    /// render the flow, it is not serialized with the AST.
+    #[serde(skip_serializing)]
     pub set_flags: HashSet<String>,
     pub auto_flags: HashSet<String>,
     pub downstream_flags: HashSet<String>,
@@ -198,13 +200,16 @@ impl Processor<PGM> for Collector {
                     return Ok(Return::Replace(n));
                 }
             }
-            PGM::SetFlag(flag, _state, is_auto_generated) => {
+            PGM::SetFlag(flag, state, is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flows.last_mut().unwrap();
                 if *is_auto_generated {
                     current_flow.auto_flags.insert(flag.clone());
                 }
-                current_flow.set_flags.insert(flag.clone());
+                // As TPGF, which initializes the flags a flow sets, not those it only clears
+                if *state {
+                    current_flow.set_flags.insert(flag.clone());
+                }
                 current_flow.modified_flags.insert(flag);
             }
             PGM::OutputVariable(name) => {

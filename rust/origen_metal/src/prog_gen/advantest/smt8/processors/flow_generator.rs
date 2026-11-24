@@ -2862,6 +2862,41 @@ mod tests {
         assert!(main.contains("        nativeOut = -1;"), "{}", main);
         Ok(())
     }
+
+    #[test]
+    fn a_flag_which_is_only_cleared_is_not_initialized_when_formatted_as_tpgf_does(
+    ) -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::OutputVariable, "CLEARED".to_string()),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["clear".to_string()]) =>
+                node!(PGM::SetFlag, "CLEARED".to_string(), false, false),
+                node!(PGM::SetFlag, "BOTH".to_string(), false, false)
+            ),
+            node!(PGM::SetFlag, "BOTH".to_string(), true, false)
+        );
+        let main = render_flows(flow.clone(), true)?
+            .remove("MAIN.flow")
+            .unwrap();
+        assert!(
+            main.contains("    execute {\n        BOTH = -1;\n\n        if (CLEAR == 1) {"),
+            "{}",
+            main
+        );
+        assert!(!main.contains("        CLEARED = -1;"), "{}", main);
+        assert!(main.contains("CLEARED = 0;"), "{}", main);
+        let main = render_flows(flow, false)?.remove("MAIN.flow").unwrap();
+        assert!(main.contains("        CLEARED = -1;"), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn the_flags_a_flow_sets_are_not_serialized_with_its_data() {
+        let mut data = super::FlowData::default();
+        data.set_flags.insert("X".to_string());
+        let serialized = serde_json::to_string(&data).unwrap();
+        assert!(!serialized.contains("set_flags"), "{}", serialized);
+        assert!(serialized.contains("modified_flags"), "{}", serialized);
+    }
 }
 
 fn extract_bin(nodes: &Vec<Box<Node<PGM>>>) -> (Option<usize>, Option<usize>) {
