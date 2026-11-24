@@ -100,6 +100,8 @@ struct FlowGenerator {
     limits_file: Option<BufWriter<std::fs::File>>,
     namespaces: Vec<String>,
     options: SMT8Config,
+    /// Render an else branch which has no content, see Config::set_smt8_empty_else
+    empty_else: bool,
     /// Format the flows as TPGF writes them, see Config::set_smt8_tpgf_formatting
     tpgf_formatting: bool,
     writer: FileWriter,
@@ -158,26 +160,53 @@ impl FlowFile {
 }
 
 pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
-    run_with_tpgf_formatting(
+    run_with(
         ast,
         output_dir,
         model,
+        crate::PROG_GEN_CONFIG.smt8_empty_else(),
         crate::PROG_GEN_CONFIG.smt8_tpgf_formatting(),
     )
 }
 
+/// As run, with the option to render an empty else given, rather than taken from the config
+#[cfg(test)]
+fn run_with_empty_else(
+    ast: &Node<PGM>,
+    output_dir: &Path,
+    model: Model,
+    empty_else: bool,
+) -> Result<(Model, Vec<PathBuf>)> {
+    let tpgf_formatting = crate::PROG_GEN_CONFIG.smt8_tpgf_formatting();
+    run_with(ast, output_dir, model, empty_else, tpgf_formatting)
+}
+
 /// As run, with the option to format the flows as TPGF does given, rather than taken from the
 /// config
+#[cfg(test)]
 fn run_with_tpgf_formatting(
     ast: &Node<PGM>,
     output_dir: &Path,
     model: Model,
     tpgf_formatting: bool,
 ) -> Result<(Model, Vec<PathBuf>)> {
+    let empty_else = crate::PROG_GEN_CONFIG.smt8_empty_else();
+    run_with(ast, output_dir, model, empty_else, tpgf_formatting)
+}
+
+/// As run, with the options given, rather than taken from the config
+fn run_with(
+    ast: &Node<PGM>,
+    output_dir: &Path,
+    model: Model,
+    empty_else: bool,
+    tpgf_formatting: bool,
+) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
     //ast.to_file("smt8_flow.txt")?;
 
     let mut p = FlowGenerator::new(output_dir, model, tpgf_formatting);
+    p.empty_else = empty_else;
 
     let mut i = 0;
     for (_, t) in &p.model.tests {
@@ -221,6 +250,7 @@ impl FlowGenerator {
             limits_file: None,
             namespaces: vec![],
             options: crate::PROG_GEN_CONFIG.smt8_options(),
+            empty_else: crate::PROG_GEN_CONFIG.smt8_empty_else(),
             tpgf_formatting,
             writer: FileWriter::new(),
         }
@@ -307,6 +337,69 @@ impl FlowGenerator {
         } else {
             format!("{}", value)
         }
+    }
+
+    /// Renders a condition as `if (<expression>) { ... } else { ... }`. The node's content is the
+    /// first branch when positive (an if_* condition), else the second (an unless_* condition), and
+    /// the content of its Else child, if any, is the other branch. When the option to render an
+    /// empty else is off, the else is left out when it has no content.
+    fn render_condition(
+        &mut self,
+        node: &Node<PGM>,
+        expression: &str,
+        positive: bool,
+    ) -> Result<()> {
+        let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
+        {
+            let current_flow = self.flow_stack.last_mut().unwrap();
+            current_flow.execute_line(format!("if ({}) {{", expression));
+            current_flow.indent += 1;
+        }
+        if positive {
+            node.process_children(self)?;
+        } else if let Some(else_node) = else_node {
+            else_node.process_children(self)?;
+        }
+        if self.empty_else {
+            {
+                let current_flow = self.flow_stack.last_mut().unwrap();
+                current_flow.indent -= 1;
+                current_flow.execute_line("} else {".to_string());
+                current_flow.indent += 1;
+            }
+            self.render_else_branch(node, else_node, positive)?;
+            let current_flow = self.flow_stack.last_mut().unwrap();
+            current_flow.indent -= 1;
+            current_flow.execute_line("}".to_string());
+        } else {
+            self.flow_stack.last_mut().unwrap().start_execute_buffer();
+            let rendered = self.render_else_branch(node, else_node, positive);
+            let current_flow = self.flow_stack.last_mut().unwrap();
+            let lines = current_flow.finish_execute_buffer();
+            rendered?;
+            current_flow.indent -= 1;
+            if !lines.is_empty() {
+                current_flow.execute_line("} else {".to_string());
+                current_flow.flush_buffered_execute_lines(lines, 0);
+            }
+            current_flow.execute_line("}".to_string());
+        }
+        Ok(())
+    }
+
+    /// Renders the second branch of a condition, see render_condition
+    fn render_else_branch(
+        &mut self,
+        node: &Node<PGM>,
+        else_node: Option<&Box<Node<PGM>>>,
+        positive: bool,
+    ) -> Result<()> {
+        if !positive {
+            node.process_children(self)?;
+        } else if let Some(else_node) = else_node {
+            else_node.process_children(self)?;
+        }
+        Ok(())
     }
 
     /// Renders the content of the given flow-type group or sub-flow node into the flow file which
@@ -1075,169 +1168,50 @@ impl Processor<PGM> for FlowGenerator {
             PGM::Else => Return::None,        // Handled by its parent
             PGM::Condition(cond) => match cond {
                 FlowCondition::IfJob(jobs) | FlowCondition::UnlessJob(jobs) => {
-                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.execute_line(format!(
-                            "if ({}) {{",
-                            jobs.iter()
-                                .map(|j| {
-                                    if jobs.len() > 1 {
-                                        format!("(JOB == \"{}\")", j.to_uppercase())
-                                    } else {
-                                        format!("JOB == \"{}\"", j.to_uppercase())
-                                    }
-                                })
-                                .collect::<Vec<String>>()
-                                .join(" || ")
-                        ));
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::IfJob(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.indent -= 1;
-                        current_flow.execute_line("} else {".to_string());
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::UnlessJob(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    current_flow.indent -= 1;
-                    current_flow.execute_line("}".to_string());
+                    let expression = jobs
+                        .iter()
+                        .map(|j| {
+                            if jobs.len() > 1 {
+                                format!("(JOB == \"{}\")", j.to_uppercase())
+                            } else {
+                                format!("JOB == \"{}\"", j.to_uppercase())
+                            }
+                        })
+                        .collect::<Vec<String>>()
+                        .join(" || ");
+                    self.render_condition(
+                        node,
+                        &expression,
+                        matches!(cond, FlowCondition::IfJob(_)),
+                    )?;
                     Return::None
                 }
-                FlowCondition::IfEnable(flags) | FlowCondition::UnlessEnable(flags) => {
-                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.execute_line(format!(
-                            "if ({}) {{",
-                            flags
-                                .iter()
-                                .map(|f| {
-                                    if flags.len() > 1 {
-                                        format!("({} == 1)", f.to_uppercase())
-                                    } else {
-                                        format!("{} == 1", f.to_uppercase())
-                                    }
-                                })
-                                .collect::<Vec<String>>()
-                                .join(" || ")
-                        ));
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::IfEnable(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.indent -= 1;
-                        current_flow.execute_line("} else {".to_string());
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::UnlessEnable(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    current_flow.indent -= 1;
-                    current_flow.execute_line("}".to_string());
-                    Return::None
-                }
-                FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
-                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.execute_line(format!(
-                            "if ({}) {{",
-                            flags
-                                .iter()
-                                .map(|f| {
-                                    if flags.len() > 1 {
-                                        format!("({} == 1)", f.to_uppercase())
-                                    } else {
-                                        format!("{} == 1", f.to_uppercase())
-                                    }
-                                })
-                                .collect::<Vec<String>>()
-                                .join(" || ")
-                        ));
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::IfFlag(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.indent -= 1;
-                        current_flow.execute_line("} else {".to_string());
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::UnlessFlag(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    current_flow.indent -= 1;
-                    current_flow.execute_line("}".to_string());
+                FlowCondition::IfEnable(flags)
+                | FlowCondition::UnlessEnable(flags)
+                | FlowCondition::IfFlag(flags)
+                | FlowCondition::UnlessFlag(flags) => {
+                    let expression = flags
+                        .iter()
+                        .map(|f| {
+                            if flags.len() > 1 {
+                                format!("({} == 1)", f.to_uppercase())
+                            } else {
+                                format!("{} == 1", f.to_uppercase())
+                            }
+                        })
+                        .collect::<Vec<String>>()
+                        .join(" || ");
+                    let positive =
+                        matches!(cond, FlowCondition::IfEnable(_) | FlowCondition::IfFlag(_));
+                    self.render_condition(node, &expression, positive)?;
                     Return::None
                 }
                 FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
-                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.execute_line(format!("if ({}) {{", expression));
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::IfExpr(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    {
-                        let current_flow = self.flow_stack.last_mut().unwrap();
-                        current_flow.indent -= 1;
-                        current_flow.execute_line("} else {".to_string());
-                        current_flow.indent += 1;
-                    }
-                    if matches!(cond, FlowCondition::UnlessExpr(_)) {
-                        node.process_children(self)?;
-                    } else {
-                        if let Some(else_node) = else_node {
-                            else_node.process_children(self)?;
-                        }
-                    }
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    current_flow.indent -= 1;
-                    current_flow.execute_line("}".to_string());
+                    self.render_condition(
+                        node,
+                        expression,
+                        matches!(cond, FlowCondition::IfExpr(_)),
+                    )?;
                     Return::None
                 }
                 _ => Return::ProcessChildren,
@@ -1369,7 +1343,7 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, run_with_tpgf_formatting, FileWriter, FlowGenerator};
+    use super::{run, run_with_empty_else, run_with_tpgf_formatting, FileWriter, FlowGenerator};
     use crate::prog_gen::{
         process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
         SupportedTester, PGM,
@@ -2947,6 +2921,129 @@ mod tests {
         let serialized = serde_json::to_string(&data).unwrap();
         assert!(!serialized.contains("set_flags"), "{}", serialized);
         assert!(serialized.contains("modified_flags"), "{}", serialized);
+    }
+
+    /// Renders the given flow AST for SMT8, with or without empty else branches, and returns the
+    /// execute section of its top-level flow file
+    fn render_execute(flow: crate::ast::Node<PGM>, empty_else: bool) -> crate::Result<String> {
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run_with_empty_else(&ast, output_dir.path(), model, empty_else)?;
+        let flow = fs::read_to_string(
+            files
+                .iter()
+                .find(|path| path.file_name().and_then(|name| name.to_str()) == Some("MAIN.flow"))
+                .expect("expected generated SMT8 flow file"),
+        )?;
+        Ok(flow.split_once("    execute {\n").unwrap().1.to_string())
+    }
+
+    fn condition(
+        condition: FlowCondition,
+        children: Vec<crate::ast::Node<PGM>>,
+    ) -> crate::ast::Node<PGM> {
+        let mut node = node!(PGM::Condition, condition);
+        for child in children {
+            node.add_child(child);
+        }
+        node
+    }
+
+    #[test]
+    fn an_empty_else_is_rendered_unless_turned_off() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("i".to_string()), false, 1 =>
+                condition(FlowCondition::IfExpr("x.pass".to_string()), vec![test_str("t1")])
+            ),
+            condition(FlowCondition::IfJob(vec!["ws".to_string()]), vec![test_str("t2")]),
+            condition(FlowCondition::IfEnable(vec!["e".to_string()]), vec![test_str("t3")]),
+            condition(FlowCondition::IfFlag(vec!["f".to_string()]), vec![test_str("t4")])
+        );
+        let rendered = render_execute(flow.clone(), true)?;
+        assert_eq!(
+            rendered,
+            "        for (i : 1..2) {\n\
+            \x20           if (x.pass) {\n\
+            \x20               t1.execute();\n\
+            \x20           } else {\n\
+            \x20           }\n\
+            \x20       }\n\
+            \x20       if (JOB == \"WS\") {\n\
+            \x20           t2.execute();\n\
+            \x20       } else {\n\
+            \x20       }\n\
+            \x20       if (E == 1) {\n\
+            \x20           t3.execute();\n\
+            \x20       } else {\n\
+            \x20       }\n\
+            \x20       if (F == 1) {\n\
+            \x20           t4.execute();\n\
+            \x20       } else {\n\
+            \x20       }\n\
+            \x20   }\n\
+            }\n"
+        );
+        let rendered = render_execute(flow, false)?;
+        assert_eq!(
+            rendered,
+            "        for (i : 1..2) {\n\
+            \x20           if (x.pass) {\n\
+            \x20               t1.execute();\n\
+            \x20           }\n\
+            \x20       }\n\
+            \x20       if (JOB == \"WS\") {\n\
+            \x20           t2.execute();\n\
+            \x20       }\n\
+            \x20       if (E == 1) {\n\
+            \x20           t3.execute();\n\
+            \x20       }\n\
+            \x20       if (F == 1) {\n\
+            \x20           t4.execute();\n\
+            \x20       }\n\
+            \x20   }\n\
+            }\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_else_with_content_is_rendered_when_empty_else_is_off() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main".to_string() =>
+            // Content only in the else branch
+            condition(FlowCondition::UnlessFlag(vec!["f".to_string()]), vec![test_str("t1")]),
+            // Content in both branches, with an empty else nested in the else branch
+            condition(FlowCondition::IfExpr("a".to_string()), vec![
+                test_str("t2"),
+                node!(PGM::Else =>
+                    condition(FlowCondition::IfExpr("b".to_string()), vec![test_str("t3")])
+                ),
+            ])
+        );
+        let rendered = render_execute(flow, false)?;
+        assert_eq!(
+            rendered,
+            "        if (F == 1) {\n\
+            \x20       } else {\n\
+            \x20           t1.execute();\n\
+            \x20       }\n\
+            \x20       if (a) {\n\
+            \x20           t2.execute();\n\
+            \x20       } else {\n\
+            \x20           if (b) {\n\
+            \x20               t3.execute();\n\
+            \x20           }\n\
+            \x20       }\n\
+            \x20   }\n\
+            }\n"
+        );
+        Ok(())
     }
 
     /// Renders the given flow AST for SMT8 and returns the name and content of every flow file

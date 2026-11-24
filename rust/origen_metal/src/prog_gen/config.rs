@@ -16,6 +16,8 @@ pub struct Config {
     uniqueness_option: RwLock<Option<UniquenessOption>>,
     smt7: RwLock<SMT7Config>,
     smt8: RwLock<SMT8Config>,
+    /// Render an empty else branch of a V93K SMT8 condition
+    smt8_empty_else: RwLock<bool>,
     /// Format V93K SMT8 flows as TPGF (origen_testers) writes them
     smt8_tpgf_formatting: RwLock<bool>,
 }
@@ -48,6 +50,7 @@ impl Default for Config {
                 create_limits_file: true,
                 render_default_tmparams: true,
             }),
+            smt8_empty_else: RwLock::new(true),
             smt8_tpgf_formatting: RwLock::new(false),
         }
     }
@@ -148,6 +151,18 @@ impl Config {
 
     pub fn smt8_options(&self) -> SMT8Config {
         self.smt8.read().clone()
+    }
+
+    /// Set whether a V93K SMT8 condition renders its else branch when it has no content, as
+    /// `if (...) { ... } else { }`, which it does by default. When false, the else is left out,
+    /// `if (...) { ... }`.
+    pub fn set_smt8_empty_else(&self, empty_else: bool) {
+        *self.smt8_empty_else.write() = empty_else;
+    }
+
+    /// Returns true if a V93K SMT8 condition renders its else branch when it has no content
+    pub fn smt8_empty_else(&self) -> bool {
+        *self.smt8_empty_else.read()
     }
 
     /// Set whether V93K SMT8 flows are formatted as TPGF (origen_testers) writes them, which is
