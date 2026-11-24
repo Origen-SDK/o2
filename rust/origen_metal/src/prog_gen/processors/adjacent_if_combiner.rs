@@ -2,6 +2,7 @@ use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::expressions::expression_variables;
 use crate::prog_gen::{FlowCondition, GroupType, PGM};
 use crate::Result;
+use std::collections::HashMap;
 
 /// This combines adjacent if flag nodes where the flag is in the opposite state, and likewise
 /// adjacent enable and expression conditions
@@ -38,12 +39,31 @@ pub struct AdjacentIfCombiner {
     volatiles: Vec<String>,
     /// Variables declared as outputs, which tests may change natively
     outputs: Vec<String>,
+    /// The names of the test invocations, by their IDs
+    test_names: HashMap<usize, String>,
+    /// The tester renames a suite whose name is used again in the flow to <name>_<n>
+    renames_suites: bool,
 }
 
+/// Combines the adjacent opposite conditions, a test whose name is not known may be any test
+#[cfg(test)]
 pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
+    run_with_test_names(node, HashMap::new(), false)
+}
+
+/// Combines the adjacent opposite conditions, with the names of the test invocations, by their
+/// IDs, to tell which tests a condition runs. When the tester renames a suite whose name is used
+/// again to <name>_<n>, a reference to <name>_<n> may be a test named <name>.
+pub fn run_with_test_names(
+    node: &Node<PGM>,
+    test_names: HashMap<usize, String>,
+    renames_suites: bool,
+) -> Result<Node<PGM>> {
     let mut p = AdjacentIfCombiner {
         volatiles: vec![],
         outputs: super::declared_output_variables(node),
+        test_names,
+        renames_suites,
     };
     let ast = node.process(&mut p)?.unwrap();
 
@@ -147,7 +167,7 @@ impl AdjacentIfCombiner {
     /// Returns true if the given flag or variable is declared volatile. Flags are rendered upper
     /// case, so a declaration in another case may be the same variable, it is treated as the same
     fn is_volatile(&self, name: &str) -> bool {
-        self.volatiles.iter().any(|v| v.eq_ignore_ascii_case(name))
+        self.volatiles.iter().any(|v| same_name(v, name))
     }
 
     /// Nodes won't be collapsed if node1 touches the shared run flag, enable or expression
@@ -169,13 +189,24 @@ impl AdjacentIfCombiner {
                 }
                 FlowCondition::IfExpr(expression) | FlowCondition::UnlessExpr(expression) => {
                     let variables = expression_variables(expression);
-                    // A test executed by node1 may change a volatile variable, or the result of a
-                    // test which the expression reads, e.g. t.pass
-                    if (variables
+                    // A test executed by node1 may change a volatile variable
+                    if variables
                         .iter()
                         .any(|v| self.is_volatile(v) || self.outputs.contains(v))
-                        || reads_a_reference(expression))
                         && ContainsATest::run(node1)
+                    {
+                        return false;
+                    }
+                    // Or the result of a test or flow which the expression reads, e.g. t.pass, when
+                    // node1 executes it again
+                    let objects = referenced_objects(expression);
+                    if !objects.is_empty()
+                        && ExecutesOneOf::run(
+                            node1,
+                            &objects,
+                            &self.test_names,
+                            self.renames_suites,
+                        )
                     {
                         return false;
                     }
@@ -199,13 +230,27 @@ fn has_else(node: &Node<PGM>) -> bool {
 /// Returns true if the given text mentions the given name as an identifier, compared without
 /// regard to case, e.g. `F = 0;` mentions F and `probe.execute();` mentions probe and execute
 fn mentions_identifier(text: &str, name: &str) -> bool {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-        .any(|word| word.eq_ignore_ascii_case(name))
+    text.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$'))
+        .any(|word| same_name(word, name))
+}
+
+/// Returns true if the given names are the same as flags are rendered, upper case, e.g. straße
+/// and STRASSE
+fn same_name(a: &str, b: &str) -> bool {
+    a == b || a.to_uppercase() == b.to_uppercase()
 }
 
 /// Returns true if the given expression reads a reference to an attribute of something, e.g. the
 /// result of a test, t.pass, which expression_variables does not return
+#[cfg(test)]
 fn reads_a_reference(expression: &str) -> bool {
+    !referenced_objects(expression).is_empty()
+}
+
+/// Returns the names of the things whose attributes the given expression reads, e.g. t for the
+/// result of a test, t.pass, which expression_variables does not return
+fn referenced_objects(expression: &str) -> Vec<String> {
+    let mut objects = vec![];
     let chars: Vec<char> = expression.chars().collect();
     let mut i = 0;
     while i < chars.len() {
@@ -226,6 +271,7 @@ fn reads_a_reference(expression: &str) -> bool {
                 i += 1;
             }
         } else if c.is_ascii_alphabetic() || c == '_' {
+            let start = i;
             while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
                 i += 1;
             }
@@ -241,14 +287,124 @@ fn reads_a_reference(expression: &str) -> bool {
                     j += 1;
                 }
                 if j < chars.len() && (chars[j].is_ascii_alphabetic() || chars[j] == '_') {
-                    return true;
+                    objects.push(chars[start..i].iter().collect());
                 }
             }
         } else {
             i += 1;
         }
     }
-    false
+    objects
+}
+
+/// Returns true if the given test name may be the given object: the same name, or when the tester
+/// renames a suite whose name is used again, the name with a _<n> suffix. A name which only
+/// starts with the object's name, e.g. probe_passed for probe, is another test.
+fn may_be_suite(name: &str, object: &str, renames_suites: bool) -> bool {
+    object == name
+        || (renames_suites
+            && object
+                .strip_prefix(name)
+                .and_then(|rest| rest.strip_prefix('_'))
+                .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit())))
+}
+
+/// Returns true if the given flow name, as rendered, may be the given object, compared without
+/// regard to case and allowing for the _<n> suffix of a flow instance made unique within its flow
+fn may_be_flow(name: &str, object: &str) -> bool {
+    let name = name
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("_")
+        .to_uppercase();
+    let object = object.to_uppercase();
+    object == name
+        || object
+            .strip_prefix(&name)
+            .and_then(|rest| rest.strip_prefix('_'))
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// Finds whether a node may execute a test or flow with one of the given names: a test, a test
+/// whose name is not known, a flow group or sub-flow, or a raw statement or call which mentions
+/// it
+struct ExecutesOneOf<'a> {
+    objects: &'a [String],
+    test_names: &'a HashMap<usize, String>,
+    renames_suites: bool,
+    found: bool,
+}
+
+impl<'a> ExecutesOneOf<'a> {
+    fn run(
+        node: &Node<PGM>,
+        objects: &'a [String],
+        test_names: &'a HashMap<usize, String>,
+        renames_suites: bool,
+    ) -> bool {
+        let mut p = ExecutesOneOf {
+            objects,
+            test_names,
+            renames_suites,
+            found: false,
+        };
+        let _ = node.process(&mut p);
+        p.found
+    }
+
+    fn may_be_a_suite(&self, name: &str) -> bool {
+        self.objects
+            .iter()
+            .any(|object| may_be_suite(name, object, self.renames_suites))
+    }
+
+    fn may_be_a_flow(&self, name: &str) -> bool {
+        self.objects.iter().any(|object| may_be_flow(name, object))
+    }
+}
+
+impl<'a> Processor<PGM> for ExecutesOneOf<'a> {
+    fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
+        if self.found {
+            return Ok(Return::None);
+        }
+        match &node.attrs {
+            PGM::Test(id, _) | PGM::Cz(id, _, _) => match self.test_names.get(id) {
+                Some(name) => {
+                    if self.may_be_a_suite(name) {
+                        self.found = true;
+                    }
+                }
+                // A test whose name is not known may be any test
+                None => self.found = true,
+            },
+            PGM::TestStr(name, _, _, _, _) => {
+                if self.may_be_a_suite(name) {
+                    self.found = true;
+                }
+            }
+            PGM::SubFlow(name, _) | PGM::Group(name, _, GroupType::Flow, _) => {
+                if self.may_be_a_flow(name) {
+                    self.found = true;
+                }
+            }
+            PGM::Render(text) => {
+                if self.objects.iter().any(|o| mentions_identifier(text, o)) {
+                    self.found = true;
+                }
+            }
+            PGM::Call(name, args) | PGM::Callback(name, args) => {
+                if std::iter::once(name)
+                    .chain(args.iter())
+                    .any(|text| self.objects.iter().any(|o| mentions_identifier(text, o)))
+                {
+                    self.found = true;
+                }
+            }
+            _ => {}
+        }
+        Ok(Return::ProcessChildren)
+    }
 }
 
 /// Finds whether a node changes the given flag, enable or flow variable, including a declared
@@ -298,7 +454,7 @@ impl<'a> Processor<PGM> for ChangesFlag<'a> {
             | PGM::SetVariable(flag, _) => {
                 // Flags and enables are rendered upper case, so a name in another case may be
                 // the same variable, it is treated as the same one
-                if flag.eq_ignore_ascii_case(self.flag) {
+                if same_name(flag, self.flag) {
                     self.flag_found = true;
                 }
                 Return::None
@@ -342,21 +498,9 @@ impl Processor<PGM> for ContainsATest {
                 self.test_found = true;
                 Return::None
             }
-            // A raw tester statement or an external call which executes something, e.g.
-            // `probe.execute();`, may execute a test
-            PGM::Render(text) => {
-                if mentions_identifier(text, "execute") {
-                    self.test_found = true;
-                }
-                Return::None
-            }
-            PGM::Call(name, args) | PGM::Callback(name, args) => {
-                if std::iter::once(name)
-                    .chain(args.iter())
-                    .any(|text| mentions_identifier(text, "execute"))
-                {
-                    self.test_found = true;
-                }
+            // A raw tester statement or an external call may execute a test, e.g. `run(t);`
+            PGM::Render(_) | PGM::Call(_, _) | PGM::Callback(_, _) => {
+                self.test_found = true;
                 Return::None
             }
             _ => {
@@ -886,6 +1030,166 @@ mod tests {
             ),
         );
         assert_eq!(run(&input)?.to_string().matches("Else").count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn a_reference_to_a_test_stops_combining_only_when_the_first_branch_runs_that_test(
+    ) -> Result<()> {
+        use super::run_with_test_names;
+        use std::collections::HashMap;
+        let pair = |first: crate::ast::Node<PGM>| {
+            node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, FlowCondition::IfExpr("probe.pass".to_string()) => first),
+                node!(PGM::Condition, FlowCondition::UnlessExpr("probe.pass".to_string()) =>
+                    node!(PGM::SetFlag, "RETEST_FAILED".to_string(), true, false),
+                ),
+            )
+        };
+        let combined_on =
+            |input: &crate::ast::Node<PGM>, names: HashMap<usize, String>, renames: bool| {
+                run_with_test_names(input, names, renames)
+                    .unwrap()
+                    .to_string()
+                    .contains("Else")
+            };
+        let combined = |input: &crate::ast::Node<PGM>, names: HashMap<usize, String>| {
+            combined_on(input, names, false)
+        };
+        let names = HashMap::from([
+            (1, "other".to_string()),
+            (2, "probe".to_string()),
+            (4, "probe_passed".to_string()),
+            (5, "Probe".to_string()),
+            (6, "probe_2".to_string()),
+        ]);
+        // Another test is run, combined as in 1.11.0
+        assert!(combined(
+            &pair(node!(PGM::Test, 1, FlowID::from_int(1))),
+            names.clone()
+        ));
+        // Including one whose name only starts with the referenced name, or differs in case
+        assert!(combined(
+            &pair(node!(PGM::Test, 4, FlowID::from_int(4))),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Test, 5, FlowID::from_int(5))),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Test, 6, FlowID::from_int(6))),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(
+                PGM::TestStr,
+                "probe_passed".to_string(),
+                FlowID::from_str("pp"),
+                None,
+                None,
+                None
+            )),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Render, "probe_passed.execute();".to_string())),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(
+                PGM::TestStr,
+                "other".to_string(),
+                FlowID::from_str("o"),
+                None,
+                None,
+                None
+            )),
+            names.clone()
+        ));
+        assert!(combined(
+            &pair(node!(PGM::Render, "multi_bin;".to_string())),
+            names.clone()
+        ));
+        // The referenced test is run again, not combined
+        assert!(!combined(
+            &pair(node!(PGM::Test, 2, FlowID::from_int(2))),
+            names.clone()
+        ));
+        assert!(!combined(
+            &pair(node!(
+                PGM::TestStr,
+                "probe".to_string(),
+                FlowID::from_str("p"),
+                None,
+                None,
+                None
+            )),
+            names.clone()
+        ));
+        assert!(!combined(
+            &pair(node!(PGM::Render, "probe.execute();".to_string())),
+            names.clone()
+        ));
+        // Or a flow of that name, or a test whose name is not known
+        assert!(!combined(
+            &pair(node!(
+                PGM::Group,
+                "Probe".to_string(),
+                None,
+                GroupType::Flow,
+                Some(FlowID::from_str("g"))
+            )),
+            names.clone()
+        ));
+        assert!(!combined(
+            &pair(node!(PGM::Test, 3, FlowID::from_int(3))),
+            names.clone()
+        ));
+        // Where the tester renames a suite whose name is used again, e.g. probe_1, a reference
+        // to probe_1 may be the test probe, elsewhere it is another test
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("probe_1.pass".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("probe_1.pass".to_string()) =>
+                node!(PGM::SetFlag, "RETEST_FAILED".to_string(), true, false),
+            ),
+        );
+        assert!(!combined_on(&input, names.clone(), true));
+        assert!(combined_on(&input, names, false));
+        Ok(())
+    }
+
+    #[test]
+    fn a_raw_write_of_a_flag_is_found_by_its_rendered_name() -> Result<()> {
+        for (flag, statement) in [("$ALARM", "$ALARM = 0;"), ("straße", "STRASSE = 0;")] {
+            let input = node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec![flag.to_string()]) =>
+                    node!(PGM::Render, statement.to_string()),
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessFlag(vec![flag.to_string()]) =>
+                    node!(PGM::SetFlag, "B".to_string(), true, false),
+                ),
+            );
+            assert_eq!(input, run(&input)?, "{}", flag);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_raw_statement_may_run_a_test_which_changes_a_volatile_flag() -> Result<()> {
+        // e.g. SMT7's run(probe);
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Volatile, "READY".to_string()),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["READY".to_string()]) =>
+                node!(PGM::Render, "run(probe);".to_string()),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["READY".to_string()]) =>
+                node!(PGM::SetFlag, "B".to_string(), true, false),
+            ),
+        );
+        assert_eq!(input, run(&input)?);
         Ok(())
     }
 }
