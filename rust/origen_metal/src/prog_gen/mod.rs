@@ -240,11 +240,11 @@ pub fn process_flow(
             _ => None,
         })
         .collect();
-    // SMT7 renames a suite whose name is used again to <name>_<n>, see clean_names_and_add_sig
+    // On SMT8 each flow group and sub-flow is a flow of its own, with its own suite names
     ast = processors::adjacent_if_combiner::run_with_test_names(
         &ast,
         test_names,
-        tester == SupportedTester::V93KSMT7,
+        tester == SupportedTester::V93KSMT8,
     )?;
 
     // Any tester-specific processing
