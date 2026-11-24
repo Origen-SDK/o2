@@ -232,8 +232,8 @@ def test_smt8_empty_else_option(tmp_path, empty_else):
         assert "if (F == 1) {\n            DONE = 1;\n        } else {\n        }\n" in rendered
 
 
-@pytest.mark.parametrize("tpgf_formatting", [None, False, True])
-def test_smt8_tpgf_formatting_option(tmp_path, tpgf_formatting):
+@pytest.mark.parametrize("o1_formatting", [None, False, True])
+def test_smt8_o1_formatting_option(tmp_path, o1_formatting):
     interface = om.interface.PyInterface()
     refs = om.prog_gen.start_new_flow("main", None, None, None)
     sub_refs = om.prog_gen.start_new_flow("vmin", True, None, None)
@@ -242,16 +242,16 @@ def test_smt8_tpgf_formatting_option(tmp_path, tpgf_formatting):
     om.prog_gen.end_flow(sub_refs)
     om.prog_gen.end_flow(refs)
     try:
-        if tpgf_formatting is None:
+        if o1_formatting is None:
             om.prog_gen.set_smt8_options(False, False)
         else:
-            om.prog_gen.set_smt8_options(False, False, tpgf_formatting=tpgf_formatting)
+            om.prog_gen.set_smt8_options(False, False, o1_formatting=o1_formatting)
         files = om.prog_gen.render_program_for("v93ksmt8", str(tmp_path / "flows"))
     finally:
         om.prog_gen.set_smt8_options(True, True)
     flow = next(f for f in files if str(f).endswith("MAIN.flow"))
     rendered = open(flow).read()
-    if tpgf_formatting:
+    if o1_formatting:
         assert "// VMIN sub-flow input variables\n        {\n            VMIN.E = E;\n        }\n" in rendered
     else:
         assert "sub-flow" not in rendered

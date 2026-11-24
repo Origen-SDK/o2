@@ -102,8 +102,8 @@ struct FlowGenerator {
     options: SMT8Config,
     /// Render an else branch which has no content, see Config::set_smt8_empty_else
     empty_else: bool,
-    /// Format the flows as TPGF writes them, see Config::set_smt8_tpgf_formatting
-    tpgf_formatting: bool,
+    /// Format the flows as Origen 1 writes them, see Config::set_smt8_o1_formatting
+    o1_formatting: bool,
     writer: FileWriter,
 }
 
@@ -165,7 +165,7 @@ pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, V
         output_dir,
         model,
         crate::PROG_GEN_CONFIG.smt8_empty_else(),
-        crate::PROG_GEN_CONFIG.smt8_tpgf_formatting(),
+        crate::PROG_GEN_CONFIG.smt8_o1_formatting(),
     )
 }
 
@@ -177,21 +177,21 @@ fn run_with_empty_else(
     model: Model,
     empty_else: bool,
 ) -> Result<(Model, Vec<PathBuf>)> {
-    let tpgf_formatting = crate::PROG_GEN_CONFIG.smt8_tpgf_formatting();
-    run_with(ast, output_dir, model, empty_else, tpgf_formatting)
+    let o1_formatting = crate::PROG_GEN_CONFIG.smt8_o1_formatting();
+    run_with(ast, output_dir, model, empty_else, o1_formatting)
 }
 
-/// As run, with the option to format the flows as TPGF does given, rather than taken from the
+/// As run, with the option to format the flows as Origen 1 does given, rather than taken from the
 /// config
 #[cfg(test)]
-fn run_with_tpgf_formatting(
+fn run_with_o1_formatting(
     ast: &Node<PGM>,
     output_dir: &Path,
     model: Model,
-    tpgf_formatting: bool,
+    o1_formatting: bool,
 ) -> Result<(Model, Vec<PathBuf>)> {
     let empty_else = crate::PROG_GEN_CONFIG.smt8_empty_else();
-    run_with(ast, output_dir, model, empty_else, tpgf_formatting)
+    run_with(ast, output_dir, model, empty_else, o1_formatting)
 }
 
 /// As run, with the options given, rather than taken from the config
@@ -200,12 +200,12 @@ fn run_with(
     output_dir: &Path,
     model: Model,
     empty_else: bool,
-    tpgf_formatting: bool,
+    o1_formatting: bool,
 ) -> Result<(Model, Vec<PathBuf>)> {
     // For debugging
     //ast.to_file("smt8_flow.txt")?;
 
-    let mut p = FlowGenerator::new(output_dir, model, tpgf_formatting);
+    let mut p = FlowGenerator::new(output_dir, model, o1_formatting);
     p.empty_else = empty_else;
 
     let mut i = 0;
@@ -232,7 +232,7 @@ fn run_with(
 }
 
 impl FlowGenerator {
-    fn new(output_dir: &Path, model: Model, tpgf_formatting: bool) -> FlowGenerator {
+    fn new(output_dir: &Path, model: Model, o1_formatting: bool) -> FlowGenerator {
         FlowGenerator {
             name: "".to_string(),
             description: None,
@@ -251,7 +251,7 @@ impl FlowGenerator {
             namespaces: vec![],
             options: crate::PROG_GEN_CONFIG.smt8_options(),
             empty_else: crate::PROG_GEN_CONFIG.smt8_empty_else(),
-            tpgf_formatting,
+            o1_formatting,
             writer: FileWriter::new(),
         }
     }
@@ -423,7 +423,7 @@ impl FlowGenerator {
     /// declared but not executed. Returns true if the flow is executed.
     fn call_flow(&mut self, flow: &FlowFile) -> bool {
         let executed = !self.resources_block;
-        let tpgf_formatting = self.tpgf_formatting;
+        let o1_formatting = self.o1_formatting;
         let current_flow = self.flow_stack.last_mut().unwrap();
         let inputs = flow.flow_data.sorted_input_vars();
         let outputs: Vec<String> = flow
@@ -436,7 +436,7 @@ impl FlowGenerator {
                     || current_flow.flow_data.downstream_flags.contains(v)
             })
             .collect();
-        // TPGF groups the assignments of each kind in a block headed by a comment
+        // Origen 1 groups the assignments of each kind in a block headed by a comment
         let open_block = |current_flow: &mut FlowFile, kind: &str| {
             current_flow.execute_line(format!("// {} sub-flow {} variables", flow.name, kind));
             current_flow.execute_line("{".to_string());
@@ -447,7 +447,7 @@ impl FlowGenerator {
             current_flow.execute_line("}".to_string());
         };
         if executed {
-            let grouped = tpgf_formatting && !inputs.is_empty();
+            let grouped = o1_formatting && !inputs.is_empty();
             if grouped {
                 open_block(current_flow, "input");
             }
@@ -464,7 +464,7 @@ impl FlowGenerator {
             current_flow.bypassed_sub_flows.insert(flow.name.clone());
         }
         if executed {
-            let grouped = tpgf_formatting && !outputs.is_empty();
+            let grouped = o1_formatting && !outputs.is_empty();
             if grouped {
                 open_block(current_flow, "output");
             }
@@ -668,13 +668,13 @@ impl FlowGenerator {
                 names.push(collection_name.clone());
             }
         }
-        match (self.tpgf_formatting, item) {
-            // TPGF orders a test suite's parameters by the byte order of their names
+        match (self.o1_formatting, item) {
+            // Origen 1 orders a test suite's parameters by the byte order of their names
             (true, None) => names.sort(),
             // and a collection item's parameters in the order of their definition, followed here
             // by its collections in the order of theirs, anything else follows those by name.
             // A template defines a collection's parameters and its collections in separate maps,
-            // so a collection defined between two parameters, which TPGF writes in between them,
+            // so a collection defined between two parameters, which Origen 1 writes in between them,
             // is written after them here.
             (true, Some(item)) => {
                 let position = |name: &String| {
@@ -906,8 +906,8 @@ impl FlowGenerator {
         writeln!(&mut f, "    }}")?;
         writeln!(&mut f, "")?;
         writeln!(&mut f, "    execute {{")?;
-        if self.tpgf_formatting {
-            // Only the flags which this flow sets itself are initialized, as TPGF does, not those
+        if self.o1_formatting {
+            // Only the flags which this flow sets itself are initialized, as Origen 1 does, not those
             // which it only declares as outputs, which a test method sets natively
             let mut flags: Vec<&String> = flow_file.flow_data.set_flags.iter().collect();
             flags.sort();
@@ -1343,7 +1343,7 @@ impl Processor<PGM> for FlowGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, run_with_empty_else, run_with_tpgf_formatting, FileWriter, FlowGenerator};
+    use super::{run, run_with_empty_else, run_with_o1_formatting, FileWriter, FlowGenerator};
     use crate::prog_gen::{
         process_flow, FlowCondition, FlowID, GroupType, LoopCount, Model, ParamValue,
         SupportedTester, PGM,
@@ -2618,11 +2618,11 @@ mod tests {
         Ok(())
     }
 
-    /// Renders the given flow AST for SMT8, formatted as TPGF does or not, and returns the content
+    /// Renders the given flow AST for SMT8, formatted as Origen 1 does or not, and returns the content
     /// of every flow file by its name
     fn render_flows(
         flow: crate::ast::Node<PGM>,
-        tpgf_formatting: bool,
+        o1_formatting: bool,
     ) -> crate::Result<std::collections::HashMap<String, String>> {
         let mut flow_ast = crate::ast::AST::new();
         flow_ast.start(flow);
@@ -2634,7 +2634,7 @@ mod tests {
         )?;
         let output_dir = tempdir()?;
         let (_model, files) =
-            run_with_tpgf_formatting(&ast, output_dir.path(), model, tpgf_formatting)?;
+            run_with_o1_formatting(&ast, output_dir.path(), model, o1_formatting)?;
         let mut flows = std::collections::HashMap::new();
         for path in files {
             let name = path.file_name().unwrap().to_str().unwrap().to_string();
@@ -2645,7 +2645,7 @@ mod tests {
         Ok(flows)
     }
 
-    fn tpgf_example() -> crate::ast::Node<PGM> {
+    fn o1_example() -> crate::ast::Node<PGM> {
         let test = |name: &str| {
             node!(
                 PGM::TestStr,
@@ -2673,8 +2673,8 @@ mod tests {
     }
 
     #[test]
-    fn flows_are_formatted_as_tpgf_does_when_asked() -> crate::Result<()> {
-        let flows = render_flows(tpgf_example(), true)?;
+    fn flows_are_formatted_as_origen_1_does_when_asked() -> crate::Result<()> {
+        let flows = render_flows(o1_example(), true)?;
         let main = &flows["MAIN.flow"];
         assert!(
             main.contains(
@@ -2712,7 +2712,7 @@ mod tests {
 
     #[test]
     fn flows_are_formatted_as_before_by_default() -> crate::Result<()> {
-        let flows = render_flows(tpgf_example(), false)?;
+        let flows = render_flows(o1_example(), false)?;
         let main = &flows["MAIN.flow"];
         assert!(
             main.contains(
@@ -2732,8 +2732,8 @@ mod tests {
     }
 
     #[test]
-    fn suite_parameters_are_ordered_by_byte_order_when_formatted_as_tpgf_does() -> crate::Result<()>
-    {
+    fn suite_parameters_are_ordered_by_byte_order_when_formatted_as_origen_1_does(
+    ) -> crate::Result<()> {
         let mut values = indexmap::IndexMap::new();
         for name in [
             "scan.SSN",
@@ -2745,12 +2745,12 @@ mod tests {
         ] {
             values.insert(name.to_string(), ParamValue::Int(1));
         }
-        let render = |tpgf_formatting: bool| -> crate::Result<Vec<String>> {
+        let render = |o1_formatting: bool| -> crate::Result<Vec<String>> {
             let output_dir = tempdir()?;
             let generator = FlowGenerator::new(
                 output_dir.path(),
                 Model::new(SupportedTester::V93KSMT8),
-                tpgf_formatting,
+                o1_formatting,
             );
             let mut rendered: Vec<u8> = vec![];
             generator.render_sorted_contents(
@@ -2793,7 +2793,7 @@ mod tests {
     }
 
     #[test]
-    fn collection_parameters_are_in_definition_order_when_formatted_as_tpgf_does(
+    fn collection_parameters_are_in_definition_order_when_formatted_as_origen_1_does(
     ) -> crate::Result<()> {
         use crate::prog_gen::model::{TestCollection, TestCollectionItem};
         use crate::prog_gen::ParamType;
@@ -2815,11 +2815,11 @@ mod tests {
         let mut collections = indexmap::IndexMap::new();
         collections.insert("variable".to_string(), vec![100]);
 
-        let render = |tpgf_formatting: bool| -> crate::Result<Vec<String>> {
+        let render = |o1_formatting: bool| -> crate::Result<Vec<String>> {
             let output_dir = tempdir()?;
             let mut model = Model::new(SupportedTester::V93KSMT8);
             model.test_collection_items.insert(100, item.clone());
-            let generator = FlowGenerator::new(output_dir.path(), model, tpgf_formatting);
+            let generator = FlowGenerator::new(output_dir.path(), model, o1_formatting);
             let mut rendered: Vec<u8> = vec![];
             generator.render_sorted_contents(
                 &mut rendered,
@@ -2865,7 +2865,7 @@ mod tests {
     }
 
     #[test]
-    fn a_declared_output_is_not_initialized_when_formatted_as_tpgf_does() -> crate::Result<()> {
+    fn a_declared_output_is_not_initialized_when_formatted_as_origen_1_does() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "main".to_string() =>
             node!(PGM::OutputVariable, "nativeOut".to_string()),
             node!(PGM::OutputVariable, "BOTH".to_string()),
@@ -2889,7 +2889,7 @@ mod tests {
     }
 
     #[test]
-    fn a_flag_which_is_only_cleared_is_not_initialized_when_formatted_as_tpgf_does(
+    fn a_flag_which_is_only_cleared_is_not_initialized_when_formatted_as_origen_1_does(
     ) -> crate::Result<()> {
         let flow = node!(PGM::Flow, "main".to_string() =>
             node!(PGM::OutputVariable, "CLEARED".to_string()),
@@ -3412,7 +3412,7 @@ mod tests {
     }
 
     #[test]
-    fn a_kept_flow_gets_no_tpgf_variable_blocks_as_it_is_not_executed() -> crate::Result<()> {
+    fn a_kept_flow_gets_no_o1_variable_blocks_as_it_is_not_executed() -> crate::Result<()> {
         let flow = main_flow(vec![resources(
             true,
             vec![flow_group(
