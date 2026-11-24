@@ -526,6 +526,40 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 Return::None
             }
+            // A condition with an else branch, made by combining adjacent opposite conditions, is
+            // rendered as those two conditions, the else branch gated by the opposite condition
+            PGM::Condition(condition)
+                if node.children.iter().any(|c| matches!(c.attrs, PGM::Else)) =>
+            {
+                let mut body = vec![];
+                let mut else_branches = vec![];
+                for child in &node.children {
+                    if matches!(child.attrs, PGM::Else) {
+                        else_branches.push(child);
+                    } else {
+                        body.push(child.clone());
+                    }
+                }
+                node.replace_children(body).process(self)?;
+                for else_branch in else_branches {
+                    match opposite_condition(condition) {
+                        Some(opposite) => {
+                            let mut gated = Node::new_with_meta(
+                                PGM::Condition(opposite),
+                                else_branch.meta.clone(),
+                            );
+                            gated.children = else_branch.children.clone();
+                            gated.process(self)?;
+                        }
+                        None => bail!(
+                            "UltraFLEX IG-XL flow generation does not support an else branch of \
+                             the condition {:?}",
+                            condition
+                        ),
+                    }
+                }
+                Return::None
+            }
             PGM::Condition(condition) => {
                 // IG-XL cannot express "unless any of these enable words" as a
                 // single gate. Emit one enabled-word goto per word, then place a
@@ -683,6 +717,20 @@ impl Processor<PGM> for FlowGenerator {
             _ => Return::ProcessChildren,
         })
     }
+}
+
+/// Returns the condition which holds when the given one does not, for the conditions which the
+/// adjacent if combiner gives an else branch
+fn opposite_condition(condition: &FlowCondition) -> Option<FlowCondition> {
+    Some(match condition {
+        FlowCondition::IfFlag(v) => FlowCondition::UnlessFlag(v.clone()),
+        FlowCondition::UnlessFlag(v) => FlowCondition::IfFlag(v.clone()),
+        FlowCondition::IfEnable(v) => FlowCondition::UnlessEnable(v.clone()),
+        FlowCondition::UnlessEnable(v) => FlowCondition::IfEnable(v.clone()),
+        FlowCondition::IfExpr(e) => FlowCondition::UnlessExpr(e.clone()),
+        FlowCondition::UnlessExpr(e) => FlowCondition::IfExpr(e.clone()),
+        _ => return None,
+    })
 }
 
 fn merge_field(field: &mut String, value: Option<&str>) {

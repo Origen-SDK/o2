@@ -384,6 +384,62 @@ fn renders_supported_control_opcodes_and_rejects_unsupported_ones() -> Result<()
 }
 
 #[test]
+fn the_else_branch_of_combined_conditions_is_rendered_as_the_opposite_condition() -> Result<()> {
+    let log = |text: &str| node!(PGM::Log, text.to_string());
+    let flow = node!(PGM::Flow, "combined".to_string() =>
+        node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) => log("if F")),
+        node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["F".to_string()]) => log("unless F")),
+        node!(PGM::Condition, FlowCondition::IfJob(vec!["ft".to_string()]) =>
+            node!(PGM::Condition, FlowCondition::UnlessEnable(vec!["E".to_string()]) => log("unless E")),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["E".to_string()]) => log("if E"))
+        )
+    );
+    // Rendered without processing, the conditions are not combined
+    let mut model = Model::new(SupportedTester::ULTRAFLEX);
+    model.create_flow("combined")?;
+    let mut uncombined = FlowGenerator::new(model);
+    flow.process(&mut uncombined)?;
+
+    let mut ast = crate::ast::AST::new();
+    ast.start(flow);
+    let (ast, model) = process_flow(
+        &ast,
+        Model::new(SupportedTester::ULTRAFLEX),
+        SupportedTester::ULTRAFLEX,
+        true,
+    )?;
+    assert_eq!(ast.to_string().matches("Else").count(), 2, "{}", ast);
+    let mut combined = FlowGenerator::new(model);
+    ast.process(&mut combined)?;
+
+    for text in ["if F", "unless F", "unless E", "if E"] {
+        assert!(
+            combined.rows.iter().any(|row| row.contains(text)),
+            "{}: {:?}",
+            text,
+            combined.rows
+        );
+    }
+    // The labels of unless_enable skips may be numbered differently
+    let rows_without_labels = |rows: &Vec<String>| {
+        let mut rows = rows
+            .iter()
+            .map(|row| {
+                row.replace("ORIGEN_SKIP_1", "SKIP")
+                    .replace("ORIGEN_SKIP_2", "SKIP")
+            })
+            .collect::<Vec<_>>();
+        rows.sort();
+        rows
+    };
+    assert_eq!(
+        rows_without_labels(&combined.rows),
+        rows_without_labels(&uncombined.rows)
+    );
+    Ok(())
+}
+
+#[test]
 fn supports_independent_resource_sheet_names() -> Result<()> {
     let mut model = Model::new(SupportedTester::ULTRAFLEX);
     model.create_flow("resources")?;
