@@ -404,6 +404,8 @@ impl<'a> Processor<PGM> for ExecutesOneOf<'a> {
                     return Ok(Return::None);
                 }
             }
+            // The content of a resources block, including a kept flow, is declared, not executed
+            PGM::Resources => return Ok(Return::None),
             PGM::Render(text) => {
                 if self.objects.iter().any(|o| mentions_identifier(text, o)) {
                     self.found = true;
@@ -1199,6 +1201,24 @@ mod tests {
                )
         ));
         assert!(!combined_on(&handled, names, true));
+        // A flow or test of that name within a resources block, e.g. a kept flow, is declared,
+        // not executed
+        let declared = pair(node!(PGM::Resources =>
+            node!(
+                PGM::Group,
+                "probe".to_string(),
+                None,
+                GroupType::Flow,
+                Some(FlowID::from_str("p"))
+                => node!(PGM::Log, "kept".to_string())
+            ),
+            node!(PGM::Test, 2, FlowID::from_int(2))
+        ));
+        assert!(combined_on(
+            &declared,
+            HashMap::from([(2, "probe".to_string())]),
+            true
+        ));
         Ok(())
     }
 
