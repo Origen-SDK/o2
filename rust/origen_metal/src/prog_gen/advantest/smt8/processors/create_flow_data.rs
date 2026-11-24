@@ -34,6 +34,9 @@ pub struct FlowData {
     pub output_flags: HashSet<String>,
     pub input_enables: HashSet<String>,
     pub modified_flags: HashSet<String>,
+    /// Flags which this flow sets itself, the modified flags without the declared outputs which
+    /// it does not set
+    pub set_flags: HashSet<String>,
     pub auto_flags: HashSet<String>,
     pub downstream_flags: HashSet<String>,
     /// Flow variables, case preserved, which are assigned or read by expressions in this flow
@@ -201,6 +204,7 @@ impl Processor<PGM> for Collector {
                 if *is_auto_generated {
                     current_flow.auto_flags.insert(flag.clone());
                 }
+                current_flow.set_flags.insert(flag.clone());
                 current_flow.modified_flags.insert(flag);
             }
             PGM::OutputVariable(name) => {

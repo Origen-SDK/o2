@@ -556,7 +556,10 @@ impl FlowGenerator {
             // TPGF orders a test suite's parameters by the byte order of their names
             (true, None) => names.sort(),
             // and a collection item's parameters in the order of their definition, followed here
-            // by its collections in the order of theirs, anything else follows those by name
+            // by its collections in the order of theirs, anything else follows those by name.
+            // A template defines a collection's parameters and its collections in separate maps,
+            // so a collection defined between two parameters, which TPGF writes in between them,
+            // is written after them here.
             (true, Some(item)) => {
                 let position = |name: &String| {
                     item.params
@@ -788,8 +791,9 @@ impl FlowGenerator {
         writeln!(&mut f, "")?;
         writeln!(&mut f, "    execute {{")?;
         if self.tpgf_formatting {
-            // Only the flags which this flow sets itself are initialized, as TPGF does
-            let mut flags: Vec<&String> = flow_file.flow_data.modified_flags.iter().collect();
+            // Only the flags which this flow sets itself are initialized, as TPGF does, not those
+            // which it only declares as outputs, which a test method sets natively
+            let mut flags: Vec<&String> = flow_file.flow_data.set_flags.iter().collect();
             flags.sort();
             for v in &flags {
                 writeln!(&mut f, "        {} = -1;", v)?;
@@ -2832,6 +2836,30 @@ mod tests {
                 "};"
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn a_declared_output_is_not_initialized_when_formatted_as_tpgf_does() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "main".to_string() =>
+            node!(PGM::OutputVariable, "nativeOut".to_string()),
+            node!(PGM::OutputVariable, "BOTH".to_string()),
+            node!(PGM::SetFlag, "BOTH".to_string(), true, false),
+            node!(PGM::SetFlag, "EXPLICIT".to_string(), true, false)
+        );
+        let main = render_flows(flow.clone(), true)?
+            .remove("MAIN.flow")
+            .unwrap();
+        assert!(main.contains("    out nativeOut = -1;"), "{}", main);
+        assert!(
+            main.contains("    execute {\n        BOTH = -1;\n        EXPLICIT = -1;\n\n"),
+            "{}",
+            main
+        );
+        assert!(!main.contains("        nativeOut = -1;"), "{}", main);
+        // By default, it is initialized as before
+        let main = render_flows(flow, false)?.remove("MAIN.flow").unwrap();
+        assert!(main.contains("        nativeOut = -1;"), "{}", main);
         Ok(())
     }
 }
