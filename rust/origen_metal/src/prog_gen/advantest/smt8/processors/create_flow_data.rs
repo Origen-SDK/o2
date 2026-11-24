@@ -45,6 +45,17 @@ pub struct FlowData {
     pub declared_outputs: HashSet<String>,
     /// Flags which this flow declares local, for itself and its sub-flows
     pub local_flags: HashSet<String>,
+    /// Flow variables, case preserved, which this flow declares local, for itself and its
+    /// sub-flows. Like the fields which follow, it is not serialized with the AST.
+    #[serde(skip_serializing)]
+    pub local_variables: HashSet<String>,
+    /// Flow variables, case preserved, which this flow assigns
+    #[serde(skip_serializing)]
+    pub assigned_variables: HashSet<String>,
+    /// Flow variables, case preserved, which this flow reads, unlike referenced_variables this
+    /// does not include those which it only assigns
+    #[serde(skip_serializing)]
+    pub read_variables: HashSet<String>,
     /// The number of flows within this flow, including itself, which read each flag (or a
     /// variable with the same name)
     pub flag_readers: HashMap<String, usize>,
@@ -139,15 +150,24 @@ impl Collector {
         self.saved_loop_variables.push(call_site_loop_variables);
     }
 
+    /// Records a variable read by the current flow
     fn reference_variable(&mut self, name: &str) {
         if self.loop_variables.iter().any(|v| v == name) {
             return;
         }
-        self.flows
-            .last_mut()
-            .unwrap()
-            .referenced_variables
-            .insert(name.to_string());
+        let current_flow = self.flows.last_mut().unwrap();
+        current_flow.referenced_variables.insert(name.to_string());
+        current_flow.read_variables.insert(name.to_string());
+    }
+
+    /// Records a variable assigned by the current flow, it is referenced by it too
+    fn assign_variable(&mut self, name: &str) {
+        if self.loop_variables.iter().any(|v| v == name) {
+            return;
+        }
+        let current_flow = self.flows.last_mut().unwrap();
+        current_flow.referenced_variables.insert(name.to_string());
+        current_flow.assigned_variables.insert(name.to_string());
     }
 }
 
@@ -217,13 +237,20 @@ impl Processor<PGM> for Collector {
                     .local_flags
                     .insert(name.to_uppercase());
             }
+            PGM::LocalVariable(name) => {
+                self.flows
+                    .last_mut()
+                    .unwrap()
+                    .local_variables
+                    .insert(name.to_string());
+            }
             PGM::InputVariable(name) => {
                 // Declared like a variable read by an expression, an input of this flow and of
                 // every enclosing flow, keeping the case of its name
                 self.reference_variable(name);
             }
             PGM::SetVariable(name, value) => {
-                self.reference_variable(name);
+                self.assign_variable(name);
                 for v in expression_variables(value) {
                     self.reference_variable(&v);
                 }
@@ -280,12 +307,13 @@ impl Collector {
     fn with_flow_data(&mut self, node: &Node<PGM>, children: Vec<Box<Node<PGM>>>) -> Node<PGM> {
         let mut fdata = self.flows.pop().unwrap();
         self.loop_variables = self.saved_loop_variables.pop().unwrap();
-        // Count this flow as a reader of the flags it reads, its sub-flows have already been
-        // counted, and add its counts to those of its parent
+        // Count this flow as a reader of the flags and variables it reads, not those which it only
+        // assigns, its sub-flows have already been counted, and add its counts to those of its
+        // parent
         let read: HashSet<&String> = fdata
             .referenced_flags
             .iter()
-            .chain(fdata.referenced_variables.iter())
+            .chain(fdata.read_variables.iter())
             .collect();
         for flag in read {
             *fdata.flag_readers.entry(flag.to_string()).or_insert(0) += 1;
@@ -337,6 +365,18 @@ impl PassthroughCollector {
     fn finalize_flow_data(&mut self) -> FlowData {
         // Extract the FlowData from the first child
         let mut flow_data = self.flow_stack.pop().unwrap();
+
+        // A local variable which this flow assigns is set by it, like a flag, rather than being
+        // its input
+        let local_variables: Vec<String> = flow_data
+            .assigned_variables
+            .iter()
+            .filter(|v| self.is_local_variable(&flow_data, v))
+            .cloned()
+            .collect();
+        for v in local_variables {
+            flow_data.modified_flags.insert(v);
+        }
 
         if flow_data.references_job {
             // Ensure every flow in the stack passses through job
@@ -421,12 +461,21 @@ impl PassthroughCollector {
         flow_data
     }
 
-    /// Returns true if the given flag, set by the given flow, is declared local by it or by an
-    /// enclosing flow, and not declared as an output by any of them
+    /// Returns true if the given flag (or variable), set by the given flow, is declared local by
+    /// it or by an enclosing flow, and not declared as an output by any of them
     fn is_local(&self, flow_data: &FlowData, flag: &str) -> bool {
         let flows = || self.flow_stack.iter().chain(std::iter::once(flow_data));
-        flows().any(|f| f.local_flags.contains(flag))
+        flows().any(|f| f.local_flags.contains(flag) || f.local_variables.contains(flag))
             && !flows().any(|f| f.declared_outputs.contains(flag))
+    }
+
+    /// Returns true if the given variable is declared local by the given flow or by an enclosing
+    /// flow
+    fn is_local_variable(&self, flow_data: &FlowData, variable: &str) -> bool {
+        self.flow_stack
+            .iter()
+            .chain(std::iter::once(flow_data))
+            .any(|f| f.local_variables.contains(variable))
     }
 
     /// Passes a local flag set by the given flow out as far as the highest enclosing flow in

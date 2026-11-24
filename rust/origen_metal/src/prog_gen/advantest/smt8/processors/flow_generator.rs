@@ -1196,7 +1196,10 @@ impl Processor<PGM> for FlowGenerator {
                 Return::None
             }
             // Only declares the variable, see create_flow_data
-            PGM::OutputVariable(_) | PGM::InputVariable(_) | PGM::LocalFlag(_) => Return::None,
+            PGM::OutputVariable(_)
+            | PGM::InputVariable(_)
+            | PGM::LocalFlag(_)
+            | PGM::LocalVariable(_) => Return::None,
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = flag.to_uppercase();
                 let current_flow = self.flow_stack.last_mut().unwrap();
@@ -2502,6 +2505,150 @@ mod tests {
         assert!(
             !flow.contains("primary_check.execute();\n        if (!primary_check_retest.pass) {")
         );
+        Ok(())
+    }
+
+    fn set_variable(name: &str, value: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::SetVariable, name.to_string(), value.to_string())
+    }
+
+    fn if_expr_node(
+        expression: &str,
+        children: Vec<crate::ast::Node<PGM>>,
+    ) -> crate::ast::Node<PGM> {
+        let mut node = node!(
+            PGM::Condition,
+            FlowCondition::IfExpr(expression.to_string())
+        );
+        for child in children {
+            node.add_child(child);
+        }
+        node
+    }
+
+    fn local_variable(name: &str) -> crate::ast::Node<PGM> {
+        node!(PGM::LocalVariable, name.to_string())
+    }
+
+    /// The flow of the issue: a counter which assigns and reads its own variable
+    fn counter(declare_local: bool) -> crate::ast::Node<PGM> {
+        let mut children = vec![];
+        if declare_local {
+            children.push(local_variable("passed_count"));
+        }
+        children.extend(vec![
+            set_variable("passed_count", "-1"),
+            test_str("count"),
+            if_expr_node("count.pass", vec![set_variable("passed_count", "1")]),
+            if_expr_node("passed_count == 1", vec![test_str("counted")]),
+        ]);
+        flow_group("counter", children)
+    }
+
+    #[test]
+    fn a_local_variable_assigned_and_read_by_one_flow_stays_in_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("outer", vec![counter(true)])
+        );
+        let counter = render_flow_file(flow.clone(), "COUNTER.flow")?;
+        assert!(
+            counter.contains("    out passed_count = -1;"),
+            "{}",
+            counter
+        );
+        assert!(!counter.contains("in passed_count"), "{}", counter);
+        assert!(
+            counter.contains("    execute {\n        passed_count = -1;\n\n        passed_count = -1;\n        count.execute();"),
+            "{}",
+            counter
+        );
+        for file in ["OUTER.flow", "TOP.flow"] {
+            let parent = render_flow_file(flow.clone(), file)?;
+            assert!(!parent.contains("passed_count"), "{}: {}", file, parent);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_variable_declared_local_by_an_enclosing_flow_is_local() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("outer", vec![local_variable("passed_count"), counter(false)])
+        );
+        let counter = render_flow_file(flow.clone(), "COUNTER.flow")?;
+        assert!(
+            counter.contains("    out passed_count = -1;"),
+            "{}",
+            counter
+        );
+        assert!(!counter.contains("in passed_count"), "{}", counter);
+        for file in ["OUTER.flow", "TOP.flow"] {
+            let parent = render_flow_file(flow.clone(), file)?;
+            assert!(!parent.contains("passed_count"), "{}: {}", file, parent);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_variable_is_passed_out_as_far_as_another_reader() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("outer", vec![
+                local_variable("v"),
+                flow_group("setter", vec![set_variable("v", "1")]),
+                flow_group("reader", vec![if_expr_node("v == 1", vec![test_str("t")])]),
+            ])
+        );
+        let setter = render_flow_file(flow.clone(), "SETTER.flow")?;
+        assert!(setter.contains("    out v = -1;"), "{}", setter);
+        assert!(!setter.contains("in v"), "{}", setter);
+        let outer = render_flow_file(flow.clone(), "OUTER.flow")?;
+        assert!(!outer.contains("in v"), "{}", outer);
+        assert!(!outer.contains("out v"), "{}", outer);
+        assert!(outer.contains("v = SETTER.v;"), "{}", outer);
+        assert!(outer.contains("READER.v = v;"), "{}", outer);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains(" v "), "{}", top);
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_variable_declared_as_an_output_is_passed_out_to_every_enclosing_flow(
+    ) -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("outer", vec![flow_group("setter", vec![
+                local_variable("v"),
+                node!(PGM::OutputVariable, "v".to_string()),
+                set_variable("v", "1"),
+            ])])
+        );
+        for file in ["SETTER.flow", "OUTER.flow", "TOP.flow"] {
+            let rendered = render_flow_file(flow.clone(), file)?;
+            assert!(
+                rendered.contains("    out v = -1;"),
+                "{}: {}",
+                file,
+                rendered
+            );
+            assert!(!rendered.contains("in v"), "{}: {}", file, rendered);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn an_assigned_variable_which_is_not_declared_local_is_an_input_as_before() -> crate::Result<()>
+    {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("outer", vec![counter(false)])
+        );
+        let counter = render_flow_file(flow.clone(), "COUNTER.flow")?;
+        assert!(counter.contains("    in passed_count = -1;"), "{}", counter);
+        let outer = render_flow_file(flow.clone(), "OUTER.flow")?;
+        assert!(
+            outer.contains("COUNTER.passed_count = passed_count;"),
+            "{}",
+            outer
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("    in passed_count = -1;"), "{}", top);
         Ok(())
     }
 }
