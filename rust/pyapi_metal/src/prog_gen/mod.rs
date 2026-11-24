@@ -117,17 +117,21 @@ fn set_smt7_options(render_default_tm_params: bool) -> PyResult<()> {
 }
 
 /// Sets the V93K SMT8 options. With empty_else=False, a condition whose else branch has no content
-/// is rendered without it, `if (...) { ... }`, rather than `if (...) { ... } else { }`. Like the
-/// other options, empty_else takes its default when it is not given.
+/// is rendered without it, `if (...) { ... }`, rather than `if (...) { ... } else { }`. With
+/// o1_formatting=True, flows are formatted as Origen 1 (origen_testers) writes them, see
+/// Config::set_smt8_o1_formatting. Like the other options, these take their defaults when they
+/// are not given.
 #[pyfunction]
-#[pyo3(signature=(create_limits_file, render_default_tm_params, empty_else=true))]
+#[pyo3(signature=(create_limits_file, render_default_tm_params, empty_else=true, o1_formatting=false))]
 fn set_smt8_options(
     create_limits_file: bool,
     render_default_tm_params: bool,
     empty_else: bool,
+    o1_formatting: bool,
 ) -> PyResult<()> {
     origen_metal::PROG_GEN_CONFIG.set_smt8_options(create_limits_file, render_default_tm_params);
     origen_metal::PROG_GEN_CONFIG.set_smt8_empty_else(empty_else);
+    origen_metal::PROG_GEN_CONFIG.set_smt8_o1_formatting(o1_formatting);
     Ok(())
 }
 

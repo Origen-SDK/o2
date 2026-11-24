@@ -18,6 +18,8 @@ pub struct Config {
     smt8: RwLock<SMT8Config>,
     /// Render an empty else branch of a V93K SMT8 condition
     smt8_empty_else: RwLock<bool>,
+    /// Format V93K SMT8 flows as Origen 1 (origen_testers) writes them
+    smt8_o1_formatting: RwLock<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +51,7 @@ impl Default for Config {
                 render_default_tmparams: true,
             }),
             smt8_empty_else: RwLock::new(true),
+            smt8_o1_formatting: RwLock::new(false),
         }
     }
 }
@@ -160,6 +163,22 @@ impl Config {
     /// Returns true if a V93K SMT8 condition renders its else branch when it has no content
     pub fn smt8_empty_else(&self) -> bool {
         *self.smt8_empty_else.read()
+    }
+
+    /// Set whether V93K SMT8 flows are formatted as Origen 1 (origen_testers) writes them, which is
+    /// off by default. When on:
+    /// * a sub-flow's input assignments, and its output copies, are each grouped in a block
+    ///   headed by a `// <NAME> sub-flow input variables` (or `output`) comment;
+    /// * only the flags which a flow sets itself are initialized to -1 at the start of it, not
+    ///   those which only its sub-flows set;
+    /// * a test suite's parameters are ordered by the byte order of their names.
+    pub fn set_smt8_o1_formatting(&self, o1_formatting: bool) {
+        *self.smt8_o1_formatting.write() = o1_formatting;
+    }
+
+    /// Returns true if V93K SMT8 flows are formatted as Origen 1 (origen_testers) writes them
+    pub fn smt8_o1_formatting(&self) -> bool {
+        *self.smt8_o1_formatting.read()
     }
 }
 
