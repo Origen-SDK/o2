@@ -347,7 +347,9 @@ impl Processor<PGM> for PassthroughCollector {
         }
         if let Some(first_child) = node.children.first() {
             if let PGM::FlowData(fdata) = &first_child.attrs {
-                self.flow_stack.push((**fdata).clone());
+                let mut fdata = (**fdata).clone();
+                self.hold_local_variables(&mut fdata);
+                self.flow_stack.push(fdata);
             }
         }
         // The flow's finalized data replaces its first child once its children have been
@@ -365,18 +367,6 @@ impl PassthroughCollector {
     fn finalize_flow_data(&mut self) -> FlowData {
         // Extract the FlowData from the first child
         let mut flow_data = self.flow_stack.pop().unwrap();
-
-        // A local variable which this flow assigns is set by it, like a flag, rather than being
-        // its input
-        let local_variables: Vec<String> = flow_data
-            .assigned_variables
-            .iter()
-            .filter(|v| self.is_local_variable(&flow_data, v))
-            .cloned()
-            .collect();
-        for v in local_variables {
-            flow_data.modified_flags.insert(v);
-        }
 
         if flow_data.references_job {
             // Ensure every flow in the stack passses through job
@@ -467,6 +457,22 @@ impl PassthroughCollector {
         let flows = || self.flow_stack.iter().chain(std::iter::once(flow_data));
         flows().any(|f| f.local_flags.contains(flag) || f.local_variables.contains(flag))
             && !flows().any(|f| f.declared_outputs.contains(flag))
+    }
+
+    /// A local variable which the given flow assigns is set by it, like a flag, rather than
+    /// being its input. This is applied as the flow is entered, before its sub-flows are
+    /// finalized, so that a sub-flow which reads the variable gets it from this flow, which
+    /// holds it, rather than from further up.
+    fn hold_local_variables(&self, flow_data: &mut FlowData) {
+        let local_variables: Vec<String> = flow_data
+            .assigned_variables
+            .iter()
+            .filter(|v| self.is_local_variable(flow_data, v))
+            .cloned()
+            .collect();
+        for v in local_variables {
+            flow_data.modified_flags.insert(v);
+        }
     }
 
     /// Returns true if the given variable is declared local by the given flow or by an enclosing

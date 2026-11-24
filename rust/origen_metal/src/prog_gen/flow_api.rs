@@ -344,7 +344,9 @@ pub fn declare_local_flag(name: String, meta: Option<Meta>) -> Result<()> {
 /// flow. For V93K SMT8 a local variable is instead declared `out <name> = -1;` in the flow which
 /// assigns it, and it is passed out only as far as the highest enclosing flow in which another
 /// flow reads it, or not at all when no other flow reads it. A variable which is also declared
-/// as an output variable is passed out to every enclosing flow.
+/// as an output variable is passed out to every enclosing flow. As for a flag which a flow sets,
+/// a local variable which a flow assigns is not its input, even if it is declared as an input
+/// variable.
 /// A declaration applies to the whole flow and so it must be made at flow level, an error is
 /// returned when it is within a condition or a loop.
 pub fn declare_local_variable(name: String, meta: Option<Meta>) -> Result<()> {

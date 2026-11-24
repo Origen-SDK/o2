@@ -2651,6 +2651,26 @@ mod tests {
         assert!(top.contains("    in passed_count = -1;"), "{}", top);
         Ok(())
     }
+
+    #[test]
+    fn a_local_variable_is_passed_down_to_a_sub_flow_which_reads_it() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            flow_group("outer", vec![
+                local_variable("cnt"),
+                set_variable("cnt", "1"),
+                flow_group("child", vec![if_expr_node("cnt > 0", vec![set_flag("CHILD_SAW")])]),
+            ])
+        );
+        let outer = render_flow_file(flow.clone(), "OUTER.flow")?;
+        assert!(outer.contains("    out cnt = -1;"), "{}", outer);
+        assert!(!outer.contains("in cnt"), "{}", outer);
+        assert!(outer.contains("CHILD.cnt = cnt;"), "{}", outer);
+        let child = render_flow_file(flow.clone(), "CHILD.flow")?;
+        assert!(child.contains("    in cnt = -1;"), "{}", child);
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(!top.contains("cnt"), "{}", top);
+        Ok(())
+    }
 }
 
 fn extract_bin(nodes: &Vec<Box<Node<PGM>>>) -> (Option<usize>, Option<usize>) {
