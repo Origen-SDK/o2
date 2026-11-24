@@ -1,3 +1,17 @@
+(release-origen-metal-1-12-1)=
+# Origen Metal 1.12.1
+
+- **Released:** 2026-11-24
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.12.1`
+
+This release restores 1.11.0's output where 1.12.0 stopped combining adjacent opposite conditions that were safe to combine.
+
+- Fixed adjacent opposite conditions no longer being combined into one `if`/`else` when the first branch contains a raw statement or call which does not mention the condition's flag or variable, e.g. a test binned with a rendered statement, or, for a condition which reads a test result such as `t.pass`, when the first branch runs a test other than `t`. A raw statement still stops combining when it mentions the name, and a reference to a test result still does when the first branch runs that test or flow again. Contributed by Stephen McGinty in #260.
+- Unchanged from 1.12.0: adjacent opposite conditions within loops, conditions and else branches are combined, as introduced in #255, so that output still differs from 1.11.0.
+
+---
+
 (release-origen-metal-1-12-0)=
 # Origen Metal 1.12.0
 
