@@ -2728,10 +2728,54 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(
-            error.contains("The local variable 'GATE' is assigned in a flow which reads an enable"),
+            error.contains("The local variable 'GATE' is held by a flow which also needs an input"),
             "{}",
             error
         );
+    }
+
+    #[test]
+    fn a_local_variable_named_as_an_input_of_a_sub_flow_is_an_error() {
+        let consumer = |condition: FlowCondition| {
+            let mut node = node!(PGM::Condition, condition);
+            node.add_child(test_str("t"));
+            flow_group("consumer", vec![node])
+        };
+        for (name, condition) in [
+            ("GATE", FlowCondition::IfEnable(vec!["gate".to_string()])),
+            ("JOB", FlowCondition::IfJob(vec!["ft".to_string()])),
+        ] {
+            let flow = node!(PGM::Flow, "top".to_string() =>
+                local_variable(name),
+                set_variable(name, "1"),
+                consumer(condition)
+            );
+            let error = render_flow_file(flow, "TOP.flow").unwrap_err().to_string();
+            assert!(
+                error.contains(&format!(
+                    "The local variable '{}' is held by a flow which also needs an input",
+                    name
+                )),
+                "{}",
+                error
+            );
+        }
+    }
+
+    #[test]
+    fn a_flag_condition_reads_a_local_variable_of_its_name() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "top".to_string() =>
+            local_variable("READY"),
+            flow_group("setter", vec![set_variable("READY", "1")]),
+            flow_group("reader", vec![node!(PGM::Condition, FlowCondition::IfFlag(vec!["READY".to_string()]) =>
+                test_str("t")
+            )])
+        );
+        let top = render_flow_file(flow, "TOP.flow")?;
+        assert!(top.contains("READY = SETTER.READY;"), "{}", top);
+        assert!(top.contains("READER.READY = READY;"), "{}", top);
+        assert!(!top.contains("in READY"), "{}", top);
+        Ok(())
     }
 }
 
