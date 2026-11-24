@@ -3160,19 +3160,18 @@ mod tests {
 
     #[test]
     fn a_suite_and_a_group_with_the_same_kept_case_name_are_an_error() -> crate::Result<()> {
-        // A test method template from the load path, which is global, in a library which no
-        // other test uses
-        let templates = tempdir()?;
-        let template = templates.path().join("v93ksmt8/instance_case_lib/T.json");
-        fs::create_dir_all(template.parent().unwrap())?;
-        fs::write(&template, r#"{"class_name": "instance_case_lib.T"}"#)?;
-        let original_load_path = crate::PROG_GEN_CONFIG.test_template_load_path();
-        let mut load_path = original_load_path.clone();
-        load_path.push(templates.path().to_path_buf());
-        crate::PROG_GEN_CONFIG.set_test_template_load_path(load_path);
+        // The test method is added to the model directly, rather than from a template on the
+        // load path, which is global
+        let model = || {
+            let mut model = Model::new(SupportedTester::V93KSMT8);
+            let mut method =
+                crate::prog_gen::model::Test::new("vmin_tm", 1, SupportedTester::V93KSMT8);
+            method.class_name = Some("instance_case_lib.T".to_string());
+            model.tests.insert(1, method);
+            model
+        };
         let flow = || {
             node!(PGM::Flow, "main".to_string() =>
-                node!(PGM::DefTest, 1, "vmin_tm".to_string(), SupportedTester::V93KSMT8, "instance_case_lib".to_string(), "T".to_string()),
                 node!(PGM::DefTestInv, 2, "Vmin".to_string(), SupportedTester::V93KSMT8),
                 node!(PGM::AssignTestToInv, 2, 1),
                 node!(PGM::SetAttr, 2, "name".to_string(), Some(ParamValue::Any("Vmin".to_string())), false),
@@ -3182,24 +3181,32 @@ mod tests {
                 )
             )
         };
-        let kept = render_with(
-            flow(),
-            &Options {
-                keep_sub_flow_instance_case: true,
-                ..Default::default()
-            },
-        );
-        let default = render_with(flow(), &Options::default());
-        crate::PROG_GEN_CONFIG.set_test_template_load_path(original_load_path);
+        let render = |options: &Options| -> crate::Result<String> {
+            let mut flow_ast = crate::ast::AST::new();
+            flow_ast.start(flow());
+            let (ast, model) = process_flow(&flow_ast, model(), SupportedTester::V93KSMT8, true)?;
+            let output_dir = tempdir()?;
+            let (_model, files) = run_with_options(&ast, output_dir.path(), model, options)?;
+            let main = files
+                .iter()
+                .find(|path| path.file_name().and_then(|n| n.to_str()) == Some("MAIN.flow"))
+                .unwrap();
+            Ok(fs::read_to_string(main)?)
+        };
 
-        let error = kept.unwrap_err().to_string();
+        let error = render(&Options {
+            keep_sub_flow_instance_case: true,
+            ..Default::default()
+        })
+        .unwrap_err()
+        .to_string();
         assert!(
             error
                 .contains("the test suite 'Vmin' and the sub-flow (or flow group) instance 'Vmin'"),
             "{}",
             error
         );
-        let main = &default?["MAIN.flow"];
+        let main = render(&Options::default())?;
         assert!(
             main.contains("        suite Vmin calls instance_case_lib.T {"),
             "{}",
