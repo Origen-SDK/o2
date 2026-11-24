@@ -196,6 +196,13 @@ fn has_else(node: &Node<PGM>) -> bool {
     node.children.iter().any(|n| matches!(n.attrs, PGM::Else))
 }
 
+/// Returns true if the given text mentions the given name as an identifier, compared without
+/// regard to case, e.g. `F = 0;` mentions F and `probe.execute();` mentions probe and execute
+fn mentions_identifier(text: &str, name: &str) -> bool {
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .any(|word| word.eq_ignore_ascii_case(name))
+}
+
 /// Returns true if the given expression reads a reference to an attribute of something, e.g. the
 /// result of a test, t.pass, which expression_variables does not return
 fn reads_a_reference(expression: &str) -> bool {
@@ -268,10 +275,21 @@ impl<'a> ChangesFlag<'a> {
 impl<'a> Processor<PGM> for ChangesFlag<'a> {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            // Raw tester statements and external calls may change any flag or variable, or run a
-            // test again
-            PGM::Render(_) | PGM::Call(_, _) | PGM::Callback(_, _) => {
-                self.flag_found = true;
+            // A raw tester statement or an external call may change a flag or variable which it
+            // mentions
+            PGM::Render(text) => {
+                if mentions_identifier(text, self.flag) {
+                    self.flag_found = true;
+                }
+                Return::None
+            }
+            PGM::Call(name, args) | PGM::Callback(name, args) => {
+                if std::iter::once(name)
+                    .chain(args.iter())
+                    .any(|text| mentions_identifier(text, self.flag))
+                {
+                    self.flag_found = true;
+                }
                 Return::None
             }
             PGM::SetFlag(flag, _, _)
@@ -320,13 +338,25 @@ impl ContainsATest {
 impl Processor<PGM> for ContainsATest {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            // A raw tester statement or an external call may execute a test
-            PGM::Test(_, _)
-            | PGM::TestStr(_, _, _, _, _)
-            | PGM::Render(_)
-            | PGM::Call(_, _)
-            | PGM::Callback(_, _) => {
+            PGM::Test(_, _) | PGM::TestStr(_, _, _, _, _) => {
                 self.test_found = true;
+                Return::None
+            }
+            // A raw tester statement or an external call which executes something, e.g.
+            // `probe.execute();`, may execute a test
+            PGM::Render(text) => {
+                if mentions_identifier(text, "execute") {
+                    self.test_found = true;
+                }
+                Return::None
+            }
+            PGM::Call(name, args) | PGM::Callback(name, args) => {
+                if std::iter::once(name)
+                    .chain(args.iter())
+                    .any(|text| mentions_identifier(text, "execute"))
+                {
+                    self.test_found = true;
+                }
                 Return::None
             }
             _ => {
@@ -817,5 +847,45 @@ mod tests {
         assert!(!reads_a_reference("x > 1.5"));
         assert!(!reads_a_reference("name == \"a.b\""));
         assert!(!reads_a_reference("mode == 6"));
+    }
+
+    #[test]
+    fn a_raw_statement_which_does_not_mention_the_condition_does_not_stop_combining() -> Result<()>
+    {
+        let render = |text: &str| node!(PGM::Render, text.to_string());
+        // The first branch runs a test and renders a statement, e.g. binning on its failure,
+        // which neither runs a test nor mentions the expression's variable
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("MODE == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                render("if ($ALARM == 1) { multi_bin; }"),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessExpr("MODE == 6".to_string()) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        );
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfExpr("MODE == 6".to_string()) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                render("if ($ALARM == 1) { multi_bin; }"),
+                node!(PGM::Else =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            ),
+        );
+        assert_eq!(output, run(&input)?);
+
+        // Likewise for a flag condition, and a call
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["F".to_string()]) =>
+                render("multi_bin;"),
+                node!(PGM::Call, "log_it".to_string(), vec!["x".to_string()]),
+            ),
+            node!(PGM::Condition, FlowCondition::UnlessFlag(vec!["F".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+            ),
+        );
+        assert_eq!(run(&input)?.to_string().matches("Else").count(), 1);
+        Ok(())
     }
 }
