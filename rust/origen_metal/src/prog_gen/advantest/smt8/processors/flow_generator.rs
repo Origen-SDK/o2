@@ -366,6 +366,51 @@ impl FlowGenerator {
         Ok(())
     }
 
+    /// Renders the content of the given flow-type group or sub-flow node into the flow file which
+    /// has just been opened for it, and closes it. A flow kept within a resources block is a flow
+    /// definition, its content is rendered as it is outside of resources.
+    fn render_flow_content(&mut self, node: &Node<PGM>) -> Result<FlowFile> {
+        let orig_resources_block = self.resources_block;
+        self.resources_block = false;
+        // Bypass applies to the call of this flow, not to the flows that it calls
+        let orig_bypass = self.bypass_sub_flows;
+        self.bypass_sub_flows = false;
+        let processed = node.process_children(self);
+        self.bypass_sub_flows = orig_bypass;
+        self.resources_block = orig_resources_block;
+        processed?;
+        self.close_flow_file(self.namespaces.last().cloned())
+    }
+
+    /// Declares the given flow, which has just been rendered, in the current flow and executes it
+    /// there, passing its inputs in and its outputs back. A flow kept within a resources block is
+    /// declared but not executed. Returns true if the flow is executed.
+    fn call_flow(&mut self, flow: &FlowFile) -> bool {
+        let executed = !self.resources_block;
+        let current_flow = self.flow_stack.last_mut().unwrap();
+        if executed {
+            for v in flow.flow_data.sorted_input_vars() {
+                current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
+            }
+            current_flow.execute_line(format!("{}.execute();", flow.name));
+        }
+        current_flow.sub_flows.push(flow.name.clone());
+        if self.bypass_sub_flows {
+            current_flow.bypassed_sub_flows.insert(flow.name.clone());
+        }
+        if executed {
+            for v in flow.flow_data.sorted_output_flags() {
+                if current_flow.flow_data.output_flags.contains(&v)
+                    || current_flow.flow_data.referenced_flags.contains(&v)
+                    || current_flow.flow_data.downstream_flags.contains(&v)
+                {
+                    current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
+                }
+            }
+        }
+        executed
+    }
+
     /// Renders the content of a test's OnPassed or OnFailed branch into a buffer
     fn render_result_branch(
         &mut self,
@@ -857,30 +902,9 @@ impl Processor<PGM> for FlowGenerator {
                 self.open_flow_file(name, flow_data)?;
                 let orig = self.sub_flow_open;
                 self.sub_flow_open = true;
-                // Bypass applies to the call of this flow, not to the flows that it calls
-                let orig_bypass = self.bypass_sub_flows;
-                self.bypass_sub_flows = false;
-                node.process_children(self)?;
-                self.bypass_sub_flows = orig_bypass;
+                let flow = self.render_flow_content(node)?;
                 self.sub_flow_open = orig;
-                let flow = self.close_flow_file(self.namespaces.last().cloned())?;
-                let current_flow = self.flow_stack.last_mut().unwrap();
-                for v in flow.flow_data.sorted_input_vars() {
-                    current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
-                }
-                current_flow.execute_line(format!("{}.execute();", flow.name));
-                current_flow.sub_flows.push(flow.name.clone());
-                if self.bypass_sub_flows {
-                    current_flow.bypassed_sub_flows.insert(flow.name.clone());
-                }
-                for v in flow.flow_data.sorted_output_flags() {
-                    if current_flow.flow_data.output_flags.contains(&v)
-                        || current_flow.flow_data.referenced_flags.contains(&v)
-                        || current_flow.flow_data.downstream_flags.contains(&v)
-                    {
-                        current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
-                    }
-                }
+                self.call_flow(&flow);
                 Return::None
             }
             PGM::Group(name, _, kind, _) => {
@@ -892,30 +916,10 @@ impl Processor<PGM> for FlowGenerator {
                         FlowData::default()
                     };
                     self.open_flow_file(name, flow_data)?;
-                    // Bypass applies to the call of this flow, not to the flows that it calls
-                    let orig_bypass = self.bypass_sub_flows;
-                    self.bypass_sub_flows = false;
-                    node.process_children(self)?;
-                    self.bypass_sub_flows = orig_bypass;
-                    let flow = self.close_flow_file(self.namespaces.last().cloned())?;
-                    let current_flow = self.flow_stack.last_mut().unwrap();
-                    for v in flow.flow_data.sorted_input_vars() {
-                        current_flow.execute_line(format!("{}.{} = {};", flow.name, v, v));
+                    let flow = self.render_flow_content(node)?;
+                    if self.call_flow(&flow) {
+                        self.render_result_branches(&node.children, &flow.name, false)?;
                     }
-                    current_flow.execute_line(format!("{}.execute();", flow.name));
-                    current_flow.sub_flows.push(flow.name.clone());
-                    if self.bypass_sub_flows {
-                        current_flow.bypassed_sub_flows.insert(flow.name.clone());
-                    }
-                    for v in flow.flow_data.sorted_output_flags() {
-                        if current_flow.flow_data.output_flags.contains(&v)
-                            || current_flow.flow_data.referenced_flags.contains(&v)
-                            || current_flow.flow_data.downstream_flags.contains(&v)
-                        {
-                            current_flow.execute_line(format!("{} = {}.{};", v, flow.name, v));
-                        }
-                    }
-                    self.render_result_branches(&node.children, &flow.name, false)?;
                 } else {
                     node.process_children(self)?;
                 }
@@ -1102,6 +1106,12 @@ impl Processor<PGM> for FlowGenerator {
                 }
                 _ => Return::ProcessChildren,
             },
+            // A loop within resources only holds the flows which are kept there, it is not
+            // executed
+            PGM::Loop(..) if self.resources_block => {
+                node.process_children(self)?;
+                Return::None
+            }
             PGM::Loop(count, variable, descending, start) => {
                 // The first and last values of the loop variable, joined like this to match
                 // hand-written SMT8, e.g. 1..3 and 1 .. count. Computed as i128 so that no start
@@ -1201,6 +1211,8 @@ impl Processor<PGM> for FlowGenerator {
                 self.resources_block = orig;
                 Return::None
             }
+            // Only analysed to declare the flow's variables
+            PGM::FlowDataOnly => Return::None,
             _ => Return::ProcessChildren,
         };
         Ok(result)
@@ -2587,6 +2599,371 @@ mod tests {
             \x20   }\n\
             }\n"
         );
+        Ok(())
+    }
+
+    /// Renders the given flow AST for SMT8 and returns the name and content of every flow file
+    fn render_flow_files(flow: crate::ast::Node<PGM>) -> crate::Result<Vec<(String, String)>> {
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT8),
+            SupportedTester::V93KSMT8,
+            true,
+        )?;
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let mut flows = vec![];
+        for path in files {
+            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            if name.ends_with(".flow") {
+                flows.push((name, fs::read_to_string(&path)?));
+            }
+        }
+        Ok(flows)
+    }
+
+    fn resources(keep_flows: bool, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut block = if keep_flows {
+            node!(PGM::ResourcesKeepFlows)
+        } else {
+            node!(PGM::Resources)
+        };
+        for child in children {
+            block.add_child(child);
+        }
+        block
+    }
+
+    fn main_flow(children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut flow = node!(PGM::Flow, "main".to_string());
+        for child in children {
+            flow.add_child(child);
+        }
+        flow
+    }
+
+    fn sub_flow(name: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut flow = node!(PGM::SubFlow, name.to_string(), None);
+        for child in children {
+            flow.add_child(child);
+        }
+        flow
+    }
+
+    fn if_enable(enable: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut condition = node!(
+            PGM::Condition,
+            FlowCondition::IfEnable(vec![enable.to_string()])
+        );
+        for child in children {
+            condition.add_child(child);
+        }
+        condition
+    }
+
+    fn if_flag(flag: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut condition = node!(
+            PGM::Condition,
+            FlowCondition::IfFlag(vec![flag.to_string()])
+        );
+        for child in children {
+            condition.add_child(child);
+        }
+        condition
+    }
+
+    fn if_expr(expression: &str, children: Vec<crate::ast::Node<PGM>>) -> crate::ast::Node<PGM> {
+        let mut condition = node!(
+            PGM::Condition,
+            FlowCondition::IfExpr(expression.to_string())
+        );
+        for child in children {
+            condition.add_child(child);
+        }
+        condition
+    }
+
+    fn flow_file<'a>(flows: &'a [(String, String)], name: &str) -> &'a str {
+        &flows
+            .iter()
+            .find(|(file, _)| file == name)
+            .unwrap_or_else(|| panic!("expected flow file {} in {:?}", name, flows))
+            .1
+    }
+
+    #[test]
+    fn a_flow_within_resources_is_flattened_unless_flows_are_kept() -> crate::Result<()> {
+        for kept in [
+            flow_group("shared", vec![test_str("t1")]),
+            sub_flow("shared", vec![test_str("t1")]),
+        ] {
+            let flows = render_flow_files(main_flow(vec![resources(false, vec![kept.clone()])]))?;
+            assert_eq!(flows.len(), 1, "{:?}", flows);
+            let main = flow_file(&flows, "MAIN.flow");
+            assert!(!main.contains("SHARED"), "{}", main);
+            assert!(!main.contains("t1"), "{}", main);
+
+            let flows = render_flow_files(main_flow(vec![resources(true, vec![kept])]))?;
+            assert_eq!(flows.len(), 2, "{:?}", flows);
+            let main = flow_file(&flows, "MAIN.flow");
+            assert!(
+                main.contains(
+                    "    setup {\n        flow SHARED calls flows.main.SHARED { }\n    }"
+                ),
+                "{}",
+                main
+            );
+            assert!(main.contains("    execute {\n    }"), "{}", main);
+            assert!(!main.contains("t1"), "{}", main);
+            let shared = flow_file(&flows, "SHARED.flow");
+            assert!(
+                shared.contains("    execute {\n        t1.execute();\n    }"),
+                "{}",
+                shared
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_kept_flow_is_declared_but_not_executed_by_the_enclosing_flow() -> crate::Result<()> {
+        // The kept flow is within conditions and a non-flow group, it reads an enable and sets a
+        // flag which the enclosing flow reads, and it has a result branch
+        let mut kept = flow_group(
+            "shared",
+            vec![if_enable("E", vec![test_str("t1")]), set_flag("F")],
+        );
+        kept.add_child(node!(PGM::OnFailed, FlowID::from_str("shared") =>
+            node!(PGM::Log, "shared failed".to_string())
+        ));
+        let flows = render_flow_files(main_flow(vec![
+            resources(
+                true,
+                vec![if_flag(
+                    "G",
+                    vec![
+                        node!(PGM::Group, "tests".to_string(), None, GroupType::Test, None =>
+                            node!(PGM::BypassSubFlows => kept)
+                        ),
+                    ],
+                )],
+            ),
+            if_flag("F", vec![test_str("t2")]),
+        ]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        // Its interface is as if it were executed
+        assert!(main.contains("    in E = -1;"), "{}", main);
+        assert!(main.contains("    out F = -1;"), "{}", main);
+        assert!(
+            main.contains(
+                "        flow SHARED calls flows.main.SHARED {\n            bypass = true;\n        }"
+            ),
+            "{}",
+            main
+        );
+        // Nothing executes it, passes it inputs, reads its outputs or tests its result
+        assert!(!main.contains("SHARED."), "{}", main);
+        assert!(!main.contains("shared failed"), "{}", main);
+        assert!(!main.contains("t1"), "{}", main);
+        assert!(
+            main.contains("if (F == 1) {\n            t2.execute();\n        }"),
+            "{}",
+            main
+        );
+
+        let shared = flow_file(&flows, "SHARED.flow");
+        assert!(shared.contains("    in E = -1;"), "{}", shared);
+        assert!(shared.contains("    out F = -1;"), "{}", shared);
+        assert!(
+            shared.contains("if (E == 1) {\n            t1.execute();\n        }"),
+            "{}",
+            shared
+        );
+        assert!(shared.contains("F = 1;"), "{}", shared);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flow_within_a_kept_flow_is_executed_by_it() -> crate::Result<()> {
+        let flows = render_flow_files(main_flow(vec![resources(
+            true,
+            vec![flow_group(
+                "shared",
+                vec![flow_group("inner", vec![test_str("t1")])],
+            )],
+        )]))?;
+        let shared = flow_file(&flows, "SHARED.flow");
+        assert!(
+            shared.contains("flow INNER calls flows.main.shared.INNER { }"),
+            "{}",
+            shared
+        );
+        assert!(shared.contains("INNER.execute();"), "{}", shared);
+        let inner = flow_file(&flows, "INNER.flow");
+        assert!(inner.contains("t1.execute();"), "{}", inner);
+        Ok(())
+    }
+
+    #[test]
+    fn the_variables_read_within_kept_resources_are_inputs_unless_the_flow_holds_them(
+    ) -> crate::Result<()> {
+        let block = || {
+            vec![
+                if_flag("F", vec![test_str("t1")]),
+                if_enable("E", vec![test_str("t2")]),
+                if_expr("mode == 6", vec![test_str("t3")]),
+                node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("attempt".to_string()), true, 1 =>
+                    if_expr("attempt > 1", vec![test_str("t4")])
+                ),
+            ]
+        };
+        let flows = render_flow_files(main_flow(vec![resources(true, block())]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(main.contains("    in E = -1;"), "{}", main);
+        assert!(main.contains("    in F = -1;"), "{}", main);
+        assert!(main.contains("    in mode = -1;"), "{}", main);
+        assert!(!main.contains("attempt"), "{}", main);
+        // Nothing within the block is rendered
+        assert!(main.contains("    execute {\n    }"), "{}", main);
+
+        // A flag which the flow sets is not an input
+        let flows = render_flow_files(main_flow(vec![set_flag("F"), resources(true, block())]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(!main.contains("in F"), "{}", main);
+        assert!(main.contains("    in E = -1;"), "{}", main);
+
+        // Nor is it when the block sets it, as when the block is executed
+        let mut content = block();
+        content.push(set_flag("F"));
+        let flows = render_flow_files(main_flow(vec![resources(true, content)]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(!main.contains("in F"), "{}", main);
+        assert!(main.contains("    out F = -1;"), "{}", main);
+        assert!(!main.contains("F = 1;"), "{}", main);
+
+        // Without keeping flows, the content of the block is not analysed
+        let flows = render_flow_files(main_flow(vec![resources(false, block())]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(!main.contains(" in "), "{}", main);
+        Ok(())
+    }
+
+    #[test]
+    fn a_test_result_condition_within_kept_resources_does_not_flag_the_test() -> crate::Result<()> {
+        let flows = render_flow_files(main_flow(vec![
+            test_str("t1"),
+            resources(
+                true,
+                vec![
+                    node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_str("t1")]) =>
+                        test_str("t2")
+                    ),
+                ],
+            ),
+        ]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(
+            main.contains("    execute {\n        t1.execute();\n    }"),
+            "{}",
+            main
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_counter_of_a_loop_around_a_kept_flow_is_not_an_input_of_the_enclosing_flow(
+    ) -> crate::Result<()> {
+        let flows = render_flow_files(main_flow(vec![resources(
+            true,
+            vec![
+                node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("attempt".to_string()), false, 1 =>
+                    flow_group("shared", vec![if_expr("attempt > 1", vec![test_str("t1")])])
+                ),
+                node!(PGM::Loop, Some(LoopCount::Variable("retryCount".to_string())), Some("retry".to_string()), false, 1 =>
+                    flow_group("retried", vec![if_expr("retry > 1", vec![test_str("t2")])])
+                ),
+            ],
+        )]))?;
+        let main = flow_file(&flows, "MAIN.flow");
+        assert!(!main.contains("attempt"), "{}", main);
+        assert!(!main.contains("in retry ="), "{}", main);
+        // The count is read by the loop, as when it is executed
+        assert!(main.contains("    in retryCount = -1;"), "{}", main);
+        assert!(
+            main.contains("flow SHARED calls flows.main.SHARED { }"),
+            "{}",
+            main
+        );
+        assert!(
+            main.contains("flow RETRIED calls flows.main.RETRIED { }"),
+            "{}",
+            main
+        );
+        assert!(main.contains("    execute {\n    }"), "{}", main);
+        let shared = flow_file(&flows, "SHARED.flow");
+        assert!(shared.contains("    in attempt = -1;"), "{}", shared);
+        let retried = flow_file(&flows, "RETRIED.flow");
+        assert!(retried.contains("    in retry = -1;"), "{}", retried);
+        Ok(())
+    }
+
+    #[test]
+    fn the_conditions_around_kept_resources_do_not_remove_those_within_a_kept_flow(
+    ) -> crate::Result<()> {
+        let guarded = || vec![if_flag("F", vec![set_flag("DID_RUN")])];
+        // Adjacent guards are combined, and the combined node is processed again
+        let adjacent = || {
+            vec![
+                if_flag("F", vec![set_flag("DID_RUN")]),
+                if_flag("F", vec![set_flag("DID_RUN_ALSO")]),
+            ]
+        };
+        let one = "if (F == 1) {\n            DID_RUN = 1;\n        }";
+        let both =
+            "if (F == 1) {\n            DID_RUN = 1;\n            DID_RUN_ALSO = 1;\n        }";
+        for (kept, expected) in [
+            (flow_group("shared", guarded()), one),
+            (sub_flow("shared", guarded()), one),
+            (flow_group("shared", adjacent()), both),
+            (sub_flow("shared", adjacent()), both),
+        ] {
+            let flows = render_flow_files(main_flow(vec![if_flag(
+                "F",
+                vec![resources(true, vec![kept])],
+            )]))?;
+            let shared = flow_file(&flows, "SHARED.flow");
+            assert!(shared.contains("    in F = -1;"), "{}", shared);
+            assert!(shared.contains(expected), "{}", shared);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn resources_which_keep_flows_are_plain_resources_on_other_testers() -> crate::Result<()> {
+        let content = || {
+            vec![if_flag(
+                "F",
+                vec![
+                    flow_group("shared", vec![test_str("t1")]),
+                    sub_flow("child", vec![if_enable("E", vec![test_str("t2")])]),
+                ],
+            )]
+        };
+        for tester in [
+            SupportedTester::V93KSMT7,
+            SupportedTester::ULTRAFLEX,
+            SupportedTester::J750,
+        ] {
+            let processed = |keep_flows: bool| -> crate::Result<String> {
+                let mut flow_ast = crate::ast::AST::new();
+                flow_ast.start(main_flow(vec![resources(keep_flows, content())]));
+                let (ast, _model) = process_flow(&flow_ast, Model::new(tester), tester, true)?;
+                Ok(ast.to_string())
+            };
+            assert_eq!(processed(true)?, processed(false)?, "{:?}", tester);
+        }
         Ok(())
     }
 }

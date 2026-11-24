@@ -257,8 +257,17 @@ impl PyInterface {
         Ok(())
     }
 
-    fn resources(&mut self) -> PyResult<Resources> {
-        let r = Resources::new();
+    /// Returns a context manager for a block of resources: the tests within it are defined in the
+    /// test program but are not executed by the flow.
+    ///
+    /// With keep_flows=True, on V93K SMT8, the flow-type groups and sub-flows within the block
+    /// are kept as flow definitions: each one is written to its own flow file and declared by the
+    /// enclosing flow, but is not executed by it. The variables which the block's content would
+    /// make inputs or outputs of the enclosing flow, if it were executed, are declared by it too.
+    /// On other testers, keep_flows has no effect.
+    #[pyo3(signature=(keep_flows=false))]
+    fn resources(&mut self, keep_flows: bool) -> PyResult<Resources> {
+        let r = Resources::new_with_options(keep_flows);
         Ok(r)
     }
 
