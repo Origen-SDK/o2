@@ -1,6 +1,7 @@
 use crate::ast::{Node, Processor, Return};
 use crate::prog_gen::advantest::smt8::processors::create_flow_data::FlowData;
 use crate::prog_gen::config::SMT8Config;
+use crate::prog_gen::model::TestCollectionItem;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, LoopCount, Model, ParamValue, PGM};
 use crate::Result;
 use indexmap::IndexMap;
@@ -516,12 +517,12 @@ impl FlowGenerator {
         })
     }
 
-    /// Renders the parameters of a test suite (suite_level), or of a collection item within it
+    /// Renders the parameters of a test suite, or of the given collection item within it
     fn render_sorted_contents<W: Write>(
         &self,
         f: &mut W,
         indent: usize,
-        suite_level: bool,
+        item: Option<&TestCollectionItem>,
         values: &IndexMap<String, ParamValue>,
         default_values: &IndexMap<String, ParamValue>,
         collections: &IndexMap<String, Vec<usize>>,
@@ -551,11 +552,29 @@ impl FlowGenerator {
                 names.push(collection_name.clone());
             }
         }
-        if self.tpgf_formatting && suite_level {
-            // A test suite's parameters, TPGF orders them by the byte order of their names
-            names.sort();
-        } else {
-            names.sort_by(|a, b| Self::alpha_cmp(a, b));
+        match (self.tpgf_formatting, item) {
+            // TPGF orders a test suite's parameters by the byte order of their names
+            (true, None) => names.sort(),
+            // and a collection item's parameters in the order of their definition, followed here
+            // by its collections in the order of theirs, anything else follows those by name
+            (true, Some(item)) => {
+                let position = |name: &String| {
+                    item.params
+                        .get_index_of(name)
+                        .or_else(|| {
+                            item.collection_defs
+                                .get_index_of(name)
+                                .map(|i| item.params.len() + i)
+                        })
+                        .unwrap_or(usize::MAX)
+                };
+                names.sort_by(|a, b| {
+                    position(a)
+                        .cmp(&position(b))
+                        .then_with(|| Self::alpha_cmp(a, b))
+                });
+            }
+            (false, _) => names.sort_by(|a, b| Self::alpha_cmp(a, b)),
         }
         names.dedup();
 
@@ -589,7 +608,7 @@ impl FlowGenerator {
                     self.render_sorted_contents(
                         f,
                         indent + 1,
-                        false,
+                        Some(item),
                         &item.values,
                         &item.default_values,
                         &item.collections,
@@ -729,7 +748,7 @@ impl FlowGenerator {
                 self.render_sorted_contents(
                     &mut f,
                     3,
-                    true,
+                    None,
                     &test.values,
                     &test.definition.default_values,
                     &test.collections,
@@ -2708,7 +2727,7 @@ mod tests {
             generator.render_sorted_contents(
                 &mut rendered,
                 0,
-                true,
+                None,
                 &values,
                 &indexmap::IndexMap::new(),
                 &indexmap::IndexMap::new(),
@@ -2739,6 +2758,78 @@ mod tests {
                 "outputType",
                 "scan.SSN",
                 "Zed"
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn collection_parameters_are_in_definition_order_when_formatted_as_tpgf_does(
+    ) -> crate::Result<()> {
+        use crate::prog_gen::model::{TestCollection, TestCollectionItem};
+        use crate::prog_gen::ParamType;
+        let mut collection = TestCollection::new("variable");
+        for name in ["expression", "outputVariable", "outputType", "logging"] {
+            collection
+                .params
+                .insert(name.to_string(), ParamType::String);
+        }
+        let mut item = TestCollectionItem::from_collection(100, 1, "param0", &collection);
+        for name in ["logging", "outputType", "outputVariable", "expression"] {
+            item.values
+                .insert(name.to_string(), ParamValue::String(name.to_string()));
+        }
+        let mut suite_values = indexmap::IndexMap::new();
+        for name in ["testDescription.a", "binning.binnable"] {
+            suite_values.insert(name.to_string(), ParamValue::Int(1));
+        }
+        let mut collections = indexmap::IndexMap::new();
+        collections.insert("variable".to_string(), vec![100]);
+
+        let render = |tpgf_formatting: bool| -> crate::Result<Vec<String>> {
+            let output_dir = tempdir()?;
+            let mut model = Model::new(SupportedTester::V93KSMT8);
+            model.test_collection_items.insert(100, item.clone());
+            let generator = FlowGenerator::new(output_dir.path(), model, tpgf_formatting);
+            let mut rendered: Vec<u8> = vec![];
+            generator.render_sorted_contents(
+                &mut rendered,
+                0,
+                None,
+                &suite_values,
+                &indexmap::IndexMap::new(),
+                &collections,
+            )?;
+            Ok(String::from_utf8(rendered)
+                .unwrap()
+                .lines()
+                .map(|l| l.trim().split(' ').next().unwrap().to_string())
+                .collect())
+        };
+        assert_eq!(
+            render(true)?,
+            vec![
+                "binning.binnable",
+                "testDescription.a",
+                "variable[param0]",
+                "expression",
+                "outputVariable",
+                "outputType",
+                "logging",
+                "};"
+            ]
+        );
+        assert_eq!(
+            render(false)?,
+            vec![
+                "binning.binnable",
+                "testDescription.a",
+                "variable[param0]",
+                "expression",
+                "logging",
+                "outputType",
+                "outputVariable",
+                "};"
             ]
         );
         Ok(())
