@@ -791,7 +791,19 @@ impl Processor<PGM> for FlowGenerator {
                     self.push_body("}");
                     Return::None
                 }
-                _ => Return::ProcessChildren,
+                // A condition which is not rendered, its content is rendered as it is, including
+                // the content of an else branch given to it by combining it with the opposite
+                // condition, as it was before they were combined
+                _ => {
+                    for child in &node.children {
+                        if matches!(child.attrs, PGM::Else) {
+                            child.process_children(self)?;
+                        } else {
+                            child.process(self)?;
+                        }
+                    }
+                    Return::None
+                }
             },
             PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = format!("@{}", &flag);
@@ -843,7 +855,7 @@ impl Processor<PGM> for FlowGenerator {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{process_flow, FlowCondition, Model, SupportedTester, PGM};
+    use crate::prog_gen::{process_flow, FlowCondition, LoopCount, Model, SupportedTester, PGM};
     use std::fs;
     use tempfile::tempdir;
 
@@ -877,6 +889,54 @@ mod tests {
 
         assert!(flow.contains("    initialize();\n    configure();"));
         assert!(flow.contains("       stop();\n       cleanup();"));
+        Ok(())
+    }
+
+    #[test]
+    fn the_else_branch_of_a_condition_which_is_not_rendered_is_kept() -> crate::Result<()> {
+        let set_flag = |flag: &str| node!(PGM::SetFlag, flag.to_string(), true, false);
+        let pair = |a: &str, b: &str| {
+            vec![
+                node!(PGM::Condition, FlowCondition::IfExpr("n > 1".to_string()) => set_flag(a)),
+                node!(PGM::Condition, FlowCondition::UnlessExpr("n > 1".to_string()) => set_flag(b)),
+            ]
+        };
+        let mut flow = node!(PGM::Flow, "expressions".to_string());
+        for node in pair("top_a", "top_b") {
+            flow.add_child(node);
+        }
+        let mut looped = node!(
+            PGM::Loop,
+            Some(LoopCount::Fixed(2)),
+            Some("n".to_string()),
+            false,
+            1
+        );
+        for node in pair("loop_a", "loop_b") {
+            looped.add_child(node);
+        }
+        flow.add_child(looped);
+
+        let mut flow_ast = crate::ast::AST::new();
+        flow_ast.start(flow);
+        let (ast, model) = process_flow(
+            &flow_ast,
+            Model::new(SupportedTester::V93KSMT7),
+            SupportedTester::V93KSMT7,
+            true,
+        )?;
+        // The pairs are combined
+        assert_eq!(ast.to_string().matches("Else").count(), 2, "{}", ast);
+        let output_dir = tempdir()?;
+        let (_model, files) = run(&ast, output_dir.path(), model)?;
+        let flow_path = files
+            .iter()
+            .find(|path| path.file_name().and_then(|name| name.to_str()) == Some("expressions.tf"))
+            .expect("expected generated SMT7 flow file");
+        let flow = fs::read_to_string(flow_path)?;
+        for flag in ["@TOP_A = 1;", "@TOP_B = 1;", "@LOOP_A = 1;", "@LOOP_B = 1;"] {
+            assert!(flow.contains(flag), "{}: {}", flag, flow);
+        }
         Ok(())
     }
 }

@@ -10,7 +10,8 @@ pub struct Config {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     src_files: RwLock<Vec<PathBuf>>,
-    test_template_load_path: RwLock<Vec<PathBuf>>,
+    /// The test template load path, with a revision which advances each time it is changed
+    test_template_load_path: RwLock<(usize, Vec<PathBuf>)>,
     flow_visualization_enabled: RwLock<bool>,
     uniqueness_option: RwLock<Option<UniquenessOption>>,
     smt7: RwLock<SMT7Config>,
@@ -37,7 +38,7 @@ impl Default for Config {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             src_files: RwLock::new(vec![]),
-            test_template_load_path: RwLock::new(vec![]),
+            test_template_load_path: RwLock::new((0, vec![])),
             flow_visualization_enabled: RwLock::new(false),
             uniqueness_option: RwLock::new(None),
             smt7: RwLock::new(SMT7Config {
@@ -95,10 +96,20 @@ impl Config {
 
     pub fn set_test_template_load_path(&self, paths: Vec<PathBuf>) {
         let mut lp = self.test_template_load_path.write();
-        *lp = paths;
+        if lp.1 != paths {
+            lp.0 += 1;
+        }
+        // The paths as given are kept, even when they are the same directories
+        lp.1 = paths;
     }
 
     pub fn test_template_load_path(&self) -> Vec<PathBuf> {
+        self.test_template_load_path.read().1.clone()
+    }
+
+    /// Returns the test template load path with its revision, which advances each time the load
+    /// path is changed, read together
+    pub(crate) fn test_template_load_path_revision(&self) -> (usize, Vec<PathBuf>) {
         self.test_template_load_path.read().clone()
     }
 
@@ -153,5 +164,28 @@ impl Config {
     /// Returns true if V93K SMT8 flows are formatted as TPGF (origen_testers) writes them
     pub fn smt8_tpgf_formatting(&self) -> bool {
         *self.smt8_tpgf_formatting.read()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_load_path_is_kept_as_given_and_its_revision_advances_when_it_changes() {
+        let config = Config::default();
+        config.set_test_template_load_path(vec![PathBuf::from("templates//version")]);
+        let (revision, _) = config.test_template_load_path_revision();
+        // The same directory, spelled differently
+        config.set_test_template_load_path(vec![PathBuf::from("templates/version")]);
+        let (same_revision, paths) = config.test_template_load_path_revision();
+        assert_eq!(same_revision, revision);
+        assert_eq!(paths[0].as_os_str(), "templates/version");
+        assert_eq!(
+            config.test_template_load_path()[0].as_os_str(),
+            "templates/version"
+        );
+        config.set_test_template_load_path(vec![PathBuf::from("other")]);
+        assert_eq!(config.test_template_load_path_revision().0, revision + 1);
     }
 }

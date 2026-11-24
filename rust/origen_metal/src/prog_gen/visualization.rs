@@ -122,6 +122,10 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn build_node(&mut self, node: &Node<PGM>, depth: usize) -> SequenceResult {
+        // Only analysed to declare the flow's variables, it is not executed
+        if matches!(node.attrs, PGM::FlowDataOnly) {
+            return SequenceResult::default();
+        }
         let Some((kind, label, test_id)) = describe_node(&node.attrs, self.model) else {
             return self.build_sequence(&node.children, depth);
         };
@@ -405,6 +409,8 @@ fn describe_node(attrs: &PGM, model: &Model) -> Option<(&'static str, String, Op
         | PGM::PushPattern(_, _, _)
         | PGM::DefBin(_, _, _, _, _)
         | PGM::Resources
+        | PGM::ResourcesKeepFlows
+        | PGM::FlowDataOnly
         | PGM::ResourcesFilename(_, _)
         | PGM::FlowDescription(_)
         | PGM::FlowNameOverride(_)
@@ -1184,6 +1190,45 @@ mod tests {
         assert!(graph.nodes.iter().any(|node| node.kind == "bin-bad"));
         assert!(graph.nodes.iter().any(|node| node.kind == "group"));
         assert!(graph.nodes.iter().any(|node| node.kind == "subflow"));
+    }
+
+    #[test]
+    fn content_which_is_only_analysed_is_not_shown() {
+        let model = Model::new(SupportedTester::V93KSMT8);
+        let ast = Node::new_with_children(
+            PGM::Flow("main".to_string()),
+            vec![
+                Node::new(PGM::Log("before".to_string())),
+                Node::new_with_children(
+                    PGM::FlowDataOnly,
+                    vec![Node::new_with_children(
+                        PGM::Condition(FlowCondition::IfFlag(vec!["G".to_string()])),
+                        vec![Node::new(PGM::Log("analysed".to_string()))],
+                    )],
+                ),
+                Node::new(PGM::Log("after".to_string())),
+            ],
+        );
+        let graph = FlowGraph::from_processed_ast("main", SupportedTester::V93KSMT8, &ast, &model);
+        assert!(!graph.nodes.iter().any(|node| node.kind == "condition"));
+        assert!(!graph
+            .nodes
+            .iter()
+            .any(|node| node.label.contains("analysed")));
+        let id = |label: &str| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.label.contains(label))
+                .unwrap()
+                .id
+                .clone()
+        };
+        let (before, after) = (id("before"), id("after"));
+        assert!(graph
+            .edges
+            .iter()
+            .any(|edge| edge.from == before && edge.to == after));
     }
 
     #[test]
