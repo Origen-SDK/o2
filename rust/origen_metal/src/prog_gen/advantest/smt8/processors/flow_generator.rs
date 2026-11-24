@@ -1394,6 +1394,35 @@ mod tests {
     }
 
     #[test]
+    fn opposite_conditions_within_a_loop_are_rendered_as_if_else() -> crate::Result<()> {
+        let flow = node!(PGM::Flow, "combined".to_string() =>
+            node!(PGM::Loop, Some(LoopCount::Fixed(2)), Some("i".to_string()), false, 1 =>
+                node!(PGM::Condition, FlowCondition::IfExpr("t.pass".to_string()) =>
+                    node!(PGM::SetFlag, "FLAG_B".to_string(), true, false)
+                ),
+                node!(PGM::Condition, FlowCondition::UnlessExpr("t.pass".to_string()) =>
+                    node!(PGM::TestStr, "t_b".to_string(), FlowID::from_str("t_b"), None, None, None)
+                )
+            )
+        );
+        let flow = render_flow_file(flow, "COMBINED.flow")?;
+        assert!(
+            flow.contains(
+                "        for (i : 1..2) {\n\
+                \x20           if (t.pass) {\n\
+                \x20               FLAG_B = 1;\n\
+                \x20           } else {\n\
+                \x20               t_b.execute();\n\
+                \x20           }\n\
+                \x20       }\n"
+            ),
+            "{}",
+            flow
+        );
+        Ok(())
+    }
+
+    #[test]
     fn loops_are_rendered_ascending_and_descending() -> crate::Result<()> {
         let flow = node!(PGM::Flow, "loops".to_string() =>
             node!(PGM::Loop, Some(LoopCount::Fixed(3)), Some("attempt".to_string()), false, 1 =>
