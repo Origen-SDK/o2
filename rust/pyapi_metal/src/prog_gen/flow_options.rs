@@ -46,86 +46,100 @@ where
     if let Some(kwargs) = kwargs {
         let mut ref_ids = vec![];
         if let Some(ids) = extract_condition("if_enable", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfEnable(ids),
+                is_list("if_enable", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_enabled", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfEnable(ids),
+                is_list("if_enabled", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_enable", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::UnlessEnable(ids),
+                is_list("unless_enable", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_enabled", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::UnlessEnable(ids),
+                is_list("unless_enabled", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_job", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfJob(ids),
+                is_list("if_job", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_job", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::UnlessJob(ids),
+                is_list("unless_job", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_ran", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfRan(ids.iter().map(|id| FlowID::from_str(id)).collect()),
+                is_list("if_ran", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_ran", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::UnlessRan(ids.iter().map(|id| FlowID::from_str(id)).collect()),
+                is_list("unless_ran", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_passed", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfPassed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
+                is_list("if_passed", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_passed", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfFailed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
+                is_list("unless_passed", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_failed", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfFailed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
+                is_list("if_failed", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_failed", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfPassed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
+                is_list("unless_failed", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_flag", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::IfFlag(ids),
+                is_list("if_flag", kwargs)?,
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_flag", kwargs)? {
-            ref_ids.push(flow_api::start_condition(
+            ref_ids.push(flow_api::start_condition_with_list_form(
                 FlowCondition::UnlessFlag(ids),
+                is_list("unless_flag", kwargs)?,
                 src_caller_meta(),
             )?);
         }
@@ -172,6 +186,15 @@ fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>>
     } else {
         Ok(None)
     }
+}
+
+/// Returns true if the given condition option is given as a list (or tuple) rather than as a
+/// single string, e.g. `if_flag=["A"]` rather than `if_flag="A"`
+fn is_list(name: &str, kwargs: &PyDict) -> Result<bool> {
+    Ok(match kwargs.get_item(name)? {
+        Some(v) => v.extract::<String>().is_err(),
+        None => false,
+    })
 }
 
 fn extract_expression(name: &str, kwargs: &PyDict) -> Result<Option<String>> {

@@ -238,7 +238,17 @@ pub fn start_group(
 }
 
 pub fn start_condition(condition: FlowCondition, meta: Option<Meta>) -> Result<usize> {
-    let n = node!(PGM::Condition, condition; meta);
+    start_condition_with_list_form(condition, false, meta)
+}
+
+/// As start_condition(), marking the condition as given as a list when list_form is true, e.g.
+/// `["A"]` rather than `"A"`, which a renderer may format differently, see Node::list_form()
+pub fn start_condition_with_list_form(
+    condition: FlowCondition,
+    list_form: bool,
+    meta: Option<Meta>,
+) -> Result<usize> {
+    let n = node!(PGM::Condition, condition; meta).with_list_form(list_form);
     FLOW.push_and_open(n)
 }
 

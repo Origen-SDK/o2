@@ -284,7 +284,10 @@ impl PyInterface {
     #[pyo3(signature=(*jobs, **_kwargs))]
     fn if_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfJob(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(jobs),
+                FlowCondition::IfJob(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -292,7 +295,10 @@ impl PyInterface {
     #[pyo3(signature=(*jobs, **_kwargs))]
     fn unless_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessJob(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(jobs),
+                FlowCondition::UnlessJob(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -300,7 +306,10 @@ impl PyInterface {
     #[pyo3(signature=(*flags, **_kwargs))]
     fn if_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(flags),
+                FlowCondition::IfEnable(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -308,7 +317,10 @@ impl PyInterface {
     #[pyo3(signature=(*flags, **_kwargs))]
     fn unless_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(flags),
+                FlowCondition::UnlessEnable(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -316,7 +328,10 @@ impl PyInterface {
     #[pyo3(signature=(*flags, **_kwargs))]
     fn if_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(flags),
+                FlowCondition::IfEnable(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -324,7 +339,10 @@ impl PyInterface {
     #[pyo3(signature=(*flags, **_kwargs))]
     fn unless_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(flags),
+                FlowCondition::UnlessEnable(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -332,9 +350,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn if_passed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
-                v.iter().map(|id| FlowID::from_str(id)).collect(),
-            ))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::IfPassed(v.iter().map(|id| FlowID::from_str(id)).collect()),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -342,9 +361,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_passed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
-                v.iter().map(|id| FlowID::from_str(id)).collect(),
-            ))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::IfFailed(v.iter().map(|id| FlowID::from_str(id)).collect()),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -352,9 +372,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn if_failed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
-                v.iter().map(|id| FlowID::from_str(id)).collect(),
-            ))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::IfFailed(v.iter().map(|id| FlowID::from_str(id)).collect()),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -362,9 +383,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_failed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
-                v.iter().map(|id| FlowID::from_str(id)).collect(),
-            ))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::IfPassed(v.iter().map(|id| FlowID::from_str(id)).collect()),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -372,9 +394,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn if_ran(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfRan(
-                v.iter().map(|id| FlowID::from_str(id)).collect(),
-            ))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::IfRan(v.iter().map(|id| FlowID::from_str(id)).collect()),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -382,9 +405,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_ran(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(
-                v.iter().map(|id| FlowID::from_str(id)).collect(),
-            ))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::UnlessRan(v.iter().map(|id| FlowID::from_str(id)).collect()),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -392,7 +416,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn if_flag(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfFlag(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::IfFlag(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -400,7 +427,10 @@ impl PyInterface {
     #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_flag(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessFlag(v))),
+            Ok(v) => Ok(Condition::new_listed(
+                has_list(ids),
+                FlowCondition::UnlessFlag(v),
+            )),
             Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
@@ -574,4 +604,10 @@ fn extract_to_string_vec(args: &PyTuple) -> Result<Vec<String>> {
         }
     }
     Ok(clean)
+}
+
+/// Returns true if any of the given arguments is a list (or tuple) rather than a single string,
+/// e.g. `if_flag(["A"])` rather than `if_flag("A")`
+fn has_list(args: &PyTuple) -> bool {
+    args.iter().any(|arg| arg.extract::<String>().is_err())
 }
