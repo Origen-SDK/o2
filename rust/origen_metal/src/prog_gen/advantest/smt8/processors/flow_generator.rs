@@ -1243,10 +1243,13 @@ impl Processor<PGM> for FlowGenerator {
                 | FlowCondition::UnlessEnable(flags)
                 | FlowCondition::IfFlag(flags)
                 | FlowCondition::UnlessFlag(flags) => {
+                    // Formatted as Origen 1 does, each flag of a list is in parentheses, even a
+                    // list of one, e.g. if ((A == 1)), unlike a single flag, if (A == 1)
+                    let list_form = flags.len() > 1 || (self.o1_formatting && node.list_form());
                     let expression = flags
                         .iter()
                         .map(|f| {
-                            if flags.len() > 1 {
+                            if list_form {
                                 format!("({} == 1)", f.to_uppercase())
                             } else {
                                 format!("{} == 1", f.to_uppercase())

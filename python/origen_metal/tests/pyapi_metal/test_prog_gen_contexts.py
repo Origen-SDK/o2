@@ -290,6 +290,46 @@ def test_a_local_variable_stays_in_the_flow_which_assigns_and_reads_it(tmp_path,
         assert "    in passed_count = -1;" in rendered["TOP.flow"]
 
 
+@pytest.mark.parametrize("o1_formatting", [False, True])
+def test_smt8_o1_formatting_keeps_the_list_form_of_a_flag_condition(tmp_path, o1_formatting):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("main", None, None, None)
+    interface.add_test("t", False, id="t", continue_on_fail=True)
+    with interface.if_flag(["listed"]):
+        interface.set_flag("a")
+    with interface.if_flag("single"):
+        interface.set_flag("b")
+    with interface.unless_enable(["e"]):
+        interface.set_flag("c")
+    with interface.group("grp", if_flag=["kw"]):
+        interface.set_flag("d")
+    with interface.if_passed(["t"]):
+        interface.set_flag("e")
+    with interface.if_failed("t"):
+        interface.set_flag("f")
+    with interface.if_flag(["x", "y"]):
+        interface.set_flag("g")
+    om.prog_gen.end_flow(refs)
+    try:
+        om.prog_gen.set_smt8_options(False, False, o1_formatting=o1_formatting)
+        files = om.prog_gen.render_program_for("v93ksmt8", str(tmp_path / "flows"))
+    finally:
+        om.prog_gen.set_smt8_options(True, True)
+    rendered = open(next(f for f in files if str(f).endswith("MAIN.flow"))).read()
+    # A single flag, or a test's result given as one ID, is never in parentheses of its own
+    assert "if (SINGLE == 1) {" in rendered
+    assert "if (T_FAILED == 1) {" in rendered
+    # A list of several flags always has each in parentheses
+    assert "if ((X == 1) || (Y == 1)) {" in rendered
+    # Formatted as Origen 1 does, a list of one keeps its parentheses too
+    listed = ["LISTED", "E", "KW", "T_PASSED"]
+    for flag in listed:
+        if o1_formatting:
+            assert f"if (({flag} == 1)) {{" in rendered, flag
+        else:
+            assert f"if ({flag} == 1) {{" in rendered, flag
+
+
 @pytest.mark.parametrize("keep_case", [None, False, True])
 def test_smt8_keep_sub_flow_instance_case_option(tmp_path, keep_case):
     interface = om.interface.PyInterface()

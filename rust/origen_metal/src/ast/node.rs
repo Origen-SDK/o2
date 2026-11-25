@@ -13,6 +13,10 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize + Display + Debug> Attrs 
 pub struct Node<T> {
     pub attrs: T,
     info: Info,
+    /// True when the node's content was given as a list, e.g. the flags of a condition, which
+    /// a renderer may format differently from a single value, see list_form()
+    #[serde(skip)]
+    list_form: bool,
     pub meta: Option<Meta>,
     pub children: Vec<Box<Node<T>>>,
 }
@@ -58,6 +62,7 @@ impl<T: Attrs> Node<T> {
         Node {
             attrs: attrs,
             info: Info::None,
+            list_form: false,
             children: Vec::new(),
             meta: None,
         }
@@ -67,6 +72,7 @@ impl<T: Attrs> Node<T> {
         Node {
             attrs: attrs,
             info: Info::None,
+            list_form: false,
             children: Vec::new(),
             meta: meta,
         }
@@ -76,6 +82,7 @@ impl<T: Attrs> Node<T> {
         Node {
             attrs: attrs,
             info: Info::None,
+            list_form: false,
             children: children.into_iter().map(|n| Box::new(n)).collect(),
             meta: None,
         }
@@ -86,6 +93,20 @@ impl<T: Attrs> Node<T> {
             None => None,
             Some(n) => Some(*n),
         }
+    }
+
+    /// Returns true if the node's content was given as a list rather than as a single value, e.g.
+    /// the flags of a condition given as `["A"]` rather than `"A"`. It is false by default, it is
+    /// kept by the methods which copy a node, e.g. updated(), and not by those which make a new one.
+    pub fn list_form(&self) -> bool {
+        self.list_form
+    }
+
+    /// Returns a copy of the node, marked as having its content given as a list or not, see
+    /// list_form()
+    pub fn with_list_form(mut self, list_form: bool) -> Node<T> {
+        self.list_form = list_form;
+        self
     }
 
     /// Returns `"<filename>:<lineno>"` if present, else `""`.
@@ -353,6 +374,7 @@ impl<T: Attrs> Node<T> {
             // Also this is an internal function and so we can live with it.
             attrs: example_attrs,
             info: info,
+            list_form: false,
             meta: None,
             children: nodes,
         }
@@ -555,6 +577,7 @@ impl<T: Attrs> Node<T> {
         let new_node = Node {
             attrs: self.attrs.clone(),
             info: self.info,
+            list_form: self.list_form,
             meta: self.meta.clone(),
             children: nodes,
         };
@@ -567,6 +590,7 @@ impl<T: Attrs> Node<T> {
         let new_node = Node {
             attrs: self.attrs.clone(),
             info: self.info,
+            list_form: self.list_form,
             meta: self.meta.clone(),
             children: nodes.into_iter().map(|n| Box::new(n)).collect(),
         };
@@ -579,6 +603,7 @@ impl<T: Attrs> Node<T> {
         let new_node = Node {
             attrs: attrs,
             info: self.info,
+            list_form: self.list_form,
             meta: self.meta.clone(),
             children: self.children.clone(),
         };
@@ -607,6 +632,7 @@ impl<T: Attrs> Node<T> {
                 None => self.attrs.clone(),
             },
             info: self.info,
+            list_form: self.list_form,
             children: match children {
                 Some(x) => x,
                 None => self.children.clone(),

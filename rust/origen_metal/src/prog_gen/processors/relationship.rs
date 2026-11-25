@@ -224,14 +224,17 @@ impl Processor<PGM> for Relationship {
                     Return::Replace(n)
                 }
                 FlowCondition::IfAllFailed(ids) => {
-                    let mut n = node.updated(
-                        Some(PGM::Condition(FlowCondition::IfFlag(vec![format!(
-                            "{}_FAILED",
-                            ids.last().unwrap()
-                        )]))),
-                        Some(node.process_and_box_children(self)?),
-                        None,
-                    );
+                    // A condition for each test, nested, each of one flag as Origen 1 does
+                    let mut n = node
+                        .updated(
+                            Some(PGM::Condition(FlowCondition::IfFlag(vec![format!(
+                                "{}_FAILED",
+                                ids.last().unwrap()
+                            )]))),
+                            Some(node.process_and_box_children(self)?),
+                            None,
+                        )
+                        .with_list_form(false);
                     for (i, id) in ids.into_iter().rev().enumerate() {
                         // The first id is already done above
                         if i != 0 {
@@ -271,14 +274,17 @@ impl Processor<PGM> for Relationship {
                     Return::Replace(n)
                 }
                 FlowCondition::IfAllPassed(ids) => {
-                    let mut n = node.updated(
-                        Some(PGM::Condition(FlowCondition::IfFlag(vec![format!(
-                            "{}_PASSED",
-                            ids.last().unwrap()
-                        )]))),
-                        Some(node.process_and_box_children(self)?),
-                        None,
-                    );
+                    // A condition for each test, nested, each of one flag as Origen 1 does
+                    let mut n = node
+                        .updated(
+                            Some(PGM::Condition(FlowCondition::IfFlag(vec![format!(
+                                "{}_PASSED",
+                                ids.last().unwrap()
+                            )]))),
+                            Some(node.process_and_box_children(self)?),
+                            None,
+                        )
+                        .with_list_form(false);
                     for (i, id) in ids.into_iter().rev().enumerate() {
                         // The first id is already done above
                         if i != 0 {
