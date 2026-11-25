@@ -290,6 +290,48 @@ def test_a_local_variable_stays_in_the_flow_which_assigns_and_reads_it(tmp_path,
         assert "    in passed_count = -1;" in rendered["TOP.flow"]
 
 
+def _render_smt8_flows(tmp_path):
+    files = om.prog_gen.render_program_for("v93ksmt8", str(tmp_path / "flows"))
+    return {str(f).replace("\\", "/").split("/")[-1]: open(f).read()
+            for f in files if str(f).endswith(".flow")}
+
+
+@pytest.mark.parametrize("declare_local", [False, True])
+def test_a_test_result_read_by_a_sibling_flow_is_passed_to_it(tmp_path, declare_local):
+    interface = om.interface.PyInterface()
+    refs = om.prog_gen.start_new_flow("top", None, None, None)
+    with interface.group("outer"):
+        with interface.group("inner"):
+            interface.add_test("check", False, id="check", continue_on_fail=True)
+        with interface.group("setter"):
+            if declare_local:
+                interface.declare_local_flag("result_passed")
+                interface.declare_local_flag("result_failed")
+            with interface.if_passed("check"):
+                interface.set_flag("result_passed")
+            with interface.if_failed("check"):
+                interface.set_flag("result_failed")
+    om.prog_gen.end_flow(refs)
+    rendered = _render_smt8_flows(tmp_path)
+    # The flow which runs the test passes its result out
+    assert "    out CHECK_FAILED = -1;\n    out CHECK_PASSED = -1;\n" in rendered["INNER.flow"]
+    # Its parent holds the result and passes it to the sibling flow which reads it
+    assert ("        INNER.execute();\n"
+            "        CHECK_FAILED = INNER.CHECK_FAILED;\n"
+            "        CHECK_PASSED = INNER.CHECK_PASSED;\n"
+            "        SETTER.CHECK_FAILED = CHECK_FAILED;\n"
+            "        SETTER.CHECK_PASSED = CHECK_PASSED;\n"
+            "        SETTER.execute();\n") in rendered["OUTER.flow"]
+    assert "    in CHECK_PASSED = -1;" in rendered["SETTER.flow"]
+    assert "if (CHECK_PASSED == 1) {" in rendered["SETTER.flow"]
+    # The result is not an input of the flows above the one which holds it
+    assert "in CHECK_" not in rendered["OUTER.flow"]
+    assert "CHECK_" not in rendered["TOP.flow"]
+    if declare_local:
+        assert "RESULT_" not in rendered["OUTER.flow"]
+        assert "RESULT_" not in rendered["TOP.flow"]
+
+
 @pytest.mark.parametrize("keep_case", [None, False, True])
 def test_smt8_keep_sub_flow_instance_case_option(tmp_path, keep_case):
     interface = om.interface.PyInterface()
