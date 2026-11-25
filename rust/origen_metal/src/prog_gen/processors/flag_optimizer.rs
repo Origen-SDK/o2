@@ -22,11 +22,24 @@ use std::collections::HashMap;
 ///
 pub struct FlagOptimizer {
     optimize_when_continue: bool,
+    /// Don't inline a condition whose flags were given as a list, see run_keeping_list_guards()
+    keep_list_guards: bool,
     /// The number of times each flag is used
     nodes_to_inline: Vec<Box<Node<PGM>>>,
 }
 
 pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Node<PGM>> {
+    run_keeping_list_guards(node, optimize_when_continue, false)
+}
+
+/// As run(), but when keep_list_guards is true a condition whose flags were given as a list
+/// (Node::list_form()) is not inlined into the test which sets its flag, as Origen 1 does, e.g.
+/// if_passed=["t"] stays a condition on t's PASSED flag rather than becoming the pass branch of t
+pub fn run_keeping_list_guards(
+    node: &Node<PGM>,
+    optimize_when_continue: Option<bool>,
+    keep_list_guards: bool,
+) -> Result<Node<PGM>> {
     //node.to_file("pre_flag_optimization.txt")?;
     let optimize_when_continue = match optimize_when_continue {
         Some(x) => x,
@@ -34,6 +47,7 @@ pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Nod
     };
     let mut p = FlagOptimizer {
         optimize_when_continue: optimize_when_continue,
+        keep_list_guards,
         nodes_to_inline: vec![],
     };
     let ast = node.process(&mut p)?.unwrap();
@@ -128,7 +142,7 @@ impl Processor<PGM> for FlagOptimizer {
                         }) {
                             if let PGM::SetFlag(flg, true, true) = &set_flag.attrs {
                                 flag = Some(flg);
-                                is_gated_by_set(flg, to_inline)
+                                is_gated_by_set(flg, to_inline, self.keep_list_guards)
                             } else {
                                 false
                             }
@@ -216,7 +230,8 @@ impl FlagOptimizer {
                     .find(|n| matches!(n.attrs, PGM::SetFlag(_, _, _)));
                 if let Some(set_flag) = set_flag {
                     if let PGM::SetFlag(name, val, auto_generated) = &set_flag.attrs {
-                        *val && is_gated_by_set(name, node2) && *auto_generated
+                        *val && is_gated_by_set(name, node2, self.keep_list_guards)
+                            && *auto_generated
                     } else {
                         unreachable!()
                     }
@@ -316,7 +331,10 @@ impl<'a> Processor<PGM> for RemoveIfFlag<'a> {
 //     s(:if_flag, other_flag2,
 //       s(:if_flag, flag,
 //         s(:test, ...
-fn is_gated_by_set(flag: &str, node: &Box<Node<PGM>>) -> bool {
+fn is_gated_by_set(flag: &str, node: &Box<Node<PGM>>, keep_list_guards: bool) -> bool {
+    if keep_list_guards && node.list_form() {
+        return false;
+    }
     if let PGM::Condition(FlowCondition::IfFlag(flags)) = &node.attrs {
         if flags[0] == flag {
             return true;
@@ -326,7 +344,11 @@ fn is_gated_by_set(flag: &str, node: &Box<Node<PGM>>) -> bool {
         && (matches!(node.attrs, PGM::Condition(FlowCondition::IfFlag(_)))
             || matches!(node.attrs, PGM::Condition(FlowCondition::UnlessFlag(_))))
     {
-        return is_gated_by_set(flag, node.children.last().as_ref().unwrap());
+        return is_gated_by_set(
+            flag,
+            node.children.last().as_ref().unwrap(),
+            keep_list_guards,
+        );
     }
     false
 }
@@ -361,6 +383,47 @@ mod tests {
         );
 
         assert_eq!(output, run(&input, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_condition_given_as_a_list_is_kept_when_asked() -> Result<()> {
+        let input = |list_form: bool| {
+            node!(PGM::Flow, "f1".to_string() =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::Continue),
+                        node!(PGM::SetFlag, "t1_FAILED".to_string(), true, true),
+                    ),
+                ),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2))
+                )
+                .with_list_form(list_form),
+            )
+        };
+        let inlined = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1) =>
+                node!(PGM::OnFailed, FlowID::from_int(1) =>
+                    node!(PGM::Continue),
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                ),
+            ),
+        );
+        // Kept when given as a list and asked to keep such conditions, as Origen 1 does
+        let kept = super::run_keeping_list_guards(&input(true), None, true)?;
+        assert_eq!(input(true), kept);
+        assert!(kept.children[1].list_form());
+        // Otherwise inlined as before
+        assert_eq!(
+            inlined,
+            super::run_keeping_list_guards(&input(true), None, false)?
+        );
+        assert_eq!(
+            inlined,
+            super::run_keeping_list_guards(&input(false), None, true)?
+        );
+        assert_eq!(inlined, run(&input(true), None)?);
         Ok(())
     }
 

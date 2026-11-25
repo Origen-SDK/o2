@@ -230,7 +230,13 @@ pub fn process_flow(
     ast = processors::relationship::run(&ast)?;
     ast = processors::condition::run(&ast)?;
     ast = processors::continue_implementer::run(&ast)?;
-    ast = processors::flag_optimizer::run(&ast, None)?;
+    // A condition given as a list isn't inlined into its test when SMT8 flows are formatted as
+    // Origen 1 writes them, which keeps such conditions
+    ast = processors::flag_optimizer::run_keeping_list_guards(
+        &ast,
+        None,
+        tester == SupportedTester::V93KSMT8 && crate::PROG_GEN_CONFIG.smt8_o1_formatting(),
+    )?;
     // The names of the test invocations, to tell which tests a condition runs
     let test_names = m
         .test_invocations
