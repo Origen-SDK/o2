@@ -961,8 +961,19 @@ impl FlowGenerator {
         writeln!(&mut f, "    execute {{")?;
         if self.o1_formatting {
             // Only the flags which this flow sets itself are initialized, as Origen 1 does, not those
-            // which it only declares as outputs, which a test method sets natively
-            let mut flags: Vec<&String> = flow_file.flow_data.set_flags.iter().collect();
+            // which it only declares as outputs, which a test method sets natively. Also a test's
+            // result which this flow holds for a sub-flow which reads it, so that the reader gets
+            // -1 when the sub-flow which runs the test is skipped, unless it is passed in.
+            let data = &flow_file.flow_data;
+            let mut flags: Vec<&String> = data
+                .set_flags
+                .iter()
+                .chain(
+                    data.held_for_readers
+                        .iter()
+                        .filter(|v| !data.input_flags.contains(*v) && !data.set_flags.contains(*v)),
+                )
+                .collect();
             flags.sort();
             for v in &flags {
                 writeln!(&mut f, "        {} = -1;", v)?;
@@ -971,7 +982,13 @@ impl FlowGenerator {
                 writeln!(&mut f, "")?;
             }
         } else {
+            let data = &flow_file.flow_data;
             for v in flow_file.flow_data.sorted_modified_flags() {
+                // A test's result which this flow holds for a reader keeps the value passed in
+                // under its name, for any flow which reads that before the test runs
+                if data.held_for_readers.contains(&v) && data.input_flags.contains(&v) {
+                    continue;
+                }
                 writeln!(&mut f, "        {} = -1;", v)?;
             }
             if !flow_file.flow_data.output_flags.is_empty() {
@@ -4310,6 +4327,120 @@ mod tests {
             "{}",
             flows["CONSUMER.flow"]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn a_test_result_held_for_a_reader_is_initialized_when_its_test_may_not_run(
+    ) -> crate::Result<()> {
+        // The flow which runs the test is skipped unless enabled, the reader isn't
+        for o1_formatting in [false, true] {
+            let flow = check_flow(vec![flow_group(
+                "outer",
+                vec![
+                    node!(PGM::Condition, FlowCondition::IfEnable(vec!["do_check".to_string()]) =>
+                        flow_group("inner", check_test())
+                    ),
+                    flow_group("setter", check_result_reader(false)),
+                ],
+            )]);
+            let flows = render_check_flows(flow, o1_formatting)?;
+            let outer = &flows["OUTER.flow"];
+            assert!(
+                outer.contains(
+                    "    execute {\n        CHECK_FAILED = -1;\n        CHECK_PASSED = -1;\n"
+                ),
+                "{}",
+                outer
+            );
+            assert!(!outer.contains("in CHECK_"), "{}", outer);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_value_passed_in_under_a_test_result_name_is_kept_for_a_reader_before_the_test(
+    ) -> crate::Result<()> {
+        for o1_formatting in [false, true] {
+            let flow = check_flow(vec![flow_group(
+                "outer",
+                vec![
+                    flow_group(
+                        "early",
+                        vec![
+                            node!(PGM::Condition, FlowCondition::IfFlag(vec!["check_passed".to_string()]) =>
+                                node!(PGM::SetFlag, "early_seen".to_string(), true, false)
+                            ),
+                        ],
+                    ),
+                    flow_group("inner", check_test()),
+                    flow_group("setter", check_result_reader(false)),
+                ],
+            )]);
+            let flows = render_check_flows(flow, o1_formatting)?;
+            let outer = &flows["OUTER.flow"];
+            // The value passed in reaches the earlier reader, the test's result the later one
+            assert!(outer.contains("    in CHECK_PASSED = -1;\n"), "{}", outer);
+            assert!(!outer.contains("        CHECK_PASSED = -1;\n"), "{}", outer);
+            assert!(
+                outer.contains("EARLY.CHECK_PASSED = CHECK_PASSED;\n"),
+                "{}",
+                outer
+            );
+            assert!(
+                outer.contains("CHECK_PASSED = INNER.CHECK_PASSED;\n"),
+                "{}",
+                outer
+            );
+            assert!(
+                outer.contains("SETTER.CHECK_PASSED = CHECK_PASSED;\n"),
+                "{}",
+                outer
+            );
+            let early = outer.find("EARLY.execute();").unwrap();
+            let copy = outer.find("CHECK_PASSED = INNER.CHECK_PASSED;").unwrap();
+            assert!(early < copy, "{}", outer);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_flow_which_only_assigns_a_variable_of_a_test_result_name_does_not_read_it(
+    ) -> crate::Result<()> {
+        // Whether the test ran is read in its own flow, and only assigned by another
+        let mut inner = check_test();
+        inner.push(
+            node!(PGM::Condition, FlowCondition::IfRan(vec![FlowID::from_str("check")]) =>
+                node!(PGM::SetFlag, "ran_seen".to_string(), true, false)
+            ),
+        );
+        let flow = check_flow(vec![flow_group(
+            "outer",
+            vec![
+                flow_group("inner", inner),
+                flow_group(
+                    "writer",
+                    vec![node!(
+                        PGM::SetVariable,
+                        "CHECK_RAN".to_string(),
+                        "2".to_string()
+                    )],
+                ),
+            ],
+        )]);
+        let flows = render_check_flows(flow, false)?;
+        assert!(
+            flows["INNER.flow"].contains("CHECK_RAN = 1;"),
+            "{}",
+            flows["INNER.flow"]
+        );
+        assert!(
+            !flows["INNER.flow"].contains("out CHECK_RAN"),
+            "{}",
+            flows["INNER.flow"]
+        );
+        let outer = &flows["OUTER.flow"];
+        assert!(!outer.contains("INNER.CHECK_RAN"), "{}", outer);
         Ok(())
     }
 }
