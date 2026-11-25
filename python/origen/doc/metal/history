@@ -1,3 +1,16 @@
+(release-origen-metal-1-12-2)=
+# Origen Metal 1.12.2
+
+- **Released:** 2026-11-25
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.12.2`
+
+This release fixes how SMT8 flows pass a test's result to a flow that reads it from outside the test's own branch of flows.
+
+- Fixed a test's result (`if_passed`, `if_failed`, `if_ran`) read by a sibling flow, or by a sub-flow of one, always reading `-1` in SMT8 output: the flow that runs the test now passes its result out, and the enclosing flow holds it and passes it down to its readers. Flows that don't read a test's result outside its branch generate the same output as before. With `o1_formatting=True`, a result held for a reader is initialized to `-1`, so a reader gets `-1` when the flow that runs the test is skipped. A value passed in under the result's name is kept for readers that run before the test. Contributed by Stephen McGinty in #261.
+
+---
+
 (release-origen-metal-1-12-1)=
 # Origen Metal 1.12.1
 
