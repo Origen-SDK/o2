@@ -28,6 +28,9 @@ pub struct FlagOptimizer {
     nodes_to_inline: Vec<Box<Node<PGM>>>,
 }
 
+/// As run_keeping_list_guards(), inlining every condition, which process_flow() does unless SMT8
+/// flows are formatted as Origen 1 writes them
+#[cfg(test)]
 pub fn run(node: &Node<PGM>, optimize_when_continue: Option<bool>) -> Result<Node<PGM>> {
     run_keeping_list_guards(node, optimize_when_continue, false)
 }
