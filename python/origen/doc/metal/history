@@ -1,3 +1,16 @@
+(release-origen-metal-1-13-0)=
+# Origen Metal 1.13.0
+
+- **Released:** 2026-11-25
+- **Author:** Stephen McGinty
+- **Tag:** `origen-metal-v1.13.0`
+
+This release keeps the list form of a flag condition when SMT8 flows are formatted as Origen 1 writes them.
+
+- With `o1_formatting=True`, a flag or enable condition given as a list, or a test result condition (`if_passed`, `if_failed`, `if_ran`) given a list of IDs, writes each flag in parentheses even when the list has one, e.g. `if ((A == 1))`, while one given as a single value writes `if (A == 1)`, as Origen 1 does. Such a condition is no longer inlined into the test which sets its flag, also as Origen 1 does. The default formatting is unchanged. Rust: `Node::list_form`, `Node::with_list_form`, `flow_api::start_condition_with_list_form`. Contributed by Stephen McGinty in #263.
+
+---
+
 (release-origen-metal-1-12-2)=
 # Origen Metal 1.12.2
 

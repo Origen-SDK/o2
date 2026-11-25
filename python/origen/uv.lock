@@ -812,7 +812,7 @@ wheels = [
 
 [[package]]
 name = "origen-metal"
-version = "1.12.2"
+version = "1.13.0"
 source = { directory = "../origen_metal" }
 dependencies = [
     { name = "colorama" },
