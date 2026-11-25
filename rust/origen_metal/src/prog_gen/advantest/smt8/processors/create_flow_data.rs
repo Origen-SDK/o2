@@ -116,6 +116,14 @@ impl FlowData {
         flags
     }
 
+    /// Returns true if a value of the given name is passed into this flow, as a flag, an enable
+    /// or a variable
+    pub fn is_input(&self, name: &str) -> bool {
+        self.input_flags.contains(name)
+            || self.input_enables.contains(name)
+            || self.input_variables.contains(name)
+    }
+
     /// Returns a sorted list of all output and modified flags
     pub fn sorted_modified_flags(&self) -> Vec<String> {
         let mut flags: HashSet<String> = HashSet::new();

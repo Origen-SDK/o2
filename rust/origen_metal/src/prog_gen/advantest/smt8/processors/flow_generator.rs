@@ -971,7 +971,7 @@ impl FlowGenerator {
                 .chain(
                     data.held_for_readers
                         .iter()
-                        .filter(|v| !data.input_flags.contains(*v) && !data.set_flags.contains(*v)),
+                        .filter(|v| !data.is_input(v) && !data.set_flags.contains(*v)),
                 )
                 .collect();
             flags.sort();
@@ -986,7 +986,7 @@ impl FlowGenerator {
             for v in flow_file.flow_data.sorted_modified_flags() {
                 // A test's result which this flow holds for a reader keeps the value passed in
                 // under its name, for any flow which reads that before the test runs
-                if data.held_for_readers.contains(&v) && data.input_flags.contains(&v) {
+                if data.held_for_readers.contains(&v) && data.is_input(&v) {
                     continue;
                 }
                 writeln!(&mut f, "        {} = -1;", v)?;
@@ -4361,17 +4361,24 @@ mod tests {
     #[test]
     fn a_value_passed_in_under_a_test_result_name_is_kept_for_a_reader_before_the_test(
     ) -> crate::Result<()> {
-        for o1_formatting in [false, true] {
+        // The value is read by the earlier sub-flow as a flag, in an expression or as an enable
+        let conditions = [
+            FlowCondition::IfFlag(vec!["check_passed".to_string()]),
+            FlowCondition::IfExpr("CHECK_PASSED == 1".to_string()),
+            FlowCondition::IfEnable(vec!["CHECK_PASSED".to_string()]),
+        ];
+        for (condition, o1_formatting) in conditions
+            .iter()
+            .flat_map(|c| [(c.clone(), false), (c.clone(), true)])
+        {
             let flow = check_flow(vec![flow_group(
                 "outer",
                 vec![
                     flow_group(
                         "early",
-                        vec![
-                            node!(PGM::Condition, FlowCondition::IfFlag(vec!["check_passed".to_string()]) =>
-                                node!(PGM::SetFlag, "early_seen".to_string(), true, false)
-                            ),
-                        ],
+                        vec![node!(PGM::Condition, condition =>
+                            node!(PGM::SetFlag, "early_seen".to_string(), true, false)
+                        )],
                     ),
                     flow_group("inner", check_test()),
                     flow_group("setter", check_result_reader(false)),
