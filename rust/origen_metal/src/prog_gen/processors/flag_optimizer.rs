@@ -281,12 +281,13 @@ impl FlagOptimizer {
     //           s(:render, "multi_bin;")))))
     fn reorder_nested_run_flags(&mut self, flag: &str, node: Node<PGM>) -> Result<Node<PGM>> {
         // If the run_flag we care about is already at the top, just return node
-        if let PGM::Condition(FlowCondition::IfFlag(flags)) = &node.attrs {
-            if flags[0] == flag {
-                return Ok(node);
-            }
+        if is_if_flag(&node, flag, self.keep_list_guards) {
+            return Ok(node);
         }
-        let mut p = RemoveIfFlag { flag: flag };
+        let mut p = RemoveIfFlag {
+            flag: flag,
+            keep_list_guards: self.keep_list_guards,
+        };
         let node = node.process(&mut p)?.unwrap();
         let n = node!(PGM::Condition, FlowCondition::IfFlag(vec![flag.to_owned()]) => node);
         Ok(n)
@@ -297,6 +298,7 @@ impl FlagOptimizer {
 #[derive(Debug)]
 pub struct RemoveIfFlag<'a> {
     flag: &'a str,
+    keep_list_guards: bool,
 }
 
 /// Extracts the IDs of all tests which have dependents on whether they passed, failed or ran
@@ -304,8 +306,8 @@ impl<'a> Processor<PGM> for RemoveIfFlag<'a> {
     fn on_node(&mut self, node: &Node<PGM>) -> crate::Result<Return<PGM>> {
         Ok(match &node.attrs {
             PGM::Condition(cond) => match cond {
-                FlowCondition::IfFlag(ids) => {
-                    if ids[0] == self.flag {
+                FlowCondition::IfFlag(_) => {
+                    if is_if_flag(node, self.flag, self.keep_list_guards) {
                         Return::UnwrapWithProcessedChildren
                     } else {
                         Return::ProcessChildren
@@ -332,13 +334,8 @@ impl<'a> Processor<PGM> for RemoveIfFlag<'a> {
 //       s(:if_flag, flag,
 //         s(:test, ...
 fn is_gated_by_set(flag: &str, node: &Box<Node<PGM>>, keep_list_guards: bool) -> bool {
-    if keep_list_guards && node.list_form() {
-        return false;
-    }
-    if let PGM::Condition(FlowCondition::IfFlag(flags)) = &node.attrs {
-        if flags[0] == flag {
-            return true;
-        }
+    if is_if_flag(node, flag, keep_list_guards) {
+        return true;
     }
     if node.children.len() == 1
         && (matches!(node.attrs, PGM::Condition(FlowCondition::IfFlag(_)))
@@ -351,6 +348,18 @@ fn is_gated_by_set(flag: &str, node: &Box<Node<PGM>>, keep_list_guards: bool) ->
         );
     }
     false
+}
+
+/// Returns true if the given node is an if_flag condition on the given flag. With
+/// keep_list_guards, a condition whose flags were given as a list never is, as in Origen 1, which
+/// compares the flag with the condition's list, though the conditions nested within it still may be.
+fn is_if_flag(node: &Node<PGM>, flag: &str, keep_list_guards: bool) -> bool {
+    match &node.attrs {
+        PGM::Condition(FlowCondition::IfFlag(flags)) => {
+            flags[0] == flag && !(keep_list_guards && node.list_form())
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -424,6 +433,41 @@ mod tests {
             super::run_keeping_list_guards(&input(false), None, true)?
         );
         assert_eq!(inlined, run(&input(true), None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_condition_nested_within_one_given_as_a_list_is_still_inlined() -> Result<()> {
+        // The outer condition, given as a list, is kept, the test's result within it is
+        // inlined as Origen 1 does
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1) =>
+                node!(PGM::OnFailed, FlowID::from_int(1) =>
+                    node!(PGM::Continue),
+                    node!(PGM::SetFlag, "t1_FAILED".to_string(), true, true),
+                ),
+            ),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["other".to_string()]) =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2))
+                )
+            )
+            .with_list_form(true),
+        );
+        let output = super::run_keeping_list_guards(&input, None, true)?;
+        let expected = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1) =>
+                node!(PGM::OnFailed, FlowID::from_int(1) =>
+                    node!(PGM::Continue),
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["other".to_string()]) =>
+                        node!(PGM::Test, 2, FlowID::from_int(2))
+                    )
+                    .with_list_form(true),
+                ),
+            ),
+        );
+        assert_eq!(expected, output);
+        assert!(output.children[0].children[0].children[1].list_form());
         Ok(())
     }
 
